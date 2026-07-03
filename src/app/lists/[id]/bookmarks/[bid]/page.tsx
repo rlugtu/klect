@@ -12,6 +12,7 @@ import { VisitedToggle } from "@/components/bookmarks/VisitedToggle";
 import { BookmarkHeader } from "@/components/bookmarks/BookmarkHeader";
 import { BookmarkVideo } from "@/components/bookmarks/BookmarkVideo";
 import { LocationMapClient } from "@/components/bookmarks/LocationMapClient";
+import { LocationLink } from "@/components/bookmarks/LocationLink";
 import { ConfirmDeleteButton } from "@/components/ui/ConfirmDeleteButton";
 import { PixelButton } from "@/components/ui/PixelButton";
 import { PixelCard } from "@/components/ui/PixelCard";
@@ -116,7 +117,11 @@ export default async function BookmarkPage({
         )}
 
         {bookmark.location && (
-          <p className="text-muted">📍 {bookmark.location}</p>
+          <LocationLink
+            location={bookmark.location}
+            lat={bookmark.latitude}
+            lon={bookmark.longitude}
+          />
         )}
 
         {bookmark.latitude != null && bookmark.longitude != null && (
