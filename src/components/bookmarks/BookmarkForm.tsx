@@ -31,7 +31,7 @@ const Field = ({
   children: React.ReactNode;
 }) => (
   <label className="flex flex-col gap-1.5">
-    <span className="font-pixel text-xs uppercase">{label}</span>
+    <span className="font-pixel text-sm uppercase">{label}</span>
     {children}
   </label>
 );
@@ -106,7 +106,7 @@ export function BookmarkForm({
     <form action={action} className="flex flex-col gap-4">
       {/* Paste-to-autofill */}
       <div className="flex flex-col gap-1.5">
-        <span className="font-pixel text-xs uppercase">
+        <span className="font-pixel text-sm uppercase">
           Paste a link to autofill
         </span>
         <div className="flex gap-2">
@@ -134,7 +134,7 @@ export function BookmarkForm({
       </div>
 
       <div className="flex flex-col gap-1.5">
-        <span className="font-pixel text-xs uppercase">Name *</span>
+        <span className="font-pixel text-sm uppercase">Name *</span>
         <PixelInput
           name="name"
           value={name}
@@ -146,7 +146,7 @@ export function BookmarkForm({
 
       {images.length > 0 && (
         <div className="flex flex-col gap-2">
-          <span className="font-pixel text-xs uppercase">Photos</span>
+          <span className="font-pixel text-sm uppercase">Photos</span>
           <div className="flex flex-wrap gap-2">
             {images.map((src) => (
               <div key={src} className="relative">
@@ -164,7 +164,7 @@ export function BookmarkForm({
                   onClick={() =>
                     setImages((prev) => prev.filter((i) => i !== src))
                   }
-                  className="bg-danger text-primary-ink border-border absolute -right-2 -top-2 h-5 w-5 cursor-pointer border-2 text-xs leading-none"
+                  className="bg-danger text-primary-ink border-border absolute -right-2 -top-2 h-5 w-5 cursor-pointer border-2 text-sm leading-none"
                 >
                   ×
                 </button>
@@ -179,7 +179,7 @@ export function BookmarkForm({
           <input type="hidden" name="videoUrl" value={videoUrl} />
           <input type="hidden" name="videoType" value={videoType} />
           <div className="flex items-center justify-between gap-3">
-            <span className="font-pixel text-xs uppercase">
+            <span className="font-pixel text-sm uppercase">
               🎬 Video detected
             </span>
             <PixelButton
@@ -218,7 +218,7 @@ export function BookmarkForm({
 
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div className="flex flex-col gap-1.5">
-          <span className="font-pixel text-xs uppercase">Rating</span>
+          <span className="font-pixel text-sm uppercase">Rating</span>
           <RatingInput defaultValue={defaults?.rating ?? 0} />
         </div>
         <label className="flex cursor-pointer items-center gap-2">
@@ -228,7 +228,7 @@ export function BookmarkForm({
             defaultChecked={defaults?.visited ?? false}
             className="accent-primary h-5 w-5"
           />
-          <span className="font-pixel text-xs uppercase">Visited</span>
+          <span className="font-pixel text-sm uppercase">Visited</span>
         </label>
       </div>
 
@@ -252,7 +252,7 @@ export function BookmarkForm({
       </Field>
 
       <div className="flex flex-col gap-2">
-        <span className="font-pixel text-xs uppercase">Tags</span>
+        <span className="font-pixel text-sm uppercase">Tags</span>
         <TagInput
           defaultValue={defaults?.tags ?? []}
           suggestions={tagSuggestions}

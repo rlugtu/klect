@@ -38,7 +38,7 @@ export function RatingInput({
         <button
           type="button"
           onClick={() => setValue(0)}
-          className="text-muted hover:text-danger ml-2 cursor-pointer text-xs"
+          className="text-muted hover:text-danger ml-2 cursor-pointer text-sm"
         >
           clear
         </button>

@@ -36,7 +36,7 @@ export function CommentList({
                 <span className="truncate text-sm">
                   {c.author.displayName ?? c.author.name ?? "Someone"}
                 </span>
-                <span className="text-muted text-xs">{timeAgo(c.createdAt)}</span>
+                <span className="text-muted text-sm">{timeAgo(c.createdAt)}</span>
               </span>
               {canDelete && (
                 <ConfirmDeleteButton

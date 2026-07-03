@@ -81,7 +81,7 @@ export default async function ListPage({
           {list.description && (
             <p className="text-muted mt-2">{list.description}</p>
           )}
-          <p className="text-muted text-xs mt-2">
+          <p className="text-muted text-sm mt-2">
             {list._count.bookmarks} bookmark
             {list._count.bookmarks === 1 ? "" : "s"} · owned by {ownerName}
             {list._count.memberships > 1 &&

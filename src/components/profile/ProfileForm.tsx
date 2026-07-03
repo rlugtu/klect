@@ -53,7 +53,7 @@ export function ProfileForm({
       <input type="hidden" name="theme" value={theme} />
 
       <label className="flex flex-col gap-1.5">
-        <span className="font-pixel text-xs uppercase">Display name *</span>
+        <span className="font-pixel text-sm uppercase">Display name *</span>
         <PixelInput
           name="displayName"
           defaultValue={defaults.displayName ?? ""}
@@ -64,17 +64,17 @@ export function ProfileForm({
 
       <div className="grid grid-cols-2 gap-4">
         <label className="flex flex-col gap-1.5">
-          <span className="font-pixel text-xs uppercase">First name</span>
+          <span className="font-pixel text-sm uppercase">First name</span>
           <PixelInput name="firstName" defaultValue={defaults.firstName ?? ""} />
         </label>
         <label className="flex flex-col gap-1.5">
-          <span className="font-pixel text-xs uppercase">Last name</span>
+          <span className="font-pixel text-sm uppercase">Last name</span>
           <PixelInput name="lastName" defaultValue={defaults.lastName ?? ""} />
         </label>
       </div>
 
       <label className="flex flex-col gap-1.5">
-        <span className="font-pixel text-xs uppercase">Birthday</span>
+        <span className="font-pixel text-sm uppercase">Birthday</span>
         <PixelInput
           type="date"
           name="birthday"
@@ -83,7 +83,7 @@ export function ProfileForm({
       </label>
 
       <div className="flex flex-col gap-2">
-        <span className="font-pixel text-xs uppercase">Avatar</span>
+        <span className="font-pixel text-sm uppercase">Avatar</span>
         <div className="flex flex-wrap gap-2">
           {ICON_CHOICES.map((choice) => (
             <button
@@ -102,7 +102,7 @@ export function ProfileForm({
       </div>
 
       <div className="flex flex-col gap-2">
-        <span className="font-pixel text-xs uppercase">Theme</span>
+        <span className="font-pixel text-sm uppercase">Theme</span>
         <div className="flex gap-3">
           <PixelButton
             type="button"

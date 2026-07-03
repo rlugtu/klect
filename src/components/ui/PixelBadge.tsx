@@ -27,7 +27,7 @@ export function PixelBadge({
   return (
     <span
       className={cn(
-        "font-pixel inline-flex items-center gap-1.5 px-2 py-1 text-xs uppercase",
+        "font-pixel inline-flex items-center gap-1.5 px-2 py-1 text-sm uppercase",
         "border-2 border-border",
         toneClasses[tone],
         className,

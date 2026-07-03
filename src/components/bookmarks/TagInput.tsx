@@ -95,14 +95,14 @@ export function TagInput({
 
       {quickAdd.length > 0 && (
         <div className="flex flex-col gap-1.5">
-          <span className="text-muted text-xs">Tags in this list:</span>
+          <span className="text-muted text-sm">Tags in this list:</span>
           <div className="flex flex-wrap gap-2">
             {quickAdd.map((t) => (
               <button
                 key={t}
                 type="button"
                 onClick={() => addTag(t)}
-                className="font-pixel border-border bg-panel hover:border-primary cursor-pointer border-2 px-2 py-1 text-[10px] uppercase"
+                className="font-pixel border-border bg-panel hover:border-primary cursor-pointer border-2 px-2 py-1 text-sm uppercase"
               >
                 ＋ {t}
               </button>

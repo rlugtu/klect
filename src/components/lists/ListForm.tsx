@@ -23,7 +23,7 @@ export function ListForm({
   return (
     <form action={action} className="flex flex-col gap-4">
       <label className="flex flex-col gap-1.5">
-        <span className="font-pixel text-xs uppercase">Name *</span>
+        <span className="font-pixel text-sm uppercase">Name *</span>
         <PixelInput
           name="name"
           defaultValue={defaults?.name ?? ""}
@@ -35,7 +35,7 @@ export function ListForm({
       </label>
 
       <label className="flex flex-col gap-1.5">
-        <span className="font-pixel text-xs uppercase">Description</span>
+        <span className="font-pixel text-sm uppercase">Description</span>
         <PixelInput
           name="description"
           defaultValue={defaults?.description ?? ""}
@@ -44,7 +44,7 @@ export function ListForm({
       </label>
 
       <div className="flex flex-col gap-2">
-        <span className="font-pixel text-xs uppercase">Icon</span>
+        <span className="font-pixel text-sm uppercase">Icon</span>
         <EmojiField name="icon" defaultValue={defaults?.icon} />
       </div>
 

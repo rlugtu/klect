@@ -84,7 +84,7 @@ export function ListBookmarks({
             onMouseDown={(e) => e.preventDefault()}
           >
             <section>
-              <p className="font-pixel text-muted px-2 pt-1 text-[10px] uppercase">
+              <p className="font-pixel text-muted px-2 pt-1 text-sm uppercase">
                 Matched tags
               </p>
               {matchedTags.map((t) => (

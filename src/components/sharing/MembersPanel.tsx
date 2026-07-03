@@ -23,7 +23,7 @@ export async function MembersPanel({
       <InviteForm listId={listId} />
 
       <div className="flex flex-col gap-2">
-        <h3 className="font-pixel text-muted text-xs uppercase">Members</h3>
+        <h3 className="font-pixel text-muted text-sm uppercase">Members</h3>
         {members.map((m) => (
           <div
             key={m.userId}
@@ -35,7 +35,7 @@ export async function MembersPanel({
                 {m.user.displayName ?? m.user.name ?? m.user.email}
               </span>
               {m.userId === currentUserId && (
-                <span className="text-muted text-xs">(you)</span>
+                <span className="text-muted text-sm">(you)</span>
               )}
             </span>
             {m.role === "OWNER" ? (
@@ -60,7 +60,7 @@ export async function MembersPanel({
 
       {invites.length > 0 && (
         <div className="flex flex-col gap-2">
-          <h3 className="font-pixel text-muted text-xs uppercase">
+          <h3 className="font-pixel text-muted text-sm uppercase">
             Pending invites
           </h3>
           {invites.map((inv) => (

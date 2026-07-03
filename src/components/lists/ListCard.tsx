@@ -34,9 +34,12 @@ export function ListCard({
         </span>
         <span className="flex flex-col min-w-0 gap-1">
           <span className="flex items-center gap-2">
-            <span className="font-pixel text-xs truncate">{list.name}</span>
+            <span className="font-pixel text-sm truncate">{list.name}</span>
             {badge && (
-              <PixelBadge tone="accent" className="shrink-0">
+              <PixelBadge
+                tone="accent"
+                className="shrink-0 border px-1.5 py-0 gap-1"
+              >
                 {badge}
               </PixelBadge>
             )}
@@ -46,7 +49,7 @@ export function ListCard({
               {list.description}
             </span>
           )}
-          <span className="text-muted text-xs">
+          <span className="text-muted text-sm">
             {list.bookmarkCount} bookmark{list.bookmarkCount === 1 ? "" : "s"}
             {list.memberCount > 1 && ` · ${list.memberCount} members`}
           </span>

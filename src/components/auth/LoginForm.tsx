@@ -68,7 +68,7 @@ export function LoginForm({ next = "/" }: { next?: string }) {
       >
         {mode === "signup" && (
           <label className="flex flex-col gap-1.5 text-sm">
-            <span className="font-pixel text-xs uppercase">Name</span>
+            <span className="font-pixel text-sm uppercase">Name</span>
             <PixelInput
               value={name}
               onChange={(e) => setName(e.target.value)}
@@ -79,7 +79,7 @@ export function LoginForm({ next = "/" }: { next?: string }) {
         )}
 
         <label className="flex flex-col gap-1.5 text-sm">
-          <span className="font-pixel text-xs uppercase">Email</span>
+          <span className="font-pixel text-sm uppercase">Email</span>
           <PixelInput
             type="email"
             value={email}
@@ -90,7 +90,7 @@ export function LoginForm({ next = "/" }: { next?: string }) {
         </label>
 
         <label className="flex flex-col gap-1.5 text-sm">
-          <span className="font-pixel text-xs uppercase">Password</span>
+          <span className="font-pixel text-sm uppercase">Password</span>
           <PixelInput
             type="password"
             value={password}

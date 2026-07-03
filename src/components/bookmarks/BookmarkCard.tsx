@@ -20,7 +20,7 @@ export function BookmarkCard({
       className="pixel-box bg-panel flex w-full min-w-0 flex-col gap-3 p-4"
     >
       {listLabel && (
-        <span className="text-muted text-xs truncate min-w-0">
+        <span className="text-muted text-sm truncate min-w-0">
           in {listLabel.icon} {listLabel.name}
         </span>
       )}
@@ -36,7 +36,7 @@ export function BookmarkCard({
       <div className="flex items-start gap-3">
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2 min-w-0">
-            <span className="font-pixel text-xs truncate min-w-0 flex-1">
+            <span className="font-pixel text-sm truncate min-w-0 flex-1">
               {bookmark.name}
             </span>
             {bookmark.visited && (
@@ -67,7 +67,7 @@ export function BookmarkCard({
       )}
 
       {bookmark.commentCount > 0 && (
-        <span className="text-muted text-xs">
+        <span className="text-muted text-sm">
           💬 {bookmark.commentCount}
         </span>
       )}
