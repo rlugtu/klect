@@ -33,9 +33,15 @@ is an installable **PWA**.
 | Database | Supabase (Postgres) |
 | ORM | Prisma |
 
-**Aesthetic:** retro 8-bit — pixel font (e.g. "Press Start 2P"), chunky borders, hard
-drop shadows, limited palette. Two palette variants (`LIGHT` / `DARK`) live *within* the
-8-bit theme and are stored per-user.
+**Aesthetic:** two theme families, each with a light + dark variant, stored per-user (the
+`Theme` enum: `PIXEL_LIGHT` / `PIXEL_DARK` / `MODERN_LIGHT` / `MODERN_DARK`):
+- **Pixel** (the original) — retro 8-bit: pixel fonts ("Press Start 2P" / VT323), chunky
+  borders, hard offset drop-shadows.
+- **Modern** — sleek/minimalist: clean sans (Inter), thin/rounded borders, soft shadows,
+  monochrome palette with pastel gradients.
+
+Themes are swapped via a `data-theme` attribute on `<html>`; see §8 for how the modern skin
+reuses the same components/tokens without any layout change.
 
 ---
 
@@ -248,8 +254,13 @@ prisma/                     # schema.prisma + migrations (committed)
 - **UI**: `components/ui/*` are the reusable pixel primitives; feature components compose them.
   Client components are marked `"use client"` and generally receive already-serialized data
   (see `lib/types.ts` `*CardData`) rather than Prisma objects.
-- **Styling**: Tailwind v4 with 8-bit design tokens defined as CSS variables in `globals.css`
-  (`@theme inline`), switched light/dark via `data-theme` on `<html>`.
+- **Styling / theming**: Tailwind v4 with design tokens (`--bg`, `--ink`, `--primary`, …) as CSS
+  variables in `globals.css` (`@theme inline`), swapped per theme via `data-theme` on `<html>`.
+  Each theme is a token block (`[data-theme="pixel-light"]`, `…="modern-dark"`, etc.); the shared
+  `.pixel-*` primitives give the retro skin, and **unlayered** `[data-theme^="modern"]` rules
+  override them (borders/shadows/radius/font/gradients) for the modern skin — so a new theme is
+  pure CSS, no component/layout changes. Theme registry + enum↔`data-theme` mapping +
+  validation live in `src/lib/theme.ts` (`THEME_OPTIONS`, `themeDataAttr`, `coerceTheme`).
 - **Prisma 7 gotcha**: `migrate dev` does **not** reliably regenerate the client — always run
   `npx prisma generate` after a schema change, then restart the dev server.
 
