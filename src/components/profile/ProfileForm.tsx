@@ -4,6 +4,8 @@ import { useState } from "react";
 import { useFormStatus } from "react-dom";
 import { PixelButton } from "@/components/ui/PixelButton";
 import { PixelInput } from "@/components/ui/PixelInput";
+import { THEME_OPTIONS, themeDataAttr } from "@/lib/theme";
+import { type Theme } from "@/generated/prisma/enums";
 import { cn } from "@/lib/utils";
 
 const ICON_CHOICES = ["🔖", "📚", "🎮", "🍜", "✈️", "🎬", "🎵", "💻", "🏠", "⭐"];
@@ -14,7 +16,7 @@ export type ProfileDefaults = {
   displayName: string | null;
   birthday: string | null; // yyyy-mm-dd
   icon: string | null;
-  theme: "LIGHT" | "DARK";
+  theme: Theme;
 };
 
 function SubmitButton({ label }: { label: string }) {
@@ -36,15 +38,12 @@ export function ProfileForm({
   submitLabel: string;
 }) {
   const [icon, setIcon] = useState(defaults.icon ?? "🔖");
-  const [theme, setTheme] = useState<"LIGHT" | "DARK">(defaults.theme);
+  const [theme, setTheme] = useState<Theme>(defaults.theme);
 
   // Preview theme live as the user picks it.
-  function pickTheme(next: "LIGHT" | "DARK") {
+  function pickTheme(next: Theme) {
     setTheme(next);
-    document.documentElement.setAttribute(
-      "data-theme",
-      next.toLowerCase(),
-    );
+    document.documentElement.setAttribute("data-theme", themeDataAttr(next));
   }
 
   return (
@@ -103,23 +102,18 @@ export function ProfileForm({
 
       <div className="flex flex-col gap-2">
         <span className="font-pixel text-sm uppercase">Theme</span>
-        <div className="flex gap-3">
-          <PixelButton
-            type="button"
-            size="sm"
-            variant={theme === "LIGHT" ? "primary" : "secondary"}
-            onClick={() => pickTheme("LIGHT")}
-          >
-            ☀ Light
-          </PixelButton>
-          <PixelButton
-            type="button"
-            size="sm"
-            variant={theme === "DARK" ? "primary" : "secondary"}
-            onClick={() => pickTheme("DARK")}
-          >
-            ☾ Dark
-          </PixelButton>
+        <div className="flex flex-wrap gap-3">
+          {THEME_OPTIONS.map((opt) => (
+            <PixelButton
+              key={opt.value}
+              type="button"
+              size="sm"
+              variant={theme === opt.value ? "primary" : "secondary"}
+              onClick={() => pickTheme(opt.value)}
+            >
+              {opt.label}
+            </PixelButton>
+          ))}
         </div>
       </div>
 

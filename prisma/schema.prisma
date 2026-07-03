@@ -22,8 +22,10 @@ enum InviteStatus {
 }
 
 enum Theme {
-  LIGHT
-  DARK
+  PIXEL_LIGHT
+  PIXEL_DARK
+  MODERN_LIGHT
+  MODERN_DARK
 }
 
 // Core user. Fields `name`, `email`, `emailVerified`, `image` are the better-auth
@@ -39,7 +41,7 @@ model User {
   displayName   String?
   birthday      DateTime?
   icon          String? // emoji
-  theme         Theme     @default(LIGHT)
+  theme         Theme     @default(PIXEL_LIGHT)
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 

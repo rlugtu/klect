@@ -75,7 +75,7 @@ fields extend the user record; app entities below.
 
 ```
 User            id, email, firstName, lastName, displayName,
-                birthday?, icon (emoji), theme (LIGHT|DARK), createdAt
+                birthday?, icon (emoji), theme (Theme enum), createdAt
 
 List            id, name, description, icon, ownerId, createdAt
 
@@ -200,6 +200,12 @@ Pause for review after **each** step.
   on the bookmark; the detail page shows an optional click-to-play player (`BookmarkVideo`,
   poster facade → iframe on click; `<video>` for files). Trusted-host whitelist enforced on both
   write and render. See `docs/video-player-plan.md`.
+- **Modern theme + rename**: added a sleek/minimalist theme (monochrome + pastel gradients, sans
+  font) in light + dark, alongside the retro 8-bit themes (renamed to **pixel**). `Theme` enum is
+  `PIXEL_LIGHT|PIXEL_DARK|MODERN_LIGHT|MODERN_DARK` (data-theme `pixel-light`/`pixel-dark`/
+  `modern-light`/`modern-dark`); central registry `src/lib/theme.ts` (`THEME_OPTIONS`,
+  `themeDataAttr`, `coerceTheme`); modern skin is unlayered `[data-theme^="modern"]` CSS overriding
+  the `.pixel-*` primitives (no layout changes). 4-option picker in settings/onboarding.
 
 ---
 

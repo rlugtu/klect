@@ -62,7 +62,7 @@ export const auth = betterAuth({
         type: "string",
         required: false,
         input: true,
-        defaultValue: "LIGHT",
+        defaultValue: "PIXEL_LIGHT",
       },
     },
   },

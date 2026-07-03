@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { requireOnboardedUser } from "@/lib/session";
+import { coerceTheme } from "@/lib/theme";
 import { updateProfile } from "@/lib/actions/profile";
 import { ProfileForm } from "@/components/profile/ProfileForm";
 import { SignOutButton } from "@/components/auth/SignOutButton";
@@ -36,7 +37,7 @@ export default async function SettingsPage() {
             displayName: user.displayName ?? user.name ?? "",
             birthday: toDateInput(user.birthday),
             icon: user.icon ?? null,
-            theme: user.theme === "DARK" ? "DARK" : "LIGHT",
+            theme: coerceTheme(user.theme),
           }}
         />
       </PixelCard>

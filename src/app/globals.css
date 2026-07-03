@@ -7,7 +7,7 @@
  * ------------------------------------------------------------------ */
 
 :root,
-[data-theme="light"] {
+[data-theme="pixel-light"] {
   --bg: #f5f1e6; /* cream */
   --panel: #fffdf5;
   --ink: #241f31; /* near-black ink */
@@ -22,7 +22,7 @@
   --shadow: #241f31;
 }
 
-[data-theme="dark"] {
+[data-theme="pixel-dark"] {
   --bg: #14142b; /* deep indigo */
   --panel: #1e1e3f;
   --ink: #eae6ff;
@@ -35,6 +35,45 @@
   --warning: #ffd23f;
   --border: #cfc9ff;
   --shadow: #000000;
+}
+
+/* ------------------------------------------------------------------ *
+ * Modern theme — sleek/minimalist, monochrome + pastel gradients.
+ * Same tokens; the modern skin overrides (borders/shadows/radius/font)
+ * live in the unlayered block at the bottom of this file.
+ * ------------------------------------------------------------------ */
+[data-theme="modern-light"] {
+  --bg: #f7f7fb;
+  --panel: #ffffff;
+  --ink: #1c1c22;
+  --muted: #71717a;
+  --primary: #7c83ff;
+  --primary-ink: #ffffff;
+  --accent: #ec8bd0;
+  --danger: #ef4444;
+  --success: #34d399;
+  --warning: #f59e0b;
+  --border: #e6e6ef;
+  --shadow: rgba(60, 60, 110, 0.14);
+  --gradient-app: linear-gradient(135deg, #f5f3ff, #eff6ff, #fdf2f8);
+  --gradient-primary: linear-gradient(135deg, #818cf8, #a78bfa);
+}
+
+[data-theme="modern-dark"] {
+  --bg: #101015;
+  --panel: #1b1b22;
+  --ink: #ededf2;
+  --muted: #a1a1aa;
+  --primary: #8b93ff;
+  --primary-ink: #0b0b12;
+  --accent: #f0a6dc;
+  --danger: #f87171;
+  --success: #4ade80;
+  --warning: #fbbf24;
+  --border: #2a2a33;
+  --shadow: rgba(0, 0, 0, 0.5);
+  --gradient-app: linear-gradient(135deg, #101015, #14141c, #181320);
+  --gradient-primary: linear-gradient(135deg, #7c83ff, #a78bfa);
 }
 
 /* Expose tokens as Tailwind utilities (bg-bg, text-ink, border-border, ...).
@@ -54,6 +93,7 @@
 
   --font-pixel: var(--font-pixel);
   --font-retro: var(--font-retro);
+  --font-sans: var(--font-sans);
 }
 
 body {
@@ -114,4 +154,59 @@ img[data-pixel] {
     transform: translate(4px, 4px);
     box-shadow: 0 0 0 0 var(--shadow);
   }
+}
+
+/* ------------------------------------------------------------------ *
+ * Modern skin — unlayered so it overrides Tailwind's @layer utilities
+ * (e.g. .bg-primary) and the .pixel-* component layer. Purely cosmetic:
+ * softens borders/shadows, rounds corners, swaps to a sans font, and
+ * adds pastel gradients. No layout/spacing/size changes.
+ * ------------------------------------------------------------------ */
+[data-theme^="modern"] body {
+  font-family: var(--font-sans), system-ui, sans-serif;
+  /* replace the retro dotted texture with a soft pastel gradient */
+  background-image: var(--gradient-app);
+  background-size: auto;
+}
+
+[data-theme^="modern"] h1,
+[data-theme^="modern"] h2,
+[data-theme^="modern"] h3,
+[data-theme^="modern"] h4,
+[data-theme^="modern"] h5,
+[data-theme^="modern"] h6,
+[data-theme^="modern"] .font-pixel {
+  font-family: var(--font-sans), system-ui, sans-serif;
+  letter-spacing: 0;
+  line-height: 1.25;
+}
+
+[data-theme^="modern"] .pixel-box {
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  box-shadow: 0 8px 24px var(--shadow);
+}
+
+[data-theme^="modern"] .pixel-box-sm {
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  box-shadow: 0 3px 12px var(--shadow);
+}
+
+[data-theme^="modern"] .pixel-press {
+  transition: transform 150ms ease, box-shadow 150ms ease;
+}
+[data-theme^="modern"] .pixel-press:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 10px 28px var(--shadow);
+}
+[data-theme^="modern"] .pixel-press:active {
+  transform: translateY(0);
+  box-shadow: 0 3px 12px var(--shadow);
+}
+
+/* Pastel-gradient primary surfaces (buttons/badges using bg-primary). */
+[data-theme^="modern"] .bg-primary {
+  background-image: var(--gradient-primary);
+  border-color: transparent;
 }

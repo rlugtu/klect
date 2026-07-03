@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
-import { Press_Start_2P, VT323 } from "next/font/google";
+import { Press_Start_2P, VT323, Inter } from "next/font/google";
 import { getSession } from "@/lib/session";
+import { themeDataAttr } from "@/lib/theme";
 import { PWARegister } from "@/components/PWARegister";
 import "./globals.css";
 
@@ -15,6 +16,12 @@ const pressStart = Press_Start_2P({
 const vt323 = VT323({
   weight: "400",
   variable: "--font-retro",
+  subsets: ["latin"],
+});
+
+// Clean sans for the modern theme.
+const inter = Inter({
+  variable: "--font-sans",
   subsets: ["latin"],
 });
 
@@ -43,18 +50,14 @@ export default async function RootLayout({
   children: React.ReactNode;
 }>) {
   const session = await getSession();
-  // Authed users get their saved theme; the login screen defaults to dark.
-  const theme = session
-    ? session.user.theme === "DARK"
-      ? "dark"
-      : "light"
-    : "dark";
+  // Authed users get their saved theme; the login screen defaults to pixel dark.
+  const theme = session ? themeDataAttr(session.user.theme) : "pixel-dark";
 
   return (
     <html
       lang="en"
       data-theme={theme}
-      className={`${pressStart.variable} ${vt323.variable} h-full antialiased`}
+      className={`${pressStart.variable} ${vt323.variable} ${inter.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col">
         {children}

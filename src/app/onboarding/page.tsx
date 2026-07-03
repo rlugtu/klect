@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { requireUser } from "@/lib/session";
+import { coerceTheme } from "@/lib/theme";
 import { completeOnboarding } from "@/lib/actions/profile";
 import { ProfileForm } from "@/components/profile/ProfileForm";
 import { PixelCard } from "@/components/ui/PixelCard";
@@ -30,7 +31,7 @@ export default async function OnboardingPage() {
             displayName: user.displayName ?? user.name ?? "",
             birthday: toDateInput(user.birthday),
             icon: user.icon ?? null,
-            theme: user.theme === "DARK" ? "DARK" : "LIGHT",
+            theme: coerceTheme(user.theme),
           }}
         />
       </PixelCard>
