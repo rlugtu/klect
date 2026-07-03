@@ -133,6 +133,25 @@ export function BookmarkForm({
         {error && <p className="text-danger text-sm">{error}</p>}
       </div>
 
+      <div className="relative">
+        {loading && (
+          <div className="absolute inset-0 z-10 grid place-items-center">
+            <div className="pixel-box-sm bg-panel flex items-center gap-3 px-4 py-2">
+              <span
+                aria-hidden
+                className="border-border border-t-primary size-4 animate-spin rounded-full border-2"
+              />
+              <span className="font-pixel text-sm uppercase">
+                Fetching link…
+              </span>
+            </div>
+          </div>
+        )}
+        <fieldset
+          disabled={loading}
+          aria-busy={loading}
+          className="m-0 flex min-w-0 flex-col gap-4 border-0 p-0 transition-opacity disabled:opacity-40"
+        >
       <div className="flex flex-col gap-1.5">
         <span className="font-pixel text-sm uppercase">Name *</span>
         <PixelInput
@@ -261,6 +280,8 @@ export function BookmarkForm({
       </div>
 
       <SubmitButton label={submitLabel} pendingLabel="Saving…" />
+        </fieldset>
+      </div>
     </form>
   );
 }

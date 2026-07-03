@@ -79,7 +79,7 @@ export default async function BookmarkPage({
           </div>
         </div>
 
-        {bookmark.images.length > 0 && (
+        {bookmark.images.length > 0 && !bookmark.videoUrl && (
           <div
             className={`grid gap-2 ${
               bookmark.images.length > 1 ? "grid-cols-2" : "grid-cols-1"

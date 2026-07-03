@@ -37,7 +37,11 @@ export function CreateBookmarkPanel({
         </button>
       </div>
       <BookmarkForm
-        action={createBookmark.bind(null, listId)}
+        action={async (formData) => {
+          await createBookmark(listId, formData);
+          // Close the panel on success (list revalidates to show the new card).
+          setOpen(false);
+        }}
         submitLabel="Create"
         tagSuggestions={tagSuggestions}
         existingTags={listTags}

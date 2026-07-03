@@ -127,8 +127,8 @@ export async function createBookmark(listId: string, formData: FormData) {
   });
   await syncBookmarkTags(bookmark.id, user.id, parseTagNames(formData));
 
+  // Stay on the list so the create panel can close and the new card appears.
   revalidatePath(`/lists/${listId}`);
-  redirect(`/lists/${listId}/bookmarks/${bookmark.id}`);
 }
 
 export async function updateBookmark(bookmarkId: string, formData: FormData) {

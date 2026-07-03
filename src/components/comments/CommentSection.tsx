@@ -21,7 +21,7 @@ export function CommentSection({
       </h2>
       <CommentForm action={addAction} />
       {comments.length === 0 ? (
-        <p className="text-muted">No comments yet — say something. 💬</p>
+        <p className="text-muted text-sm">No comments yet — say something. 💬</p>
       ) : (
         <CommentList
           comments={comments}
