@@ -1,6 +1,7 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Press_Start_2P, VT323 } from "next/font/google";
 import { getSession } from "@/lib/session";
+import { PWARegister } from "@/components/PWARegister";
 import "./globals.css";
 
 // Chunky display font for headings/buttons — the signature 8-bit look.
@@ -20,6 +21,20 @@ const vt323 = VT323({
 export const metadata: Metadata = {
   title: "Saive — retro bookmarks",
   description: "Bookmarks organized into shareable lists. 8-bit style.",
+  applicationName: "Saive",
+  appleWebApp: {
+    capable: true,
+    title: "Saive",
+    statusBarStyle: "black-translucent",
+  },
+  icons: {
+    icon: "/icon-192.png",
+    apple: "/apple-icon.png",
+  },
+};
+
+export const viewport: Viewport = {
+  themeColor: "#14142b",
 };
 
 export default async function RootLayout({
@@ -41,7 +56,10 @@ export default async function RootLayout({
       data-theme={theme}
       className={`${pressStart.variable} ${vt323.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col">{children}</body>
+      <body className="min-h-full flex flex-col">
+        {children}
+        <PWARegister />
+      </body>
     </html>
   );
 }
