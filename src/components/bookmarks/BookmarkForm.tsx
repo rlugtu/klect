@@ -97,7 +97,7 @@ export function BookmarkForm({
   return (
     <form action={action} className="flex flex-col gap-4">
       {/* Paste-to-autofill */}
-      <div className="pixel-box-sm bg-bg flex flex-col gap-2 p-3">
+      <div className="flex flex-col gap-1.5">
         <span className="font-pixel text-xs uppercase">
           Paste a link to autofill
         </span>

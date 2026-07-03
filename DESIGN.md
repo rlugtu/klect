@@ -4,8 +4,21 @@
 > Retro 8-bit aesthetic. This document is the single source of truth for the design;
 > update it whenever a decision changes.
 
-**Status:** ✅ All 8 steps complete. MVP feature-complete.
+**Status:** ✅ Feature-complete (all 8 build steps) + post-v1 additions (link autofill,
+photos, installable PWA). Deployed from `main`.
 **Last updated:** 2026-07-02
+
+## Overview
+
+Saive is a bookmarking app where bookmarks live inside **lists** that can be shared with other
+people. A bookmark is richer than a URL — it has a name, description, multiple URLs (the first is
+the original source), extracted **photos**, free-form notes, a location, a 0–5 rating, a
+visited flag, and user-scoped **tags**. Lists can be organized (per-user drag-reorder) and
+searched (by name, and by tag with OR filtering). Lists are shared by inviting people as
+**viewers** (view + comment) or **collaborators** (full edit + comment); the **owner** manages
+membership. Both lists and bookmarks support **comments**. Pasting a link (YouTube/TikTok/blogs)
+auto-fills a bookmark from the page's metadata. The whole thing wears a **retro 8-bit** skin and
+is an installable **PWA**.
 
 ---
 
@@ -172,10 +185,110 @@ Pause for review after **each** step.
       animated tag pills (AnimatePresence) in search + tag input, loading skeletons
       (home/list/bookmark), 8-bit `not-found.tsx`, responsive header pass.
 
+### Post-v1 updates
+- **Link autofill**: paste a URL in the bookmark form → `fetchLinkMetadata` unfurls it
+  (YouTube via oEmbed, everything else via Microlink) to prefill name/description/photos;
+  `urls[0]` keeps the original source. Bookmarks gained an `images String[]` field.
+- **Bookmark UI**: removed the per-bookmark emoji icon; card thumbnails; single-list search
+  (name + tag pills); create-form quick-add chips for tags already in the list.
+- **PWA**: web manifest, generated icons (any + maskable + apple), a service worker with an
+  offline fallback (`/offline`), prod-only registration. (Web Share Target intentionally not
+  built — iOS Safari can't receive shares; see §10.)
+
 ---
 
-## 7. Open questions / future
+## 8. Architecture & code structure
 
+Next.js App Router, **server-first**: pages are React Server Components that read data directly
+through the data-access layer; mutations are **server actions**. There is deliberately **no
+separate HTTP API** for the web app — the server components/actions are the API.
+
+```
+src/
+  app/                      # routes (RSC). page.tsx / layout.tsx / loading.tsx / not-found.tsx
+    api/auth/[...all]/      # the only route handler — better-auth
+    manifest.ts             # PWA manifest (metadata route)
+  components/               # UI, grouped by domain
+    ui/                     # design-system primitives (Pixel* + Skeleton, EmojiField, …)
+    auth/ bookmarks/ comments/ lists/ profile/ search/ sharing/
+  lib/                      # all non-UI logic
+    db.ts                   # Prisma client singleton (pg driver adapter)
+    auth.ts / auth-client.ts / session.ts   # better-auth server + client + session helpers
+    permissions.ts          # assertRole / roleAtLeast / getMembership
+    lists.ts bookmarks.ts comments.ts sharing.ts tags.ts   # data access (read queries)
+    actions/                # server actions (mutations): lists, bookmarks, comments,
+                            #   sharing, profile, metadata
+    types.ts utils.ts       # shared serializable types + cn()/timeAgo()
+  generated/prisma/         # generated client (gitignored)
+prisma/                     # schema.prisma + migrations (committed)
+```
+
+**Layering & conventions**
+- **Data access** (`lib/<entity>.ts`) — pure read queries; `import "server-only"`.
+- **Mutations** (`lib/actions/<entity>.ts`) — `"use server"`; parse `FormData` → validate →
+  `assertRole` → Prisma write → `revalidatePath`/`redirect`. Bound with `.bind(null, id)` and
+  passed to client components.
+- **Auth boundary**: `requireUser` / `requireOnboardedUser` (redirecting) in server components
+  and at the top of every action; **every mutation re-checks `assertRole`** — UI gating is never
+  trusted.
+- **Ownership convention**: every participant (incl. owner) has a `ListMembership`; ordering +
+  access are uniform. `List.ownerId` is the canonical owner pointer.
+- **UI**: `components/ui/*` are the reusable pixel primitives; feature components compose them.
+  Client components are marked `"use client"` and generally receive already-serialized data
+  (see `lib/types.ts` `*CardData`) rather than Prisma objects.
+- **Styling**: Tailwind v4 with 8-bit design tokens defined as CSS variables in `globals.css`
+  (`@theme inline`), switched light/dark via `data-theme` on `<html>`.
+- **Prisma 7 gotcha**: `migrate dev` does **not** reliably regenerate the client — always run
+  `npx prisma generate` after a schema change, then restart the dev server.
+
+---
+
+## 9. React Native portability
+
+The app is structured so a future React Native (Expo) client is a realistic, incremental
+project rather than a rewrite. What transfers vs. what needs an RN-native equivalent:
+
+**Reusable as-is (server / shared)**
+- **Prisma schema + migrations** — the entire data model is platform-agnostic.
+- **Domain logic in `lib/`** — read queries, `permissions.ts`, tag-sync, invite/auto-link logic.
+  It's plain TypeScript with no React/DOM dependency.
+- **Auth** — better-auth has a first-party **Expo** client/plugin, so the same auth server works;
+  RN uses `@better-auth/expo` instead of `better-auth/react`.
+- **Types** (`lib/types.ts`), `timeAgo()`, and the **design tokens** (palette values) can be
+  shared as data.
+
+**Needs an RN parallel (web-specific today)**
+- **Transport**: the web calls Prisma via RSC/server actions directly. RN can't — it needs an
+  **HTTP/typed API**. Recommended: add a **tRPC (or route-handler) layer that wraps the existing
+  `lib/` functions**, so web *and* RN consume one typed surface. The mutation logic already lives
+  in small functions inside `lib/actions/*`; splitting each into a pure `core(input)` + a thin
+  `action(formData)` wrapper makes it directly callable by both.
+- **UI**: everything in `components/` is DOM + Tailwind + Framer Motion → rebuild with RN views.
+  - Tailwind classes → **NativeWind** (reuse most class names; feed it the same token palette).
+  - Framer Motion → **Moti/Reanimated** (similar declarative API).
+  - `next/link` + App Router → **expo-router** (same file-based mental model).
+  - `<img>`/remote images → `expo-image`; the pixel-border look → shared style helpers.
+
+**To make the eventual port smoother (recommended, not yet done)**
+1. Extract a **`tokens.ts`** as the single source of truth for the palette; have `globals.css`
+   and (later) NativeWind both read from it.
+2. Introduce the **API boundary** (tRPC) over `lib/` before starting RN; refactor actions into
+   `core(input)` + `action(formData)`.
+3. Keep new business logic **out of components** and in `lib/` (already the norm).
+
+These are optional and can be done when RN work actually starts — none block the current app.
+
+---
+
+## 10. Open questions / future
+
+- **Location autocomplete + map** (planned, approved, not yet built): make the bookmark
+  `location` an address/business type-ahead via Geoapify + a Leaflet/OSM mini-map. Full plan in
+  **`docs/location-autocomplete-plan.md`**.
+- **Share target** (deferred): manifest `share_target` + `/share` route for Android/desktop PWAs;
+  iOS Safari can't receive shares (Apple limitation) — would need an iOS Shortcut forwarding to
+  `/share?url=` or a native share extension.
 - Realtime collaboration (Supabase realtime) — deferred past v1.
 - Pagination for lists with many bookmarks — add when needed.
 - Map/geocoding for `location` — deferred.
+- Image durability: photos are hotlinked remote URLs; move to Supabase Storage if links rot.
