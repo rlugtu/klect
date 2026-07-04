@@ -1,10 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import type { BookmarkCardData } from "@/lib/types";
 import { BookmarkCard } from "./BookmarkCard";
 import { PixelInput } from "@/components/ui/PixelInput";
+import { PixelButton } from "@/components/ui/PixelButton";
 import { PixelBadge } from "@/components/ui/PixelBadge";
 
 const MAX_RESULTS = 6;
@@ -23,7 +24,27 @@ export function ListBookmarks({
 }) {
   const [query, setQuery] = useState("");
   const [open, setOpen] = useState(false);
+  const [tagMenuOpen, setTagMenuOpen] = useState(false);
   const [selected, setSelected] = useState<string[]>([]);
+  const tagMenuRef = useRef<HTMLDivElement>(null);
+
+  // Close the tag dropdown on outside click or Escape (it's button-triggered,
+  // so it doesn't ride the input's focus/blur like the typeahead does).
+  useEffect(() => {
+    if (!tagMenuOpen) return;
+    function onPointerDown(e: MouseEvent) {
+      if (!tagMenuRef.current?.contains(e.target as Node)) setTagMenuOpen(false);
+    }
+    function onKeyDown(e: KeyboardEvent) {
+      if (e.key === "Escape") setTagMenuOpen(false);
+    }
+    document.addEventListener("mousedown", onPointerDown);
+    document.addEventListener("keydown", onKeyDown);
+    return () => {
+      document.removeEventListener("mousedown", onPointerDown);
+      document.removeEventListener("keydown", onKeyDown);
+    };
+  }, [tagMenuOpen]);
 
   const availableTags = [
     ...new Set(bookmarks.flatMap((b) => b.tags.map((t) => t.name))),
@@ -51,6 +72,11 @@ export function ListBookmarks({
   function removeTag(tag: string) {
     setSelected((s) => s.filter((t) => t !== tag));
   }
+  function toggleTag(tag: string) {
+    setSelected((s) =>
+      s.includes(tag) ? s.filter((t) => t !== tag) : [...s, tag],
+    );
+  }
   function clearAll() {
     setQuery("");
     setSelected([]);
@@ -66,7 +92,8 @@ export function ListBookmarks({
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="relative">
+      <div className="flex items-start gap-2">
+      <div className="relative flex-1">
         <PixelInput
           value={query}
           onChange={(e) => {
@@ -111,6 +138,62 @@ export function ListBookmarks({
             </section>
           </motion.div>
         )}
+      </div>
+
+      <div className="relative" ref={tagMenuRef}>
+        <PixelButton
+          type="button"
+          variant="secondary"
+          onClick={() => setTagMenuOpen((v) => !v)}
+          aria-haspopup="listbox"
+          aria-expanded={tagMenuOpen}
+        >
+          Tags ▾
+        </PixelButton>
+
+        {tagMenuOpen && (
+          <motion.div
+            role="listbox"
+            aria-label="Filter by tag"
+            initial={{ opacity: 0, y: -4 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.12 }}
+            className="pixel-box bg-panel absolute right-0 z-10 mt-2 max-h-80 w-56 overflow-auto p-2"
+          >
+            {availableTags.length === 0 ? (
+              <p className="text-muted p-2 text-sm">No tags in this list.</p>
+            ) : (
+              availableTags.map((t) => {
+                const isSelected = selected.includes(t);
+                return (
+                  <button
+                    key={t}
+                    type="button"
+                    role="option"
+                    aria-selected={isSelected}
+                    onClick={() => toggleTag(t)}
+                    className={`hover:bg-primary/15 flex w-full cursor-pointer items-center gap-2 px-2 py-1.5 text-left ${
+                      isSelected ? "bg-primary/15 font-bold" : ""
+                    }`}
+                  >
+                    <span
+                      aria-hidden
+                      className="border-border inline-block h-3 w-3 shrink-0 border"
+                      style={{
+                        backgroundColor: tagColor.get(t) || "transparent",
+                      }}
+                    />
+                    <span className="truncate">{t}</span>
+                    <span aria-hidden className="text-primary ml-auto">
+                      {isSelected ? "✓" : ""}
+                    </span>
+                  </button>
+                );
+              })
+            )}
+          </motion.div>
+        )}
+      </div>
       </div>
 
       {(selected.length > 0 || query.length > 0) && (
