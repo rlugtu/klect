@@ -22,10 +22,18 @@ function appleUrl(location: string, lat: number | null, lon: number | null): str
   return `https://maps.apple.com/?${params.toString()}`;
 }
 
+/** Apple Maps only has a native experience on Apple devices (iPhone/iPad/Mac). */
+function isApplePlatform(): boolean {
+  if (typeof navigator === "undefined") return false;
+  return /Mac|iP(hone|ad|od)/.test(navigator.userAgent);
+}
+
+type MapOption = { label: string; href: string };
+
 /**
- * Tappable location that lets the user choose which maps app to open the place in
- * (pin/search view). Both options are always offered — Apple Maps and Google Maps —
- * each handing off to the native app if installed, else the web. Uses stored
+ * Tappable location that hands off to a maps app with the place pre-loaded (pin/search
+ * view). The available apps are detected per device: Apple platforms get a chooser
+ * (Apple Maps + Google Maps); everywhere else opens Google Maps directly. Uses stored
  * coordinates for an exact pin, falling back to the location text as a search query.
  */
 export function LocationLink({
@@ -38,6 +46,7 @@ export function LocationLink({
   lon?: number | null;
 }) {
   const [open, setOpen] = useState(false);
+  const [options, setOptions] = useState<MapOption[]>([]);
   const ref = useRef<HTMLDivElement>(null);
 
   // Close on outside click or Escape while the menu is open.
@@ -57,16 +66,32 @@ export function LocationLink({
     };
   }, [open]);
 
-  const options = [
-    { label: "Apple Maps", href: appleUrl(location, lat, lon) },
-    { label: "Google Maps", href: googleUrl(location, lat, lon) },
-  ];
+  // Built at click time (platform detection is browser-only, so it can't run during SSR).
+  function buildOptions(): MapOption[] {
+    const opts: MapOption[] = [];
+    if (isApplePlatform()) {
+      opts.push({ label: "Apple Maps", href: appleUrl(location, lat, lon) });
+    }
+    opts.push({ label: "Google Maps", href: googleUrl(location, lat, lon) });
+    return opts;
+  }
+
+  function handleTrigger() {
+    const opts = buildOptions();
+    // Only one app available — skip the menu and open it straight away.
+    if (opts.length === 1) {
+      window.open(opts[0].href, "_blank", "noopener,noreferrer");
+      return;
+    }
+    setOptions(opts);
+    setOpen((o) => !o);
+  }
 
   return (
     <div ref={ref} className="relative inline-block max-w-full">
       <button
         type="button"
-        onClick={() => setOpen((o) => !o)}
+        onClick={handleTrigger}
         aria-haspopup="menu"
         aria-expanded={open}
         className="text-muted hover:text-primary inline-flex max-w-full cursor-pointer items-center gap-1.5 underline-offset-2 hover:underline"
@@ -84,7 +109,8 @@ export function LocationLink({
             exit={{ opacity: 0, y: -4 }}
             transition={{ duration: 0.12 }}
             role="menu"
-            className="pixel-box bg-panel absolute z-10 mt-2 min-w-[12rem] overflow-hidden p-1"
+            // Above the Leaflet map below it (Leaflet panes/controls reach ~z-index 1000).
+            className="pixel-box bg-panel absolute z-[1200] mt-2 min-w-[12rem] overflow-hidden p-1"
           >
             {options.map((o) => (
               <a
