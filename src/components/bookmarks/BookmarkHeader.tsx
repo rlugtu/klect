@@ -67,7 +67,12 @@ export function BookmarkHeader({
             </button>
           </div>
           <BookmarkForm
-            action={updateBookmark.bind(null, bookmarkId)}
+            action={async (formData) => {
+              await updateBookmark(bookmarkId, formData);
+              // Close on success; the detail route revalidates so the hero
+              // above shows the updated bookmark info.
+              setEditOpen(false);
+            }}
             defaults={defaults}
             submitLabel="Save"
             tagSuggestions={tagSuggestions}
