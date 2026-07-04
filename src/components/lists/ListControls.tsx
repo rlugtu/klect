@@ -11,17 +11,19 @@ function PanelHeader({
   title,
   onClose,
 }: {
-  title: string;
+  title?: string;
   onClose: () => void;
 }) {
   return (
-    <div className="flex items-center justify-between">
-      <h2 className="text-sm">{title}</h2>
+    <div
+      className={`flex items-center ${title ? "justify-between" : "justify-end"}`}
+    >
+      {title && <h2 className="text-sm">{title}</h2>}
       <button
         type="button"
         aria-label="Close"
         onClick={onClose}
-        className="text-muted hover:text-danger cursor-pointer text-lg leading-none"
+        className="text-muted hover:text-danger cursor-pointer text-xl leading-none"
       >
         ×
       </button>
@@ -73,7 +75,7 @@ export function ListControls({
 
       {editOpen && (
         <PixelCard className="flex flex-col gap-4">
-          <PanelHeader title="Edit list" onClose={() => setEditOpen(false)} />
+          <PanelHeader onClose={() => setEditOpen(false)} />
           <ListForm
             action={editAction}
             defaults={defaults}

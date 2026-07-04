@@ -4,7 +4,6 @@ import { getUserLists } from "@/lib/lists";
 import { getBookmarksByTags } from "@/lib/bookmarks";
 import { getUserTagNames } from "@/lib/tags";
 import type { ListCardData } from "@/lib/types";
-import { SignOutButton } from "@/components/auth/SignOutButton";
 import { CreateListPanel } from "@/components/lists/CreateListPanel";
 import { HomeLists } from "@/components/lists/HomeLists";
 import { SearchBar } from "@/components/search/SearchBar";
