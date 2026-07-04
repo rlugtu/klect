@@ -247,6 +247,11 @@ Pause for review after **each** step.
   tags are user-scoped, so one color per tag follows it everywhere). `syncBookmarkTags` assigns it;
   `PixelBadge` renders it with a luminance-computed text color (legible on all themes). Tag pills are
   colored everywhere (cards, detail, filter/search pills, editor); new/draft tags stay neutral.
+- **List tag-filter dropdown**: on the list page, a "Tags ▾" button beside the in-list search input
+  (`ListBookmarks`) opens a dropdown of every tag used in that list. Rows are click-to-**toggle** and
+  the menu stays open for multi-select; selected rows show a highlighted/checked state. Picks feed the
+  same client-side `selected` OR-filter as the typeahead (pills + Clear all below). Closes on outside
+  click or Escape. Hand-rolled to match the existing dropdowns (no new dependency).
 
 ---
 
