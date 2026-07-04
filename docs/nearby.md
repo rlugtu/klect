@@ -5,6 +5,8 @@
 and (optionally) narrows to a subset of their lists, taps **Find near me**, and — after granting
 the browser's geolocation prompt — sees the in-range bookmarks ordered **closest→farthest**, each
 tagged with its list and its distance ("2.3 mi away"). Reached from a header button on Home.
+Opening a result and tapping **← Back** on the bookmark page returns here (it uses browser
+history), with the previous results still shown.
 
 Only bookmarks with stored coordinates can be matched. Coordinates are set when a location is
 picked from autocomplete (see `docs/location-autocomplete.md`); free-typed and legacy bookmarks

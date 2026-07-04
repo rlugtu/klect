@@ -62,8 +62,6 @@ export default async function BookmarkPage({
     <main className="mx-auto w-full max-w-2xl px-6 py-12 flex flex-col gap-6">
       <BookmarkHeader
         listId={bookmark.list.id}
-        listIcon={bookmark.list.icon}
-        listName={bookmark.list.name}
         canEdit={canEdit}
         bookmarkId={bookmark.id}
         defaults={editDefaults}

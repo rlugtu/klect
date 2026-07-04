@@ -151,7 +151,7 @@ helper — never rely on UI gating alone.
 | `/` | **Home**: all lists you own or belong to; reorderable (Framer Motion drag) + unified search bar |
 | `/nearby` | **Near me**: find geocoded bookmarks within a chosen radius of your current location, closest→farthest |
 | `/lists/[id]` | Bookmarks in a list; filter/search within; list-level comments; invite UI (owner) |
-| `/lists/[id]/bookmarks/[bid]` | Bookmark detail: 8-bit layout, tag pills, comments newest-first |
+| `/lists/[id]/bookmarks/[bid]` | Bookmark detail: 8-bit layout, tag pills, comments newest-first; **← Back** returns to the previous page (list / nearby / search), falling back to the list on direct load |
 | `/settings` | Edit profile/theme/icon; manage/leave shared lists; pending invites |
 | `/invite/[token]` | Accept an invite |
 
