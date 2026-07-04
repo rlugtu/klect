@@ -11,7 +11,6 @@ import { StarRating } from "@/components/bookmarks/StarRating";
 import { VisitedToggle } from "@/components/bookmarks/VisitedToggle";
 import { BookmarkHeader } from "@/components/bookmarks/BookmarkHeader";
 import { BookmarkVideo } from "@/components/bookmarks/BookmarkVideo";
-import { LocationMapClient } from "@/components/bookmarks/LocationMapClient";
 import { LocationLink } from "@/components/bookmarks/LocationLink";
 import { ConfirmDeleteButton } from "@/components/ui/ConfirmDeleteButton";
 import { PixelButton } from "@/components/ui/PixelButton";
@@ -121,14 +120,6 @@ export default async function BookmarkPage({
             location={bookmark.location}
             lat={bookmark.latitude}
             lon={bookmark.longitude}
-          />
-        )}
-
-        {bookmark.latitude != null && bookmark.longitude != null && (
-          <LocationMapClient
-            lat={bookmark.latitude}
-            lon={bookmark.longitude}
-            label={bookmark.location || undefined}
           />
         )}
 
