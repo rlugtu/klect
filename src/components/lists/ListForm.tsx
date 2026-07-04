@@ -3,6 +3,7 @@
 import { PixelInput } from "@/components/ui/PixelInput";
 import { EmojiField } from "@/components/ui/EmojiField";
 import { SubmitButton } from "@/components/ui/SubmitButton";
+import { FieldLabel } from "@/components/ui/FieldLabel";
 
 export type ListDefaults = {
   name: string;
@@ -23,7 +24,7 @@ export function ListForm({
   return (
     <form action={action} className="flex flex-col gap-4">
       <label className="flex flex-col gap-1.5">
-        <span className="font-pixel text-sm uppercase">Name *</span>
+        <FieldLabel>Name *</FieldLabel>
         <PixelInput
           name="name"
           defaultValue={defaults?.name ?? ""}
@@ -35,7 +36,7 @@ export function ListForm({
       </label>
 
       <label className="flex flex-col gap-1.5">
-        <span className="font-pixel text-sm uppercase">Description</span>
+        <FieldLabel>Description</FieldLabel>
         <PixelInput
           name="description"
           defaultValue={defaults?.description ?? ""}
@@ -44,7 +45,7 @@ export function ListForm({
       </label>
 
       <div className="flex flex-col gap-2">
-        <span className="font-pixel text-sm uppercase">Icon</span>
+        <FieldLabel>Icon</FieldLabel>
         <EmojiField name="icon" defaultValue={defaults?.icon} />
       </div>
 

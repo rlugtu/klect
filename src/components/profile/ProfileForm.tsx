@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useFormStatus } from "react-dom";
 import { PixelButton } from "@/components/ui/PixelButton";
 import { PixelInput } from "@/components/ui/PixelInput";
+import { FieldLabel } from "@/components/ui/FieldLabel";
 import { THEME_OPTIONS, themeDataAttr } from "@/lib/theme";
 import { type Theme } from "@/generated/prisma/enums";
 import { cn } from "@/lib/utils";
@@ -52,7 +53,7 @@ export function ProfileForm({
       <input type="hidden" name="theme" value={theme} />
 
       <label className="flex flex-col gap-1.5">
-        <span className="font-pixel text-sm uppercase">Display name *</span>
+        <FieldLabel>Display name *</FieldLabel>
         <PixelInput
           name="displayName"
           defaultValue={defaults.displayName ?? ""}
@@ -63,17 +64,17 @@ export function ProfileForm({
 
       <div className="grid grid-cols-2 gap-4">
         <label className="flex flex-col gap-1.5">
-          <span className="font-pixel text-sm uppercase">First name</span>
+          <FieldLabel>First name</FieldLabel>
           <PixelInput name="firstName" defaultValue={defaults.firstName ?? ""} />
         </label>
         <label className="flex flex-col gap-1.5">
-          <span className="font-pixel text-sm uppercase">Last name</span>
+          <FieldLabel>Last name</FieldLabel>
           <PixelInput name="lastName" defaultValue={defaults.lastName ?? ""} />
         </label>
       </div>
 
       <label className="flex flex-col gap-1.5">
-        <span className="font-pixel text-sm uppercase">Birthday</span>
+        <FieldLabel>Birthday</FieldLabel>
         <PixelInput
           type="date"
           name="birthday"
@@ -82,7 +83,7 @@ export function ProfileForm({
       </label>
 
       <div className="flex flex-col gap-2">
-        <span className="font-pixel text-sm uppercase">Avatar</span>
+        <FieldLabel>Avatar</FieldLabel>
         <div className="flex flex-wrap gap-2">
           {ICON_CHOICES.map((choice) => (
             <button
@@ -101,7 +102,7 @@ export function ProfileForm({
       </div>
 
       <div className="flex flex-col gap-2">
-        <span className="font-pixel text-sm uppercase">Theme</span>
+        <FieldLabel>Theme</FieldLabel>
         <div className="flex flex-wrap gap-3">
           {THEME_OPTIONS.map((opt) => (
             <PixelButton

@@ -5,6 +5,7 @@ import { PixelInput } from "@/components/ui/PixelInput";
 import { PixelTextarea } from "@/components/ui/PixelTextarea";
 import { PixelButton } from "@/components/ui/PixelButton";
 import { SubmitButton } from "@/components/ui/SubmitButton";
+import { FieldLabel } from "@/components/ui/FieldLabel";
 import { RatingInput } from "./RatingInput";
 import { TagInput } from "./TagInput";
 import { LocationInput } from "./LocationInput";
@@ -26,9 +27,6 @@ export type BookmarkDefaults = {
   videoType: string;
 };
 
-/** Shared styling for input labels: subtle muted color, bold, no all-caps. */
-const labelClass = "font-pixel text-sm font-bold text-muted";
-
 const Field = ({
   label,
   children,
@@ -37,7 +35,7 @@ const Field = ({
   children: React.ReactNode;
 }) => (
   <label className="flex flex-col gap-1.5">
-    <span className={labelClass}>{label}</span>
+    <FieldLabel>{label}</FieldLabel>
     {children}
   </label>
 );
@@ -111,7 +109,7 @@ export function BookmarkForm({
     <form action={action} className="flex flex-col gap-4">
       {/* Paste-to-autofill */}
       <div className="flex flex-col gap-1.5">
-        <span className={labelClass}>Paste a link to autofill</span>
+        <FieldLabel>Paste a link to autofill</FieldLabel>
         <div className="flex gap-2">
           <PixelInput
             value={link}
@@ -156,7 +154,7 @@ export function BookmarkForm({
           className="m-0 flex min-w-0 flex-col gap-4 border-0 p-0 transition-opacity disabled:opacity-40"
         >
       <div className="flex flex-col gap-1.5">
-        <span className={labelClass}>Name *</span>
+        <FieldLabel>Name *</FieldLabel>
         <PixelInput
           name="name"
           value={name}
@@ -168,7 +166,7 @@ export function BookmarkForm({
 
       {images.length > 0 && (
         <div className="flex flex-col gap-2">
-          <span className={labelClass}>Photos</span>
+          <FieldLabel>Photos</FieldLabel>
           <div className="flex flex-wrap gap-2">
             {images.map((src) => (
               <div key={src} className="relative">
@@ -239,7 +237,7 @@ export function BookmarkForm({
 
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div className="flex flex-col gap-1.5">
-          <span className={labelClass}>Rating</span>
+          <FieldLabel>Rating</FieldLabel>
           <RatingInput defaultValue={defaults?.rating ?? 0} />
         </div>
         <label className="flex cursor-pointer items-center gap-2">
@@ -249,7 +247,7 @@ export function BookmarkForm({
             defaultChecked={defaults?.visited ?? false}
             className="accent-primary h-5 w-5"
           />
-          <span className={labelClass}>Visited</span>
+          <FieldLabel>Visited</FieldLabel>
         </label>
       </div>
 
@@ -273,7 +271,7 @@ export function BookmarkForm({
       </Field>
 
       <div className="flex flex-col gap-2">
-        <span className={labelClass}>Tags</span>
+        <FieldLabel>Tags</FieldLabel>
         <TagInput
           defaultValue={defaults?.tags ?? []}
           suggestions={tagSuggestions}

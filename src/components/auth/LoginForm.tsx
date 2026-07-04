@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { authClient } from "@/lib/auth-client";
 import { PixelButton } from "@/components/ui/PixelButton";
 import { PixelInput } from "@/components/ui/PixelInput";
+import { FieldLabel } from "@/components/ui/FieldLabel";
 
 type Mode = "signin" | "signup";
 
@@ -68,7 +69,7 @@ export function LoginForm({ next = "/" }: { next?: string }) {
       >
         {mode === "signup" && (
           <label className="flex flex-col gap-1.5 text-sm">
-            <span className="font-pixel text-sm uppercase">Name</span>
+            <FieldLabel>Name</FieldLabel>
             <PixelInput
               value={name}
               onChange={(e) => setName(e.target.value)}
@@ -79,7 +80,7 @@ export function LoginForm({ next = "/" }: { next?: string }) {
         )}
 
         <label className="flex flex-col gap-1.5 text-sm">
-          <span className="font-pixel text-sm uppercase">Email</span>
+          <FieldLabel>Email</FieldLabel>
           <PixelInput
             type="email"
             value={email}
@@ -90,7 +91,7 @@ export function LoginForm({ next = "/" }: { next?: string }) {
         </label>
 
         <label className="flex flex-col gap-1.5 text-sm">
-          <span className="font-pixel text-sm uppercase">Password</span>
+          <FieldLabel>Password</FieldLabel>
           <PixelInput
             type="password"
             value={password}
