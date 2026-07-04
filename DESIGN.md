@@ -149,6 +149,7 @@ helper — never rely on UI gating alone.
 | `/login` | Google + email/password (better-auth) |
 | `/onboarding` | First login only: displayName, birthday (optional), icon, theme |
 | `/` | **Home**: all lists you own or belong to; reorderable (Framer Motion drag) + unified search bar |
+| `/nearby` | **Near me**: find geocoded bookmarks within a chosen radius of your current location, closest→farthest |
 | `/lists/[id]` | Bookmarks in a list; filter/search within; list-level comments; invite UI (owner) |
 | `/lists/[id]/bookmarks/[bid]` | Bookmark detail: 8-bit layout, tag pills, comments newest-first |
 | `/settings` | Edit profile/theme/icon; manage/leave shared lists; pending invites |
@@ -160,6 +161,14 @@ helper — never rely on UI gating alone.
 - Selected tags render as pills with an ✕ to remove; a **Clear all** button empties the input
   and deselects every tag.
 - Multiple tags = OR filter across all of the user's bookmarks.
+
+**Near me behavior** (`/nearby`, reached from a header button on Home):
+- Pick a **radius** (miles: 0.5 / 1 / 2 / 5 / 10) and toggle which **lists** to include (all on
+  by default; Select-all / Clear-all). Tapping **Find near me** requests the browser's
+  geolocation, then a server action (`findNearbyBookmarks`) haversine-filters the user's geocoded
+  bookmarks and returns them closest→farthest, each with its list tag and distance ("2.3 mi away").
+- Only bookmarks with stored `latitude`/`longitude` (picked from location autocomplete) can match;
+  ones with a typed location but no coordinates are excluded and surfaced as an "N skipped" note.
 
 ---
 
@@ -218,6 +227,12 @@ Pause for review after **each** step.
   `modern-light`/`modern-dark`); central registry `src/lib/theme.ts` (`THEME_OPTIONS`,
   `themeDataAttr`, `coerceTheme`); modern skin is unlayered `[data-theme^="modern"]` CSS overriding
   the `.pixel-*` primitives (no layout changes). 4-option picker in settings/onboarding.
+- **Near me** (`/nearby`): find geocoded bookmarks within a chosen radius of the browser's current
+  location. RSC shell + client island (`NearbyFinder`) for geolocation; a server action
+  (`findNearbyBookmarks` in `src/lib/actions/nearby.ts`) haversine-filters (`src/lib/geo.ts`) the
+  user's coordinate-bearing bookmarks (`getBookmarksWithCoords`) across the selected lists and
+  returns them closest→farthest with a list tag + distance. Bookmarks with a typed location but no
+  coordinates are excluded and counted in an "N skipped" note. See `docs/nearby.md`.
 
 ---
 

@@ -8,20 +8,30 @@ export function BookmarkCard({
   listId,
   bookmark,
   listLabel,
+  distanceLabel,
 }: {
   listId: string;
   bookmark: BookmarkCardData;
   /** Optional "in <list>" context, shown in cross-list search results. */
   listLabel?: { icon: string; name: string };
+  /** Optional distance context (e.g. "2.3 mi away"), shown in the nearby finder. */
+  distanceLabel?: string;
 }) {
   return (
     <Link
       href={`/lists/${listId}/bookmarks/${bookmark.id}`}
       className="pixel-box bg-panel flex w-full min-w-0 flex-col gap-3 p-4"
     >
-      {listLabel && (
-        <span className="text-muted text-sm truncate min-w-0">
-          in {listLabel.icon} {listLabel.name}
+      {(listLabel || distanceLabel) && (
+        <span className="text-muted flex items-center justify-between gap-2 text-sm min-w-0">
+          {listLabel && (
+            <span className="truncate min-w-0">
+              in {listLabel.icon} {listLabel.name}
+            </span>
+          )}
+          {distanceLabel && (
+            <span className="shrink-0 whitespace-nowrap">{distanceLabel}</span>
+          )}
         </span>
       )}
       {bookmark.image && (

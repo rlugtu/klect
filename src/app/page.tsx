@@ -10,7 +10,7 @@ import { HomeLists } from "@/components/lists/HomeLists";
 import { SearchBar } from "@/components/search/SearchBar";
 import { BookmarkCard } from "@/components/bookmarks/BookmarkCard";
 import { PixelButton } from "@/components/ui/PixelButton";
-import { Settings } from "lucide-react";
+import { Settings, MapPin } from "lucide-react";
 
 function parseTags(raw: string | undefined): string[] {
   if (!raw) return [];
@@ -66,19 +66,24 @@ export default async function Home({
             {user.icon ?? "🔖"}
           </span>
           <div className="min-w-0">
-            <h1 className="text-xl text-primary">SAIVE</h1>
+            <h1 className="text-xl text-primary font-bold">SAIVE</h1>
             <p className="text-muted text-sm truncate">
               Hi, {user.displayName ?? user.name}
             </p>
           </div>
         </div>
         <div className="flex items-center gap-2">
+          <Link href="/nearby">
+            <PixelButton variant="secondary" size="sm">
+              <MapPin size={14} aria-hidden /> Near me
+            </PixelButton>
+          </Link>
           <Link href="/settings">
             <PixelButton variant="secondary" size="sm">
               <Settings size={14} aria-hidden /> Settings
             </PixelButton>
           </Link>
-          <SignOutButton />
+          {/* <SignOutButton /> */}
         </div>
       </header>
 

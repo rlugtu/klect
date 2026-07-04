@@ -8,8 +8,9 @@ notes, location, 0–5 rating, visited flag, and user-scoped **tags**. Lists are
 (per-user), searchable (name + OR tag filter), and shareable by inviting **viewers** (view +
 comment) or **collaborators** (edit + comment); the **owner** manages membership. Lists and
 bookmarks both support **comments**. Pasting a link auto-fills a bookmark from page metadata (and
-detects a playable video). Two selectable **themes** — **pixel** (retro 8-bit) and **modern**
-(sleek/minimalist), each light + dark. Installable **PWA**.
+detects a playable video). A **Near me** page (`/nearby`) finds geocoded bookmarks within a chosen
+radius of the user's current location. Two selectable **themes** — **pixel** (retro 8-bit) and
+**modern** (sleek/minimalist), each light + dark. Installable **PWA**.
 
 **Full design doc: `DESIGN.md`** (data model, permissions, routes, architecture, RN-portability).
 
@@ -57,4 +58,9 @@ from `main`.
   picked one's `latitude`/`longitude`; both share a client `session_token` for session billing.
   The address opens in a maps app via `LocationLink`. Degrades to plain text if the token is
   unset. No in-app map.
+- **Near me** (`/nearby`, `docs/nearby.md`): client island (`NearbyFinder`) reads browser
+  geolocation, a server action (`findNearbyBookmarks` in `lib/actions/nearby.ts`, `[nearby]` log
+  prefix) haversine-filters (`lib/geo.ts`) the user's coordinate-bearing bookmarks. Only bookmarks
+  picked from location autocomplete have coordinates, so free-typed/legacy ones never appear (they
+  show as an "N skipped" note).
 - Bookmark **images are hotlinked remote URLs** (can break if the source blocks hotlinking).

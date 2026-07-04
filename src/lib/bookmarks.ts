@@ -34,6 +34,43 @@ export function getBookmarksByTags(userId: string, tagNames: string[]) {
 }
 
 /**
+ * Bookmarks across the user's lists that have stored coordinates (picked from
+ * location autocomplete). Optionally restricted to `listIds`. Used by the nearby
+ * finder to compute distances outside the DB. Same include shape as
+ * getBookmarksByTags so results render with a list tag.
+ */
+export function getBookmarksWithCoords(userId: string, listIds?: string[]) {
+  return prisma.bookmark.findMany({
+    where: {
+      list: { memberships: { some: { userId } } },
+      latitude: { not: null },
+      longitude: { not: null },
+      ...(listIds?.length ? { listId: { in: listIds } } : {}),
+    },
+    include: {
+      list: { select: { id: true, name: true, icon: true } },
+      tags: { include: { tag: { select: { id: true, name: true } } } },
+      _count: { select: { comments: true } },
+    },
+  });
+}
+
+/**
+ * Count of in-scope bookmarks that have a typed location but no coordinates —
+ * i.e. ones the nearby finder can't place. Powers the "N skipped" note.
+ */
+export function countBookmarksMissingCoords(userId: string, listIds?: string[]) {
+  return prisma.bookmark.count({
+    where: {
+      list: { memberships: { some: { userId } } },
+      location: { not: "" },
+      OR: [{ latitude: null }, { longitude: null }],
+      ...(listIds?.length ? { listId: { in: listIds } } : {}),
+    },
+  });
+}
+
+/**
  * A bookmark plus the requesting user's role on its list, or null if the
  * bookmark doesn't exist or the user isn't a member of its list.
  */
