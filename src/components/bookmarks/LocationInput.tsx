@@ -3,16 +3,22 @@
 import { useEffect, useRef, useState } from "react";
 import { motion } from "framer-motion";
 import { PixelInput } from "@/components/ui/PixelInput";
-import { searchPlaces, type PlaceSuggestion } from "@/lib/actions/places";
+import {
+  searchPlaces,
+  retrievePlace,
+  type PlaceSuggestion,
+} from "@/lib/actions/places";
 
 const MIN_QUERY_LENGTH = 3;
 const DEBOUNCE_MS = 350;
 
 /**
- * Location field with address / business autocomplete (Geoapify, proxied server-side).
- * Renders the visible input plus hidden `location`/`latitude`/`longitude` inputs so the
- * bookmark form submits by name. Free typing clears the coordinates (the text no longer
- * matches a pin); picking a suggestion fills them.
+ * Location field with address / business autocomplete (Mapbox Search Box, proxied
+ * server-side). Renders the visible input plus hidden `location`/`latitude`/`longitude`
+ * inputs so the bookmark form submits by name. Free typing clears the coordinates (the
+ * text no longer matches a pin); picking a suggestion resolves its coordinates via a
+ * second `retrieve` call and fills them. A per-session token ties the suggest+retrieve
+ * calls together for Mapbox's session billing.
  */
 export function LocationInput({
   initialLocation = "",
@@ -35,6 +41,9 @@ export function LocationInput({
   // value on an edit-form mount).
   const reqId = useRef(0);
   const lastFetched = useRef<string | null>(initialLocation.trim() || null);
+  // Groups suggest + the final retrieve into one Mapbox billing session; rotated after
+  // each pick (a session ends once retrieve resolves).
+  const sessionToken = useRef<string>(crypto.randomUUID());
 
   useEffect(() => {
     const q = query.trim();
@@ -49,7 +58,7 @@ export function LocationInput({
 
       const id = ++reqId.current;
       lastFetched.current = q;
-      const result = await searchPlaces(q);
+      const result = await searchPlaces(q, sessionToken.current);
       if (id !== reqId.current) return; // a newer request superseded this one
       if (result.ok) {
         setSuggestions(result.data);
@@ -63,14 +72,32 @@ export function LocationInput({
     return () => clearTimeout(handle);
   }, [query]);
 
-  function pick(s: PlaceSuggestion) {
+  async function pick(s: PlaceSuggestion) {
+    // Fill the text and close immediately; coordinates arrive from the retrieve call.
     lastFetched.current = s.address.trim(); // prevent the query-change effect from refetching
     setQuery(s.address);
-    setLat(s.lat);
-    setLon(s.lon);
+    setLat(null);
+    setLon(null);
     setSuggestions([]);
     setError(null);
     setOpen(false);
+
+    const result = await retrievePlace(s.id, sessionToken.current);
+    // Rotate the session token — this suggest→retrieve session is complete.
+    sessionToken.current = crypto.randomUUID();
+
+    if (result.ok) {
+      // Keep the fuller address Mapbox returns on retrieve, if present.
+      if (result.data.address) {
+        lastFetched.current = result.data.address.trim();
+        setQuery(result.data.address);
+      }
+      setLat(result.data.lat);
+      setLon(result.data.lon);
+    } else {
+      // No coordinates — the text still submits and LocationLink falls back to a search.
+      setError(result.error);
+    }
   }
 
   const showDropdown =
@@ -115,9 +142,9 @@ export function LocationInput({
           ) : (
             suggestions.map((s, i) => (
               <button
-                key={`${s.lat},${s.lon},${i}`}
+                key={`${s.id},${i}`}
                 type="button"
-                onClick={() => pick(s)}
+                onClick={() => void pick(s)}
                 className="hover:bg-primary/15 flex w-full flex-col gap-0.5 px-2 py-1.5 text-left cursor-pointer"
               >
                 <span className="truncate">{s.label}</span>

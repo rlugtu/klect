@@ -68,7 +68,7 @@ Resolved during planning (most-recent context in parentheses):
 - **Rating**: 0–5 stars (pixel-art stars).
 - **Search bar**: one unified control on the home page handles both list-name and tag search
   (no separate list-name filter box).
-- **`location`**: address/business type-ahead via Geoapify (server-proxied); stores the display
+- **`location`**: address/business type-ahead via Mapbox Search Box (server-proxied); stores the display
   address plus `latitude`/`longitude`. On the bookmark page the address is tappable and opens the
   place in a maps app (Apple Maps / Google Maps chooser on Apple devices, Google Maps elsewhere).
   Free-typed text still saves with no coordinates. No in-app map UI (a Leaflet mini-map was built
@@ -103,7 +103,7 @@ Bookmark        id, listId, name, description, urls (string[]),
                 -- no icon (removed); urls[0] = original source link;
                 -- images = extracted photo URLs;
                 -- location = display address; latitude/longitude set only when
-                --   picked from Geoapify autocomplete (null for free text);
+                --   picked from Mapbox autocomplete (null for free text);
                 -- videoUrl/videoType = detected playable video ("iframe"|"file")
 
 Tag             id, name, userId          — unique per (userId, name)
@@ -313,7 +313,7 @@ These are optional and can be done when RN work actually starts — none block t
 ## 10. Open questions / future
 
 - **Location autocomplete** (shipped): the bookmark `location` is an address/business type-ahead
-  via Geoapify (server-proxied), storing `latitude`/`longitude`; the address on the bookmark page
+  via Mapbox Search Box (server-proxied), storing `latitude`/`longitude`; the address on the bookmark page
   opens the place in a maps app. See **`docs/location-autocomplete-plan.md`**. A Leaflet/OSM
   mini-map was built alongside it but removed — only the address was needed.
 - **Share target** (deferred): manifest `share_target` + `/share` route for Android/desktop PWAs;
