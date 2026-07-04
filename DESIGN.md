@@ -150,6 +150,7 @@ helper — never rely on UI gating alone.
 | `/onboarding` | First login only: displayName, birthday (optional), icon, theme |
 | `/` | **Home**: all lists you own or belong to; reorderable (Framer Motion drag) + unified search bar |
 | `/nearby` | **Near me**: find geocoded bookmarks within a chosen radius of your current location, closest→farthest |
+| `/bookmarks/new` | **New bookmark**: standalone create flow; pick/create one or more target lists and add the bookmark independently to each |
 | `/lists/[id]` | Bookmarks in a list; filter/search within; list-level comments; invite UI (owner) |
 | `/lists/[id]/bookmarks/[bid]` | Bookmark detail: 8-bit layout, tag pills, comments newest-first; **← Back** returns to the previous page (list / nearby / search), falling back to the list on direct load |
 | `/settings` | Edit profile/theme/icon; manage/leave shared lists; pending invites |
@@ -233,6 +234,11 @@ Pause for review after **each** step.
   user's coordinate-bearing bookmarks (`getBookmarksWithCoords`) across the selected lists and
   returns them closest→farthest with a list tag + distance. Bookmarks with a typed location but no
   coordinates are excluded and counted in an "N skipped" note. See `docs/nearby.md`.
+- **Standalone create bookmark** (`/bookmarks/new`, from a Home button): the normal `BookmarkForm`
+  plus a list selector/creator — pick any COLLABORATOR+ lists and/or create new lists by name. A
+  server action (`createBookmarkInLists` in `src/lib/actions/bookmarks.ts`) writes **one independent
+  bookmark row per target list** (each with its own tag links), so editing or deleting one copy
+  never affects the others. New lists are made via the shared `createListRecord` (`src/lib/lists.ts`).
 
 ---
 

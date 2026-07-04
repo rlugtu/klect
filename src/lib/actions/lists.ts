@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { prisma } from "@/lib/db";
 import { requireUser } from "@/lib/session";
 import { assertRole } from "@/lib/permissions";
+import { createListRecord } from "@/lib/lists";
 
 const NAME_MAX = 30;
 
@@ -21,22 +22,7 @@ function parseListInput(formData: FormData) {
 /** Create a list owned by the current user; owner gets an OWNER membership. */
 export async function createList(formData: FormData) {
   const user = await requireUser();
-  const data = parseListInput(formData);
-
-  // New list goes to the end of this user's ordering.
-  const position = await prisma.listMembership.count({
-    where: { userId: user.id },
-  });
-
-  const list = await prisma.list.create({
-    data: {
-      ...data,
-      ownerId: user.id,
-      memberships: {
-        create: { userId: user.id, role: "OWNER", position },
-      },
-    },
-  });
+  const list = await createListRecord(user.id, parseListInput(formData));
 
   revalidatePath("/");
   redirect(`/lists/${list.id}`);

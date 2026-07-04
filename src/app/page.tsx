@@ -123,7 +123,12 @@ export default async function Home({
         </section>
       ) : (
         <>
-          <CreateListPanel />
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <CreateListPanel />
+            <Link href="/bookmarks/new">
+              <PixelButton>＋ New bookmark</PixelButton>
+            </Link>
+          </div>
           <section className="flex flex-col gap-4">
             <h2 className="font-pixel text-xl font-semibold text-primary">
               Your lists

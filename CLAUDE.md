@@ -8,8 +8,10 @@ notes, location, 0–5 rating, visited flag, and user-scoped **tags**. Lists are
 (per-user), searchable (name + OR tag filter), and shareable by inviting **viewers** (view +
 comment) or **collaborators** (edit + comment); the **owner** manages membership. Lists and
 bookmarks both support **comments**. Pasting a link auto-fills a bookmark from page metadata (and
-detects a playable video). A **Near me** page (`/nearby`) finds geocoded bookmarks within a chosen
-radius of the user's current location. Two selectable **themes** — **pixel** (retro 8-bit) and
+detects a playable video). Bookmarks are created inside a list, or via a standalone flow
+(`/bookmarks/new`) that adds an **independent copy to each of several lists** at once. A **Near me**
+page (`/nearby`) finds geocoded bookmarks within a chosen radius of the user's current location.
+Two selectable **themes** — **pixel** (retro 8-bit) and
 **modern** (sleek/minimalist), each light + dark. Installable **PWA**.
 
 **Full design doc: `DESIGN.md`** (data model, permissions, routes, architecture, RN-portability).

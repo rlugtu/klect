@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { prisma } from "@/lib/db";
 import { requireUser } from "@/lib/session";
 import { assertRole } from "@/lib/permissions";
+import { createListRecord } from "@/lib/lists";
 import { isTrustedIframeUrl } from "@/lib/video";
 
 type BookmarkFields = {
@@ -142,6 +143,54 @@ export async function createBookmark(listId: string, formData: FormData) {
 
   // Stay on the list so the create panel can close and the new card appears.
   revalidatePath(`/lists/${listId}`);
+}
+
+/**
+ * Create the same bookmark independently in each target list — existing lists
+ * (by id) plus any brand-new lists (created by name). Each list gets its own
+ * bookmark row + tag links, so editing or deleting one copy never affects the
+ * others. Used by the standalone /bookmarks/new flow.
+ */
+export async function createBookmarkInLists(
+  existingListIds: string[],
+  newListNames: string[],
+  formData: FormData,
+) {
+  const user = await requireUser();
+
+  const fields = parseBookmarkFields(formData);
+  const tagNames = parseTagNames(formData);
+
+  const existing = [...new Set(existingListIds.filter(Boolean))];
+  const newNames = [
+    ...new Set(newListNames.map((n) => n.trim()).filter(Boolean)),
+  ];
+  if (existing.length === 0 && newNames.length === 0) {
+    throw new Error("Pick at least one list for the bookmark.");
+  }
+
+  // Must be allowed to add to each existing list.
+  for (const listId of existing) {
+    await assertRole(user.id, listId, "COLLABORATOR");
+  }
+
+  // Create any new lists (owned by the user), collecting their ids.
+  const targetIds = [...existing];
+  for (const name of newNames) {
+    const list = await createListRecord(user.id, { name });
+    targetIds.push(list.id);
+  }
+
+  // One independent bookmark row (+ its own tag links) per target list.
+  for (const listId of targetIds) {
+    const bookmark = await prisma.bookmark.create({
+      data: { ...fields, listId },
+    });
+    await syncBookmarkTags(bookmark.id, user.id, tagNames);
+  }
+
+  revalidatePath("/");
+  for (const listId of targetIds) revalidatePath(`/lists/${listId}`);
 }
 
 export async function updateBookmark(bookmarkId: string, formData: FormData) {
