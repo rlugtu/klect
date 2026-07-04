@@ -92,7 +92,7 @@ export function ListBookmarks({
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex items-start gap-2">
+      <div className="flex items-stretch gap-2">
       <div className="relative flex-1">
         <PixelInput
           value={query}
@@ -147,6 +147,7 @@ export function ListBookmarks({
           onClick={() => setTagMenuOpen((v) => !v)}
           aria-haspopup="listbox"
           aria-expanded={tagMenuOpen}
+          className="h-full normal-case"
         >
           Tags ▾
         </PixelButton>
