@@ -17,10 +17,12 @@ type Props = {
   initial: ListValues;
   submitLabel: string;
   onSubmit: (values: ListValues) => Promise<void>;
+  /** When set, a destructive "Delete list" button is shown (edit only). */
+  onDelete?: () => void;
 };
 
 /** Reusable list editor (icon, name, description) for create + edit. */
-export default function ListForm({ initial, submitLabel, onSubmit }: Props) {
+export default function ListForm({ initial, submitLabel, onSubmit, onDelete }: Props) {
   const { theme } = useTheme();
   const muted = THEME_TOKENS[theme].muted;
 
@@ -91,6 +93,15 @@ export default function ListForm({ initial, submitLabel, onSubmit }: Props) {
           <Text className="font-semibold text-primary-ink">{submitLabel}</Text>
         )}
       </Pressable>
+
+      {onDelete && (
+        <Pressable
+          className="mt-4 items-center rounded-skin border-skin border-border py-3"
+          disabled={busy}
+          onPress={onDelete}>
+          <Text className="font-semibold text-danger">Delete list</Text>
+        </Pressable>
+      )}
     </ScrollView>
   );
 }

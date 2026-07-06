@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, Text, View } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 
 import { trpc } from '@/client/api';
@@ -46,10 +46,27 @@ export default function EditListScreen() {
     );
   }
 
+  function confirmDelete() {
+    Alert.alert('Delete list?', 'This deletes the list and its bookmarks.', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Delete',
+        style: 'destructive',
+        onPress: async () => {
+          if (!id) return;
+          await trpc.lists.delete.mutate({ listId: id });
+          // Pop the edit modal AND the underlying (now-gone) list screen -> home.
+          router.dismissAll();
+        },
+      },
+    ]);
+  }
+
   return (
     <ListForm
       initial={initial}
       submitLabel="Save changes"
+      onDelete={confirmDelete}
       onSubmit={async (v) => {
         if (!id) return;
         await trpc.lists.update.mutate({

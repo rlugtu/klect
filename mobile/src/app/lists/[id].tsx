@@ -1,5 +1,5 @@
 import { useCallback, useMemo, useState } from 'react';
-import { Alert, FlatList, Pressable, Text, View } from 'react-native';
+import { FlatList, Pressable, Text, View } from 'react-native';
 import {
   Stack,
   useFocusEffect,
@@ -63,21 +63,6 @@ export default function ListScreen() {
     }, [id, loadComments]),
   );
 
-  function confirmDeleteList() {
-    Alert.alert('Delete list?', 'This deletes the list and its bookmarks.', [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Delete',
-        style: 'destructive',
-        onPress: async () => {
-          if (!id) return;
-          await trpc.lists.delete.mutate({ listId: id });
-          router.back();
-        },
-      },
-    ]);
-  }
-
   return (
     <View className="flex-1 bg-bg px-4 pt-4">
       <Stack.Screen
@@ -96,6 +81,21 @@ export default function ListScreen() {
           ),
         }}
       />
+
+      <View className="flex-row gap-2">
+        <Pressable
+          onPress={() => router.push({ pathname: '/lists/edit', params: { id } })}
+          className="flex-1 items-center rounded-skin border-skin border-border py-3">
+          <Text className="text-ink">Edit list</Text>
+        </Pressable>
+        <Pressable
+          onPress={() =>
+            router.push({ pathname: '/lists/members', params: { id, name } })
+          }
+          className="flex-1 items-center rounded-skin border-skin border-border py-3">
+          <Text className="text-ink">Members</Text>
+        </Pressable>
+      </View>
 
       {loading && <Text className="text-muted">Loading…</Text>}
       {error && <Text className="text-danger">{error}</Text>}
@@ -141,25 +141,6 @@ export default function ListScreen() {
                 loadComments();
               }}
             />
-            <Pressable
-              onPress={() =>
-                router.push({ pathname: '/lists/members', params: { id, name } })
-              }
-              className="items-center rounded-skin border-skin border-border py-3">
-              <Text className="text-ink">Members &amp; sharing</Text>
-            </Pressable>
-            <Pressable
-              onPress={() =>
-                router.push({ pathname: '/lists/edit', params: { id } })
-              }
-              className="items-center rounded-skin border-skin border-border py-3">
-              <Text className="text-ink">Edit list</Text>
-            </Pressable>
-            <Pressable
-              onPress={confirmDeleteList}
-              className="items-center rounded-skin border-skin border-border py-3">
-              <Text className="font-semibold text-danger">Delete list</Text>
-            </Pressable>
           </View>
         }
         renderItem={({ item }) => (

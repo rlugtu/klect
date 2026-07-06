@@ -198,8 +198,8 @@ src/app/_layout.tsx           root Stack + auth gate (login when signed out); re
   (tabs)/index.tsx            Home: lists + search        → push /lists/[id]
   (tabs)/nearby.tsx           radius search (expo-location → trpc.nearby.find)
   (tabs)/settings.tsx         account + theme switcher
-  lists/[id].tsx              a list's bookmarks + tag filter + comments + edit/delete/members
-  lists/new.tsx  lists/edit.tsx  lists/members.tsx        (modals / pushed screens)
+  lists/[id].tsx              a list's bookmarks + tag filter + comments; top action row → Edit list / Members
+  lists/new.tsx  lists/edit.tsx (edit + delete)  lists/members.tsx   (modals / pushed screens)
   bookmarks/[id].tsx          bookmark detail + comments + edit/delete/visited
   bookmarks/new.tsx  bookmarks/edit.tsx
 ```
