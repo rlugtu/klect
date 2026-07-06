@@ -8,6 +8,7 @@ import {
 } from 'expo-router';
 
 import { trpc } from '@/client/api';
+import CommentsSection, { type CommentItem } from '@/components/comments-section';
 
 // Inferred from web's tRPC procedure.
 type Bookmarks = Awaited<ReturnType<typeof trpc.bookmarks.forList.query>>;
@@ -16,9 +17,15 @@ export default function ListScreen() {
   const router = useRouter();
   const { id, name } = useLocalSearchParams<{ id: string; name?: string }>();
   const [bookmarks, setBookmarks] = useState<Bookmarks>([]);
+  const [comments, setComments] = useState<CommentItem[]>([]);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+
+  const loadComments = useCallback(() => {
+    if (!id) return;
+    trpc.comments.forList.query({ listId: id }).then(setComments).catch(() => {});
+  }, [id]);
 
   // Distinct tags present across the list's bookmarks (for the filter chips).
   const availableTags = useMemo(() => {
@@ -52,7 +59,8 @@ export default function ListScreen() {
         .then(setBookmarks)
         .catch((e) => setError(e instanceof Error ? e.message : 'Request failed'))
         .finally(() => setLoading(false));
-    }, [id]),
+      loadComments();
+    }, [id, loadComments]),
   );
 
   function confirmDeleteList() {
@@ -120,7 +128,19 @@ export default function ListScreen() {
         keyExtractor={(b) => b.id}
         contentContainerStyle={{ gap: 8, paddingBottom: 24 }}
         ListFooterComponent={
-          <View className="mt-6 gap-2">
+          <View className="mt-6 gap-3">
+            <CommentsSection
+              comments={comments}
+              onAdd={async (value) => {
+                if (!id) return;
+                await trpc.comments.addToList.mutate({ listId: id, value });
+                loadComments();
+              }}
+              onDelete={async (commentId) => {
+                await trpc.comments.delete.mutate({ commentId });
+                loadComments();
+              }}
+            />
             <Pressable
               onPress={() =>
                 router.push({ pathname: '/lists/members', params: { id, name } })

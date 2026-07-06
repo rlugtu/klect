@@ -10,6 +10,20 @@ export type CommentItem = Awaited<
   ReturnType<typeof trpc.comments.forBookmark.query>
 >[number];
 
+/** Compact relative time. `createdAt` arrives as an ISO string over tRPC. */
+function timeAgo(value: Date | string): string {
+  const then = new Date(value).getTime();
+  const s = Math.max(0, Math.round((Date.now() - then) / 1000));
+  if (s < 60) return 'now';
+  const m = Math.round(s / 60);
+  if (m < 60) return `${m}m`;
+  const h = Math.round(m / 60);
+  if (h < 24) return `${h}h`;
+  const d = Math.round(h / 24);
+  if (d < 7) return `${d}d`;
+  return new Date(value).toLocaleDateString();
+}
+
 type Props = {
   comments: CommentItem[];
   onAdd: (value: string) => Promise<void>;
@@ -68,6 +82,7 @@ export default function CommentsSection({ comments, onAdd, onDelete }: Props) {
             <Text className="text-sm font-semibold text-ink">
               {c.author.icon ? `${c.author.icon} ` : ''}
               {c.author.displayName ?? c.author.name}
+              <Text className="font-normal text-muted"> · {timeAgo(c.createdAt)}</Text>
             </Text>
             <Text className="text-sm text-ink">{c.value}</Text>
           </View>
