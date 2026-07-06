@@ -4,10 +4,14 @@
     "strict": true,
     "paths": {
       "@/*": [
-        "./src/*"
+        "./src/*",
+        "../web/src/*"
       ],
       "@/assets/*": [
         "./assets/*"
+      ],
+      "@web/*": [
+        "../web/src/*"
       ]
     }
   },
