@@ -6,6 +6,8 @@ import { useTheme } from '@/theme/theme-provider';
 import { THEME_TOKENS, type ThemeName } from '@/theme/tokens';
 
 const THEME_LABELS: Record<ThemeName, string> = {
+  JOURNAL_LIGHT: 'Journal · Light',
+  JOURNAL_DARK: 'Journal · Dark',
   PIXEL_LIGHT: 'Pixel · Light',
   PIXEL_DARK: 'Pixel · Dark',
   MODERN_LIGHT: 'Modern · Light',

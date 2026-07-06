@@ -21,6 +21,15 @@ module.exports = {
       // Skin knobs — driven per theme by ThemeProvider vars() (pixel vs modern).
       borderWidth: { skin: "var(--border-w)" },
       borderRadius: { skin: "var(--radius)", "skin-sm": "var(--radius-sm)" },
+      // Journal type: Newsreader (serif) for titles, Work Sans for UI. Custom fonts
+      // are loaded per-weight (RN doesn't synthesize weights), so weight = family.
+      fontFamily: {
+        serif: ["Newsreader_600SemiBold"],
+        "serif-italic": ["Newsreader_500Medium_Italic"],
+        sans: ["WorkSans_400Regular"],
+        "sans-medium": ["WorkSans_500Medium"],
+        "sans-semibold": ["WorkSans_600SemiBold"],
+      },
     },
   },
   plugins: [],

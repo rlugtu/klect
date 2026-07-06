@@ -53,7 +53,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     SecureStore.setItemAsync(STORE_KEY, t).catch(() => {});
   }, []);
 
-  const theme = override ?? (scheme === 'dark' ? 'PIXEL_DARK' : 'PIXEL_LIGHT');
+  const theme = override ?? (scheme === 'dark' ? 'JOURNAL_DARK' : 'JOURNAL_LIGHT');
 
   return (
     <ThemeContext.Provider value={{ theme, setTheme }}>
