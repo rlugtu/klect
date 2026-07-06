@@ -220,20 +220,26 @@ useFocusEffect(useCallback(() => {
 Types are inferred from the procedures — e.g.
 `type Bookmarks = Awaited<ReturnType<typeof trpc.bookmarks.forList.query>>` — never hand-written.
 
-### Theming (the two-family, four-theme system)
+### Theming (three families, six themes)
 
-Web defines the palette as CSS variables per `data-theme` in `globals.css` (canonical).
-Mobile mirrors those values as data in `src/theme/tokens.ts` and reproduces the runtime
-swap with NativeWind:
+Mobile has **three theme families** — **Journal** (warm scrapbook; the *default*), Pixel, and
+Modern — each light + dark. Pixel/Modern mirror web's `globals.css` palettes; **Journal is
+mobile-first** (see `mobile/docs/design.md`). Only palette/skin/font differ per family; the screen
+*structure* (photo-forward cards, headers, bottom sheet) is shared across all of them.
 
-- `theme-provider.tsx` applies the active theme's tokens as CSS variables via NativeWind's
-  `vars()` on a root wrapper — the RN equivalent of web's `data-theme` swap. The choice
-  persists to `expo-secure-store`; default follows the system light/dark pixel theme.
-- `tailwind.config.js` maps semantic names to those vars: `bg-bg`, `text-ink`, `bg-primary`,
-  `border-border`, plus **skin** knobs `border-skin` / `rounded-skin[-sm]` that differ by
-  family (pixel = chunky 2px borders + blocky 4px corners; modern = thin 1px + rounded 16px).
-- So a component writes `className="rounded-skin border-skin border-border bg-panel"` and it
-  restyles automatically when the theme changes. (The retro pixel *font* is a pending follow-up.)
+- `src/theme/tokens.ts` holds `THEME_TOKENS` (the 6 palettes) + a per-family **skin** map (border
+  width + corner radii — Pixel: 2px/4px, Modern: 1px/16px, Journal: 1px/20px).
+- `theme-provider.tsx` applies the active theme's tokens as CSS variables via NativeWind's `vars()`
+  on a root wrapper — the RN equivalent of web's `data-theme` swap. The choice persists to
+  `expo-secure-store`; default follows system light/dark **Journal**.
+- `tailwind.config.js` maps semantic names to those vars — `bg-bg`, `text-ink`, `bg-primary`,
+  `border-border`, the skin knobs `border-skin` / `rounded-skin[-sm]`, and **fonts** `font-serif`
+  (Newsreader) / `font-sans[-medium|-semibold]` (Work Sans, loaded via `expo-font` in `_layout`).
+- So a component writes `className="rounded-skin border-skin border-border bg-panel font-serif"`
+  and it restyles automatically when the theme changes.
+- Journal component patterns: photo-forward cards (`components/photo-card.tsx` + `theme/shadows.ts`),
+  lowercase colored `components/tag-pill.tsx`, and a `@gorhom/bottom-sheet` tag filter on the list
+  screen.
 
 ---
 
