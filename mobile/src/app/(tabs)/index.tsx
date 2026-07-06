@@ -48,7 +48,7 @@ export default function HomeScreen() {
         </View>
 
         <TextInput
-          className="rounded-lg border border-border px-4 py-2 text-ink"
+          className="rounded-skin border-skin border-border px-4 py-2 text-ink"
           placeholder="Search lists"
           placeholderTextColor={muted}
           autoCapitalize="none"
@@ -76,7 +76,7 @@ export default function HomeScreen() {
                   params: { id: item.list.id, name: item.list.name },
                 })
               }
-              className="rounded-xl border border-border bg-panel p-3">
+              className="rounded-skin border-skin border-border bg-panel p-3">
               <Text className="text-base text-ink">
                 {item.list.icon} {item.list.name}
               </Text>

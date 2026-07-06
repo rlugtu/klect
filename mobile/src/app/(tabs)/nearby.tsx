@@ -62,7 +62,7 @@ export default function NearbyScreen() {
             <Pressable
               key={r}
               onPress={() => find(r)}
-              className={`rounded-lg border px-3 py-2 ${
+              className={`rounded-skin border px-3 py-2 ${
                 radius === r ? 'border-primary bg-primary' : 'border-border'
               }`}>
               <Text className={radius === r ? 'text-primary-ink' : 'text-ink'}>
@@ -92,7 +92,7 @@ export default function NearbyScreen() {
                   params: { id: item.card.id, name: item.card.name },
                 })
               }
-              className="gap-1 rounded-xl border border-border bg-panel p-3">
+              className="gap-1 rounded-skin border-skin border-border bg-panel p-3">
               <View className="flex-row items-center justify-between">
                 <Text className="flex-1 pr-2 text-base font-semibold text-ink">
                   {item.card.name}

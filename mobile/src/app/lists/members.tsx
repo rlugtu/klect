@@ -122,7 +122,7 @@ export default function MembersScreen() {
         <View className="gap-2">
           <Text className="text-sm uppercase text-muted">Invite</Text>
           <TextInput
-            className="rounded-lg border border-border px-4 py-3 text-ink"
+            className="rounded-skin border-skin border-border px-4 py-3 text-ink"
             placeholder="Email"
             placeholderTextColor={muted}
             autoCapitalize="none"
@@ -136,7 +136,7 @@ export default function MembersScreen() {
               <Pressable
                 key={r}
                 onPress={() => setInviteRole(r)}
-                className={`flex-1 items-center rounded-lg border py-2 ${
+                className={`flex-1 items-center rounded-skin border py-2 ${
                   inviteRole === r ? 'border-primary bg-primary' : 'border-border'
                 }`}>
                 <Text
@@ -147,7 +147,7 @@ export default function MembersScreen() {
             ))}
           </View>
           <Pressable
-            className="items-center rounded-lg bg-primary py-3"
+            className="items-center rounded-skin bg-primary py-3"
             disabled={busy}
             onPress={invite}>
             {busy ? (
@@ -165,7 +165,7 @@ export default function MembersScreen() {
         {members.map((m) => (
           <View
             key={m.id}
-            className="flex-row items-center justify-between rounded-xl border border-border bg-panel p-3">
+            className="flex-row items-center justify-between rounded-skin border-skin border-border bg-panel p-3">
             <View className="flex-1 pr-2">
               <Text className="text-base text-ink">
                 {m.user.icon ? `${m.user.icon} ` : ''}
@@ -197,7 +197,7 @@ export default function MembersScreen() {
           {invites.map((inv) => (
             <View
               key={inv.id}
-              className="flex-row items-center justify-between rounded-xl border border-border bg-panel p-3">
+              className="flex-row items-center justify-between rounded-skin border-skin border-border bg-panel p-3">
               <View className="flex-1 pr-2">
                 <Text className="text-base text-ink">{inv.email}</Text>
                 <Text className="text-xs text-muted">{inv.role.toLowerCase()}</Text>
@@ -212,7 +212,7 @@ export default function MembersScreen() {
 
       {loaded && !isOwner && (
         <Pressable
-          className="items-center rounded-lg border border-border py-3"
+          className="items-center rounded-skin border-skin border-border py-3"
           onPress={leave}>
           <Text className="font-semibold text-danger">Leave list</Text>
         </Pressable>

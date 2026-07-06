@@ -18,6 +18,9 @@ module.exports = {
         warning: "var(--color-warning)",
         border: "var(--color-border)",
       },
+      // Skin knobs — driven per theme by ThemeProvider vars() (pixel vs modern).
+      borderWidth: { skin: "var(--border-w)" },
+      borderRadius: { skin: "var(--radius)", "skin-sm": "var(--radius-sm)" },
     },
   },
   plugins: [],

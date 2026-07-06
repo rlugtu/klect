@@ -43,9 +43,16 @@ export const THEME_TOKENS: Record<ThemeName, Record<TokenName, string>> = {
   },
 };
 
-/** CSS-variable map NativeWind consumes (matches the tailwind.config color → var wiring). */
+/**
+ * CSS-variable map NativeWind consumes — color tokens plus **skin** vars (border
+ * width + radius) that give the pixel skin its chunky/blocky look and the modern
+ * skin its thin/rounded look. Exposed as `border-skin` / `rounded-skin[-sm]`
+ * utilities in tailwind.config. (The retro pixel *font* is a separate follow-up
+ * needing expo-font.)
+ */
 export function themeVars(name: ThemeName): Record<string, string> {
   const t = THEME_TOKENS[name];
+  const modern = name.startsWith('MODERN');
   return {
     '--color-bg': t.bg,
     '--color-panel': t.panel,
@@ -58,5 +65,8 @@ export function themeVars(name: ThemeName): Record<string, string> {
     '--color-success': t.success,
     '--color-warning': t.warning,
     '--color-border': t.border,
+    '--border-w': modern ? '1px' : '2px',
+    '--radius': modern ? '16px' : '4px',
+    '--radius-sm': modern ? '8px' : '2px',
   };
 }

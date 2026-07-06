@@ -133,7 +133,7 @@ export default function BookmarkScreen() {
             {b.rating > 0 && <Text className="text-warning">{stars(b.rating)}</Text>}
             <Pressable
               onPress={toggleVisited}
-              className={`rounded px-2 py-0.5 ${b.visited ? 'bg-success' : 'border border-border'}`}>
+              className={`rounded-skin-sm px-2 py-0.5 ${b.visited ? 'bg-success' : 'border-skin border-border'}`}>
               <Text className={`text-xs ${b.visited ? 'text-primary-ink' : 'text-muted'}`}>
                 {b.visited ? 'Visited' : 'Mark visited'}
               </Text>
@@ -145,7 +145,7 @@ export default function BookmarkScreen() {
               {b.tags.map((bt) => (
                 <View
                   key={bt.tag.id}
-                  className="rounded px-2 py-0.5"
+                  className="rounded-skin-sm px-2 py-0.5"
                   style={{ backgroundColor: bt.tag.color }}>
                   <Text className="text-xs text-ink">{bt.tag.name}</Text>
                 </View>
@@ -179,7 +179,7 @@ export default function BookmarkScreen() {
           ) : null}
 
           {b.notes ? (
-            <View className="rounded-xl border border-border bg-panel p-3">
+            <View className="rounded-skin border-skin border-border bg-panel p-3">
               <Text className="text-sm text-muted">{b.notes}</Text>
             </View>
           ) : null}
@@ -198,7 +198,7 @@ export default function BookmarkScreen() {
           />
 
           <Pressable
-            className="mt-4 items-center rounded-lg border border-border py-3"
+            className="mt-4 items-center rounded-skin border-skin border-border py-3"
             onPress={confirmDelete}>
             <Text className="font-semibold text-danger">Delete bookmark</Text>
           </Pressable>

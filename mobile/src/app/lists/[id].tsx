@@ -112,7 +112,7 @@ export default function ListScreen() {
                 key={t.id}
                 onPress={() => toggleTag(t.id)}
                 style={{ backgroundColor: t.color, opacity: !on && selected.size > 0 ? 0.4 : 1 }}
-                className="rounded-full px-3 py-1">
+                className="rounded-skin-sm px-3 py-1">
                 <Text className="text-xs text-ink">
                   {on ? '✓ ' : ''}
                   {t.name}
@@ -145,19 +145,19 @@ export default function ListScreen() {
               onPress={() =>
                 router.push({ pathname: '/lists/members', params: { id, name } })
               }
-              className="items-center rounded-lg border border-border py-3">
+              className="items-center rounded-skin border-skin border-border py-3">
               <Text className="text-ink">Members &amp; sharing</Text>
             </Pressable>
             <Pressable
               onPress={() =>
                 router.push({ pathname: '/lists/edit', params: { id } })
               }
-              className="items-center rounded-lg border border-border py-3">
+              className="items-center rounded-skin border-skin border-border py-3">
               <Text className="text-ink">Edit list</Text>
             </Pressable>
             <Pressable
               onPress={confirmDeleteList}
-              className="items-center rounded-lg border border-border py-3">
+              className="items-center rounded-skin border-skin border-border py-3">
               <Text className="font-semibold text-danger">Delete list</Text>
             </Pressable>
           </View>
@@ -170,7 +170,7 @@ export default function ListScreen() {
                 params: { id: item.id, name: item.name },
               })
             }
-            className="gap-1 rounded-xl border border-border bg-panel p-3">
+            className="gap-1 rounded-skin border-skin border-border bg-panel p-3">
             <Text className="text-base font-semibold text-ink">{item.name}</Text>
             {item.description ? (
               <Text className="text-sm text-muted" numberOfLines={2}>
@@ -182,7 +182,7 @@ export default function ListScreen() {
                 {item.tags.map((bt) => (
                   <View
                     key={bt.tag.id}
-                    className="rounded px-2 py-0.5"
+                    className="rounded-skin-sm px-2 py-0.5"
                     style={{ backgroundColor: bt.tag.color }}>
                     <Text className="text-xs text-ink">{bt.tag.name}</Text>
                   </View>

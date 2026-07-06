@@ -56,14 +56,14 @@ export default function CommentsSection({ comments, onAdd, onDelete }: Props) {
 
       <View className="flex-row gap-2">
         <TextInput
-          className="flex-1 rounded-lg border border-border px-4 py-2 text-ink"
+          className="flex-1 rounded-skin border-skin border-border px-4 py-2 text-ink"
           placeholder="Add a comment"
           placeholderTextColor={muted}
           value={value}
           onChangeText={setValue}
         />
         <Pressable
-          className="items-center justify-center rounded-lg bg-primary px-4"
+          className="items-center justify-center rounded-skin bg-primary px-4"
           disabled={busy}
           onPress={post}>
           {busy ? (
@@ -77,7 +77,7 @@ export default function CommentsSection({ comments, onAdd, onDelete }: Props) {
       {comments.map((c) => (
         <View
           key={c.id}
-          className="flex-row items-start justify-between rounded-xl border border-border bg-panel p-3">
+          className="flex-row items-start justify-between rounded-skin border-skin border-border bg-panel p-3">
           <View className="flex-1 pr-2">
             <Text className="text-sm font-semibold text-ink">
               {c.author.icon ? `${c.author.icon} ` : ''}

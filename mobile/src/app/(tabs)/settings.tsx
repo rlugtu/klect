@@ -23,7 +23,7 @@ export default function SettingsScreen() {
 
         <View className="gap-2">
           <Text className="text-sm uppercase text-muted">Account</Text>
-          <View className="rounded-xl border border-border bg-panel p-3">
+          <View className="rounded-skin border-skin border-border bg-panel p-3">
             <Text className="text-base text-ink">
               {session?.user?.name ?? 'Signed in'}
             </Text>
@@ -40,7 +40,7 @@ export default function SettingsScreen() {
               <Pressable
                 key={name}
                 onPress={() => setTheme(name)}
-                className={`flex-row items-center justify-between rounded-xl border bg-panel p-3 ${
+                className={`flex-row items-center justify-between rounded-skin border bg-panel p-3 ${
                   active ? 'border-primary' : 'border-border'
                 }`}>
                 <View className="flex-row items-center gap-3">
@@ -49,7 +49,7 @@ export default function SettingsScreen() {
                       <View
                         key={i}
                         style={{ backgroundColor: c }}
-                        className="h-5 w-5 rounded-full"
+                        className="h-5 w-5 rounded-skin-sm"
                       />
                     ))}
                   </View>
@@ -62,7 +62,7 @@ export default function SettingsScreen() {
         </View>
 
         <Pressable
-          className="items-center rounded-lg border border-border py-3"
+          className="items-center rounded-skin border-skin border-border py-3"
           onPress={() => authClient.signOut()}>
           <Text className="font-semibold text-danger">Sign out</Text>
         </Pressable>

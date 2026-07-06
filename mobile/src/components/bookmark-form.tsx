@@ -114,7 +114,7 @@ export default function BookmarkForm({ initial, submitLabel, onSubmit }: Props) 
         keyboardShouldPersistTaps="handled">
         <View className="flex-row gap-2">
           <TextInput
-            className="flex-1 rounded-lg border border-border px-4 py-3 text-ink"
+            className="flex-1 rounded-skin border-skin border-border px-4 py-3 text-ink"
             placeholder="Paste a link"
             placeholderTextColor={muted}
             autoCapitalize="none"
@@ -124,7 +124,7 @@ export default function BookmarkForm({ initial, submitLabel, onSubmit }: Props) 
             onChangeText={setUrl}
           />
           <Pressable
-            className="items-center justify-center rounded-lg border border-border px-3"
+            className="items-center justify-center rounded-skin border-skin border-border px-3"
             disabled={autofilling}
             onPress={autofill}>
             {autofilling ? (
@@ -136,14 +136,14 @@ export default function BookmarkForm({ initial, submitLabel, onSubmit }: Props) 
         </View>
 
         <TextInput
-          className="rounded-lg border border-border px-4 py-3 text-ink"
+          className="rounded-skin border-skin border-border px-4 py-3 text-ink"
           placeholder="Name"
           placeholderTextColor={muted}
           value={name}
           onChangeText={setName}
         />
         <TextInput
-          className="rounded-lg border border-border px-4 py-3 text-ink"
+          className="rounded-skin border-skin border-border px-4 py-3 text-ink"
           placeholder="Description"
           placeholderTextColor={muted}
           multiline
@@ -151,7 +151,7 @@ export default function BookmarkForm({ initial, submitLabel, onSubmit }: Props) 
           onChangeText={setDescription}
         />
         <TextInput
-          className="rounded-lg border border-border px-4 py-3 text-ink"
+          className="rounded-skin border-skin border-border px-4 py-3 text-ink"
           placeholder="Tags (comma separated)"
           placeholderTextColor={muted}
           autoCapitalize="none"
@@ -173,7 +173,7 @@ export default function BookmarkForm({ initial, submitLabel, onSubmit }: Props) 
         {error && <Text className="text-danger">{error}</Text>}
 
         <Pressable
-          className="items-center rounded-lg bg-primary py-3"
+          className="items-center rounded-skin bg-primary py-3"
           disabled={busy}
           onPress={submit}>
           {busy ? (

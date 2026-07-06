@@ -56,14 +56,14 @@ export default function ListForm({ initial, submitLabel, onSubmit }: Props) {
       keyboardShouldPersistTaps="handled">
       <View className="flex-row gap-2">
         <TextInput
-          className="w-16 rounded-lg border border-border px-2 py-3 text-center text-ink"
+          className="w-16 rounded-skin border-skin border-border px-2 py-3 text-center text-ink"
           placeholder="📁"
           placeholderTextColor={muted}
           value={icon}
           onChangeText={setIcon}
         />
         <TextInput
-          className="flex-1 rounded-lg border border-border px-4 py-3 text-ink"
+          className="flex-1 rounded-skin border-skin border-border px-4 py-3 text-ink"
           placeholder="List name"
           placeholderTextColor={muted}
           value={name}
@@ -71,7 +71,7 @@ export default function ListForm({ initial, submitLabel, onSubmit }: Props) {
         />
       </View>
       <TextInput
-        className="rounded-lg border border-border px-4 py-3 text-ink"
+        className="rounded-skin border-skin border-border px-4 py-3 text-ink"
         placeholder="Description"
         placeholderTextColor={muted}
         multiline
@@ -82,7 +82,7 @@ export default function ListForm({ initial, submitLabel, onSubmit }: Props) {
       {error && <Text className="text-danger">{error}</Text>}
 
       <Pressable
-        className="items-center rounded-lg bg-primary py-3"
+        className="items-center rounded-skin bg-primary py-3"
         disabled={busy}
         onPress={submit}>
         {busy ? (

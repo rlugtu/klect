@@ -52,7 +52,7 @@ export default function LoginScreen() {
         <Text className="mb-4 text-center text-muted">Sign in to your bookmarks</Text>
 
         <TextInput
-          className="rounded-lg border border-border px-4 py-3 text-ink"
+          className="rounded-skin border-skin border-border px-4 py-3 text-ink"
           placeholder="Email"
           placeholderTextColor={muted}
           autoCapitalize="none"
@@ -62,7 +62,7 @@ export default function LoginScreen() {
           onChangeText={setEmail}
         />
         <TextInput
-          className="rounded-lg border border-border px-4 py-3 text-ink"
+          className="rounded-skin border-skin border-border px-4 py-3 text-ink"
           placeholder="Password"
           placeholderTextColor={muted}
           secureTextEntry
@@ -73,7 +73,7 @@ export default function LoginScreen() {
         {error && <Text className="text-center text-danger">{error}</Text>}
 
         <Pressable
-          className="items-center rounded-lg bg-primary py-3"
+          className="items-center rounded-skin bg-primary py-3"
           disabled={busy}
           onPress={signInEmail}>
           {busy ? (
@@ -84,7 +84,7 @@ export default function LoginScreen() {
         </Pressable>
 
         <Pressable
-          className="items-center rounded-lg border border-border py-3"
+          className="items-center rounded-skin border-skin border-border py-3"
           disabled={busy}
           onPress={signInGoogle}>
           <Text className="font-semibold text-ink">Continue with Google</Text>
