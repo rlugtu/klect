@@ -35,6 +35,10 @@ export default function RootLayout() {
               name="bookmarks/new"
               options={{ presentation: 'modal', title: 'New bookmark' }}
             />
+            <Stack.Screen
+              name="bookmarks/edit"
+              options={{ presentation: 'modal', title: 'Edit bookmark' }}
+            />
           </Stack>
         ) : (
           <LoginScreen />
