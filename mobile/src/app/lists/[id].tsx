@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
-import { FlatList, Text, View } from 'react-native';
-import { Stack, useLocalSearchParams } from 'expo-router';
+import { FlatList, Pressable, Text, View } from 'react-native';
+import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 
 import { trpc } from '@/client/api';
 
@@ -8,6 +8,7 @@ import { trpc } from '@/client/api';
 type Bookmarks = Awaited<ReturnType<typeof trpc.bookmarks.forList.query>>;
 
 export default function ListScreen() {
+  const router = useRouter();
   const { id, name } = useLocalSearchParams<{ id: string; name?: string }>();
   const [bookmarks, setBookmarks] = useState<Bookmarks>([]);
   const [error, setError] = useState<string | null>(null);
@@ -37,7 +38,14 @@ export default function ListScreen() {
         keyExtractor={(b) => b.id}
         contentContainerStyle={{ gap: 8 }}
         renderItem={({ item }) => (
-          <View className="gap-1 rounded-xl border border-border bg-panel p-3">
+          <Pressable
+            onPress={() =>
+              router.push({
+                pathname: '/bookmarks/[id]',
+                params: { id: item.id, name: item.name },
+              })
+            }
+            className="gap-1 rounded-xl border border-border bg-panel p-3">
             <Text className="text-base font-semibold text-ink">{item.name}</Text>
             {item.description ? (
               <Text className="text-sm text-muted" numberOfLines={2}>
@@ -56,7 +64,7 @@ export default function ListScreen() {
                 ))}
               </View>
             )}
-          </View>
+          </Pressable>
         )}
       />
     </View>
