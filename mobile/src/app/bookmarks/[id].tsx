@@ -17,6 +17,7 @@ import {
 } from 'expo-router';
 
 import { trpc } from '@/client/api';
+import CommentsSection, { type CommentItem } from '@/components/comments-section';
 
 // Inferred from web's tRPC procedure ({ bookmark, role } | null).
 type BookmarkResult = Awaited<ReturnType<typeof trpc.bookmarks.get.query>>;
@@ -35,8 +36,14 @@ export default function BookmarkScreen() {
   const router = useRouter();
   const { id, name } = useLocalSearchParams<{ id: string; name?: string }>();
   const [data, setData] = useState<BookmarkResult>(null);
+  const [comments, setComments] = useState<CommentItem[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+
+  const loadComments = useCallback(() => {
+    if (!id) return;
+    trpc.comments.forBookmark.query({ bookmarkId: id }).then(setComments).catch(() => {});
+  }, [id]);
 
   // Refetch on focus so returning from Edit shows updated values.
   useFocusEffect(
@@ -47,7 +54,8 @@ export default function BookmarkScreen() {
         .then(setData)
         .catch((e) => setError(e instanceof Error ? e.message : 'Request failed'))
         .finally(() => setLoading(false));
-    }, [id]),
+      loadComments();
+    }, [id, loadComments]),
   );
 
   const b = data?.bookmark;
@@ -175,6 +183,19 @@ export default function BookmarkScreen() {
               <Text className="text-sm text-muted">{b.notes}</Text>
             </View>
           ) : null}
+
+          <CommentsSection
+            comments={comments}
+            onAdd={async (value) => {
+              if (!id) return;
+              await trpc.comments.addToBookmark.mutate({ bookmarkId: id, value });
+              loadComments();
+            }}
+            onDelete={async (commentId) => {
+              await trpc.comments.delete.mutate({ commentId });
+              loadComments();
+            }}
+          />
 
           <Pressable
             className="mt-4 items-center rounded-lg border border-border py-3"
