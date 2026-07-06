@@ -310,40 +310,47 @@ prisma/                     # schema.prisma + migrations (committed)
 
 ---
 
-## 9. React Native portability
+## 9. Web + mobile split (two-app architecture)
 
-The app is structured so a future React Native (Expo) client is a realistic, incremental
-project rather than a rewrite. What transfers vs. what needs an RN-native equivalent:
+Saive is **two independent apps in one repo** (`web/`, `mobile/`), sharing a spec and a runtime
+API — **not** a monorepo with shared code packages. This section is the shared contract both apps
+build against; see the top-level `CLAUDE.md` for the per-feature workflow and the earlier
+`docs/monorepo-migration.md` (superseded) for the rejected shared-packages topology.
 
-**Reusable as-is (server / shared)**
-- **Prisma schema + migrations** — the entire data model is platform-agnostic.
-- **Domain logic in `lib/`** — read queries, `permissions.ts`, tag-sync, invite/auto-link logic.
-  It's plain TypeScript with no React/DOM dependency.
-- **Auth** — better-auth has a first-party **Expo** client/plugin, so the same auth server works;
-  RN uses `@better-auth/expo` instead of `better-auth/react`.
-- **Types** (`lib/types.ts`), `timeAgo()`, and the **design tokens** (palette values) can be
-  shared as data.
+**Topology**
+- **`web/`** owns the database, auth, and **all** business logic (Prisma schema + migrations, read
+  queries, `permissions.ts`, tag-sync, invite/auto-link, external-service calls). It keeps its
+  server-first model (RSC reads + server actions) unchanged, and *additionally* hosts a **tRPC**
+  API at `/api/trpc`.
+- **`mobile/`** (Expo) is a **thin client**: it calls the tRPC API and rebuilds only the UI. No DB
+  access, no business logic of its own.
+- Backend logic is written **once** in web. Each mutation is a pure `core(input)` function
+  (validate → `assertRole` → Prisma → return); the `"use server"` `action(formData)` wrapper and
+  the tRPC procedure both call the same `core()` — never duplicated.
 
-**Needs an RN parallel (web-specific today)**
-- **Transport**: the web calls Prisma via RSC/server actions directly. RN can't — it needs an
-  **HTTP/typed API**. Recommended: add a **tRPC (or route-handler) layer that wraps the existing
-  `lib/` functions**, so web *and* RN consume one typed surface. The mutation logic already lives
-  in small functions inside `lib/actions/*`; splitting each into a pure `core(input)` + a thin
-  `action(formData)` wrapper makes it directly callable by both.
-- **UI**: everything in `components/` is DOM + Tailwind + Framer Motion → rebuild with RN views.
-  - Tailwind classes → **NativeWind** (reuse most class names; feed it the same token palette).
-  - Framer Motion → **Moti/Reanimated** (similar declarative API).
-  - `next/link` + App Router → **expo-router** (same file-based mental model).
-  - `<img>`/remote images → `expo-image`; the pixel-border look → shared style helpers.
+**What web owns vs. what mobile rebuilds**
+- Owned by web (shared via the API, not copied): data model, read queries, `permissions.ts`, auth
+  server (better-auth), and the external-service integrations (Mapbox places, Microlink metadata,
+  Anthropic extraction) — mobile reaches these through procedures, so no keys ship in the app.
+- Rebuilt in mobile: everything in `components/` (DOM + Tailwind + Framer Motion) →
+  RN views + **NativeWind** (same token palette) + **Moti/Reanimated**; `next/link` + App Router →
+  **expo-router**; `<img>`/remote images → **expo-image**; the pixel-border look → shared style
+  helpers. Auth client: `better-auth/react` (web) → `@better-auth/expo` (mobile), same server.
+- Design **tokens** (the palette for the 4 themes) are defined once as data in web and mirrored by
+  mobile's NativeWind config.
 
-**To make the eventual port smoother (recommended, not yet done)**
-1. Extract a **`tokens.ts`** as the single source of truth for the palette; have `globals.css`
-   and (later) NativeWind both read from it.
-2. Introduce the **API boundary** (tRPC) over `lib/` before starting RN; refactor actions into
-   `core(input)` + `action(formData)`.
-3. Keep new business logic **out of components** and in `lib/` (already the norm).
+**Type sharing:** mobile imports web's tRPC `AppRouter` **type-only** for end-to-end types; this is
+erased at compile time (no runtime coupling). Fallback if the cross-folder reference is unwanted:
+plain REST + types redeclared in mobile, with the API contract below as the only guard against drift.
 
-These are optional and can be done when RN work actually starts — none block the current app.
+### API contract (tRPC surface)
+
+*The canonical list of tRPC procedures both apps code against. Populated as Phase 1 lands — keep
+this in sync whenever a procedure is added or changed.*
+
+| Procedure | Kind | Input | Returns | Wraps (`core`) |
+|---|---|---|---|---|
+| _(to be filled in during the tRPC transport phase)_ | | | | |
 
 ---
 
