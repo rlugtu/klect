@@ -155,6 +155,7 @@ export function SearchBar({
                 className="inline-flex"
               >
                 <PixelBadge
+                  tag
                   tone="primary"
                   color={tagColors[tag] || undefined}
                   onRemove={() => removeTag(tag)}

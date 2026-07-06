@@ -17,6 +17,12 @@ export interface PixelBadgeProps
   color?: string;
   /** When provided, renders a small × button to remove the badge (tag pills). */
   onRemove?: () => void;
+  /**
+   * Marks this badge as a bookmark tag (vs. a status/role label). Adds the
+   * `pixel-tag` hook the modern theme uses to soften tags into rounded,
+   * non-uppercase pills. No effect in the pixel theme.
+   */
+  tag?: boolean;
 }
 
 /** Small pill used for tags/labels. Optionally removable. */
@@ -25,6 +31,7 @@ export function PixelBadge({
   tone = "default",
   color,
   onRemove,
+  tag,
   children,
   style,
   ...props
@@ -34,6 +41,7 @@ export function PixelBadge({
       className={cn(
         "font-pixel inline-flex items-center gap-1.5 px-2 py-1 text-sm uppercase",
         "border-2 border-border",
+        tag && "pixel-tag",
         !color && toneClasses[tone],
         className,
       )}

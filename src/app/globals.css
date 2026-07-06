@@ -210,3 +210,11 @@ img[data-pixel] {
   background-image: var(--gradient-primary);
   border-color: transparent;
 }
+
+/* Soften bookmark tags into rounded, non-uppercase pills (modern skin only;
+   pixel theme keeps its sharp, uppercase tags). */
+[data-theme^="modern"] .pixel-tag {
+  text-transform: none;
+  border-radius: 9999px;
+  border-width: 1px;
+}
