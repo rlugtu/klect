@@ -18,13 +18,11 @@ import {
 
 import { trpc } from '@/client/api';
 import CommentsSection, { type CommentItem } from '@/components/comments-section';
+import TagPill from '@/components/tag-pill';
+import { cardShadow } from '@/theme/shadows';
 
 // Inferred from web's tRPC procedure ({ bookmark, role } | null).
 type BookmarkResult = Awaited<ReturnType<typeof trpc.bookmarks.get.query>>;
-
-function stars(rating: number) {
-  return '★'.repeat(rating) + '☆'.repeat(Math.max(0, 5 - rating));
-}
 
 function mapsUrl(location: string, lat: number | null, lon: number | null) {
   if (lat != null && lon != null)
@@ -45,7 +43,6 @@ export default function BookmarkScreen() {
     trpc.comments.forBookmark.query({ bookmarkId: id }).then(setComments).catch(() => {});
   }, [id]);
 
-  // Refetch on focus so returning from Edit shows updated values.
   useFocusEffect(
     useCallback(() => {
       if (!id) return;
@@ -98,43 +95,67 @@ export default function BookmarkScreen() {
                 onPress={() =>
                   router.push({ pathname: '/bookmarks/edit', params: { id } })
                 }>
-                <Text className="text-base font-semibold text-primary">Edit</Text>
+                <Text className="font-sans-semibold text-base text-primary">Edit</Text>
               </Pressable>
             ) : null,
         }}
       />
 
       {loading && <ActivityIndicator />}
-      {error && <Text className="text-danger">{error}</Text>}
+      {error && <Text className="font-sans text-danger">{error}</Text>}
       {!loading && !error && !b && (
-        <Text className="text-muted">Bookmark not found.</Text>
+        <Text className="font-serif-italic text-muted">Bookmark not found.</Text>
       )}
 
       {b && (
         <>
           {b.images.length > 0 && (
-            <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-              <View className="flex-row gap-2">
-                {b.images.map((src) => (
-                  <Image
-                    key={src}
-                    source={src}
-                    style={{ width: 220, height: 160, borderRadius: 12 }}
-                    contentFit="cover"
-                  />
-                ))}
+            <View
+              style={cardShadow}
+              className="overflow-hidden rounded-skin border-skin border-border bg-panel p-1.5">
+              <View className="overflow-hidden rounded-skin-sm">
+                <Image
+                  source={b.images[0]}
+                  style={{ width: '100%', aspectRatio: 1.6 }}
+                  contentFit="cover"
+                  transition={150}
+                />
               </View>
-            </ScrollView>
+              {b.images.length > 1 && (
+                <ScrollView
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  className="mt-1.5">
+                  <View className="flex-row gap-1.5">
+                    {b.images.slice(1).map((src) => (
+                      <View key={src} className="overflow-hidden rounded-skin-sm">
+                        <Image
+                          source={src}
+                          style={{ width: 84, height: 60 }}
+                          contentFit="cover"
+                        />
+                      </View>
+                    ))}
+                  </View>
+                </ScrollView>
+              )}
+            </View>
           )}
 
-          <Text className="text-2xl font-bold text-ink">{b.name}</Text>
+          <Text className="font-serif text-3xl text-ink">{b.name}</Text>
 
           <View className="flex-row items-center gap-3">
-            {b.rating > 0 && <Text className="text-warning">{stars(b.rating)}</Text>}
+            {b.rating > 0 && (
+              <Text className="text-base">
+                <Text className="text-accent">{'★'.repeat(b.rating)}</Text>
+                <Text className="text-muted">{'☆'.repeat(5 - b.rating)}</Text>
+              </Text>
+            )}
             <Pressable
               onPress={toggleVisited}
-              className={`rounded-skin-sm px-2 py-0.5 ${b.visited ? 'bg-success' : 'border-skin border-border'}`}>
-              <Text className={`text-xs ${b.visited ? 'text-primary-ink' : 'text-muted'}`}>
+              className={`rounded-skin-sm px-2.5 py-0.5 ${b.visited ? 'bg-success' : 'border-skin border-border'}`}>
+              <Text
+                className={`font-sans text-xs ${b.visited ? 'text-primary-ink' : 'text-muted'}`}>
                 {b.visited ? 'Visited' : 'Mark visited'}
               </Text>
             </Pressable>
@@ -143,25 +164,20 @@ export default function BookmarkScreen() {
           {b.tags.length > 0 && (
             <View className="flex-row flex-wrap gap-1">
               {b.tags.map((bt) => (
-                <View
-                  key={bt.tag.id}
-                  className="rounded-skin-sm px-2 py-0.5"
-                  style={{ backgroundColor: bt.tag.color }}>
-                  <Text className="text-xs text-ink">{bt.tag.name}</Text>
-                </View>
+                <TagPill key={bt.tag.id} name={bt.tag.name} color={bt.tag.color} />
               ))}
             </View>
           )}
 
           {b.description ? (
-            <Text className="text-base text-ink">{b.description}</Text>
+            <Text className="font-sans text-base text-ink">{b.description}</Text>
           ) : null}
 
           {b.urls.length > 0 && (
             <View className="gap-1">
               {b.urls.map((url) => (
                 <Pressable key={url} onPress={() => Linking.openURL(url)}>
-                  <Text className="text-primary" numberOfLines={1}>
+                  <Text className="font-sans text-primary" numberOfLines={1}>
                     {url}
                   </Text>
                 </Pressable>
@@ -174,13 +190,13 @@ export default function BookmarkScreen() {
               onPress={() =>
                 Linking.openURL(mapsUrl(b.location, b.latitude, b.longitude))
               }>
-              <Text className="text-primary">📍 {b.location}</Text>
+              <Text className="font-sans text-primary">📍 {b.location}</Text>
             </Pressable>
           ) : null}
 
           {b.notes ? (
             <View className="rounded-skin border-skin border-border bg-panel p-3">
-              <Text className="text-sm text-muted">{b.notes}</Text>
+              <Text className="font-sans text-sm text-muted">{b.notes}</Text>
             </View>
           ) : null}
 
@@ -200,7 +216,7 @@ export default function BookmarkScreen() {
           <Pressable
             className="mt-4 items-center rounded-skin border-skin border-border py-3"
             onPress={confirmDelete}>
-            <Text className="font-semibold text-danger">Delete bookmark</Text>
+            <Text className="font-sans-semibold text-danger">Delete bookmark</Text>
           </Pressable>
         </>
       )}

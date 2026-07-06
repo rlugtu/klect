@@ -51,7 +51,10 @@ export default function RootLayout() {
             {isPending ? (
               <View style={{ flex: 1 }} />
             ) : session ? (
-              <Stack>
+              <Stack
+                screenOptions={{
+                  headerTitleStyle: { fontFamily: 'Newsreader_600SemiBold' },
+                }}>
                 <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
                 <Stack.Screen name="lists/[id]" options={{ title: 'List' }} />
                 <Stack.Screen name="lists/members" options={{ title: 'Members' }} />

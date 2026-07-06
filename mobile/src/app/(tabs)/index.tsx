@@ -6,6 +6,7 @@ import { useFocusEffect, useRouter } from 'expo-router';
 import { trpc } from '@/client/api';
 import { useTheme } from '@/theme/theme-provider';
 import { THEME_TOKENS } from '@/theme/tokens';
+import PhotoCard from '@/components/photo-card';
 
 // Inferred straight from web's tRPC procedure — no hand-written DTOs.
 type Memberships = Awaited<ReturnType<typeof trpc.lists.mine.query>>;
@@ -20,7 +21,6 @@ export default function HomeScreen() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // Refetch on focus so a newly created/edited/deleted list is reflected.
   useFocusEffect(
     useCallback(() => {
       trpc.lists.mine
@@ -39,54 +39,57 @@ export default function HomeScreen() {
 
   return (
     <SafeAreaView style={{ flex: 1 }} className="bg-bg">
-      <View className="flex-1 gap-3 px-4 pt-4">
-        <View className="flex-row items-center justify-between">
-          <Text className="text-2xl font-bold text-ink">Saive</Text>
-          <Pressable onPress={() => router.push('/lists/new')}>
-            <Text className="text-base font-semibold text-primary">+ New</Text>
-          </Pressable>
-        </View>
+      <FlatList
+        data={shown}
+        keyExtractor={(m) => m.list.id}
+        contentContainerStyle={{ padding: 16, gap: 16 }}
+        ListHeaderComponent={
+          <View className="gap-3 pb-1">
+            <View className="flex-row items-center justify-between">
+              <Text className="font-serif text-3xl text-ink">Saive</Text>
+              <Pressable onPress={() => router.push('/lists/new')}>
+                <Text className="font-sans-semibold text-base text-primary">
+                  + New
+                </Text>
+              </Pressable>
+            </View>
 
-        <TextInput
-          className="rounded-skin border-skin border-border px-4 py-2 text-ink"
-          placeholder="Search lists"
-          placeholderTextColor={muted}
-          autoCapitalize="none"
-          value={query}
-          onChangeText={setQuery}
-        />
+            <TextInput
+              className="rounded-skin border-skin border-border px-4 py-2.5 font-sans text-ink"
+              placeholder="Search lists"
+              placeholderTextColor={muted}
+              autoCapitalize="none"
+              value={query}
+              onChangeText={setQuery}
+            />
 
-        {loading && <Text className="text-muted">Loading…</Text>}
-        {error && <Text className="text-danger">Not signed in — {error}</Text>}
-        {!loading && !error && shown.length === 0 && (
-          <Text className="text-muted">
-            {query ? 'No lists match.' : 'No lists yet — tap + New.'}
-          </Text>
+            {loading && <Text className="font-sans text-muted">Loading…</Text>}
+            {error && (
+              <Text className="font-sans text-danger">Not signed in — {error}</Text>
+            )}
+            {!loading && !error && shown.length === 0 && (
+              <Text className="font-serif-italic text-muted">
+                {query ? 'No lists match.' : 'No lists yet — tap + New.'}
+              </Text>
+            )}
+          </View>
+        }
+        renderItem={({ item }) => (
+          <PhotoCard
+            placeholderEmoji={item.list.icon}
+            onPress={() =>
+              router.push({
+                pathname: '/lists/[id]',
+                params: { id: item.list.id, name: item.list.name },
+              })
+            }>
+            <Text className="font-serif text-xl text-ink">{item.list.name}</Text>
+            <Text className="font-sans text-sm text-muted">
+              {item.list._count.bookmarks} bookmarks
+            </Text>
+          </PhotoCard>
         )}
-
-        <FlatList
-          data={shown}
-          keyExtractor={(m) => m.list.id}
-          contentContainerStyle={{ gap: 8 }}
-          renderItem={({ item }) => (
-            <Pressable
-              onPress={() =>
-                router.push({
-                  pathname: '/lists/[id]',
-                  params: { id: item.list.id, name: item.list.name },
-                })
-              }
-              className="rounded-skin border-skin border-border bg-panel p-3">
-              <Text className="text-base text-ink">
-                {item.list.icon} {item.list.name}
-              </Text>
-              <Text className="text-sm text-muted">
-                {item.list._count.bookmarks} bookmarks
-              </Text>
-            </Pressable>
-          )}
-        />
-      </View>
+      />
     </SafeAreaView>
   );
 }

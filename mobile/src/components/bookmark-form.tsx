@@ -163,7 +163,7 @@ export default function BookmarkForm({ initial, submitLabel, onSubmit }: Props) 
           <Text className="text-muted">Rating</Text>
           {[1, 2, 3, 4, 5].map((n) => (
             <Pressable key={n} onPress={() => setRating(n === rating ? 0 : n)}>
-              <Text className="text-2xl text-warning">
+              <Text className={`text-2xl ${n <= rating ? 'text-accent' : 'text-muted'}`}>
                 {n <= rating ? '★' : '☆'}
               </Text>
             </Pressable>
