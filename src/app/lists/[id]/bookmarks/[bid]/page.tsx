@@ -129,7 +129,7 @@ export default async function BookmarkPage({
         {bookmark.tags.length > 0 && (
           <div className="flex flex-wrap gap-2">
             {bookmark.tags.map((bt) => (
-              <PixelBadge key={bt.tag.id} color={bt.tag.color || undefined}>
+              <PixelBadge key={bt.tag.id} tag color={bt.tag.color || undefined}>
                 {bt.tag.name}
               </PixelBadge>
             ))}

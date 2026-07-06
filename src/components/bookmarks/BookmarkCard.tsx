@@ -71,8 +71,9 @@ export function BookmarkCard({
           {bookmark.tags.map((t) => (
             <PixelBadge
               key={t.id}
+              tag
               color={t.color || undefined}
-              className="max-w-full break-all"
+              className="max-w-full break-all text-xs px-1.5 py-0.5"
             >
               {t.name}
             </PixelBadge>

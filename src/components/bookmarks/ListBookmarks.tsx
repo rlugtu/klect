@@ -211,6 +211,7 @@ export function ListBookmarks({
                 className="inline-flex"
               >
                 <PixelBadge
+                  tag
                   tone="primary"
                   color={tagColor.get(tag) || undefined}
                   onRemove={() => removeTag(tag)}

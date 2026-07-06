@@ -247,6 +247,10 @@ Pause for review after **each** step.
   tags are user-scoped, so one color per tag follows it everywhere). `syncBookmarkTags` assigns it;
   `PixelBadge` renders it with a luminance-computed text color (legible on all themes). Tag pills are
   colored everywhere (cards, detail, filter/search pills, editor); new/draft tags stay neutral.
+  Tag badges pass `tag` to `PixelBadge` (adds a `.pixel-tag` hook); the **modern** skin softens them
+  into rounded, non-uppercase pills with a thin border (`[data-theme^="modern"] .pixel-tag` in
+  `globals.css`) — the pixel theme keeps its sharp, uppercase tags. On the list page (`BookmarkCard`)
+  tag pills render one size smaller.
 - **List tag-filter dropdown**: on the list page, a "Tags ▾" button beside the in-list search input
   (`ListBookmarks`) opens a dropdown of every tag used in that list. Rows are click-to-**toggle** and
   the menu stays open for multi-select; selected rows show a highlighted/checked state. Picks feed the
