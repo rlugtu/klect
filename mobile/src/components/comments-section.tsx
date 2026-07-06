@@ -50,13 +50,13 @@ export default function CommentsSection({ comments, onAdd, onDelete }: Props) {
 
   return (
     <View className="gap-2">
-      <Text className="text-sm uppercase text-muted">
+      <Text className="font-sans-medium text-sm uppercase text-muted">
         Comments ({comments.length})
       </Text>
 
       <View className="flex-row gap-2">
         <TextInput
-          className="flex-1 rounded-skin border-skin border-border px-4 py-2 text-ink"
+          className="flex-1 rounded-skin border-skin border-border px-4 py-2 font-sans text-ink"
           placeholder="Add a comment"
           placeholderTextColor={muted}
           value={value}
@@ -69,7 +69,7 @@ export default function CommentsSection({ comments, onAdd, onDelete }: Props) {
           {busy ? (
             <ActivityIndicator color={THEME_TOKENS[theme].primaryInk} />
           ) : (
-            <Text className="font-semibold text-primary-ink">Post</Text>
+            <Text className="font-sans-semibold text-primary-ink">Post</Text>
           )}
         </Pressable>
       </View>
@@ -77,14 +77,14 @@ export default function CommentsSection({ comments, onAdd, onDelete }: Props) {
       {comments.map((c) => (
         <View
           key={c.id}
-          className="flex-row items-start justify-between rounded-skin border-skin border-border bg-panel p-3">
+          className="flex-row items-start justify-between border-b border-border py-3">
           <View className="flex-1 pr-2">
-            <Text className="text-sm font-semibold text-ink">
+            <Text className="font-sans-semibold text-sm text-ink">
               {c.author.icon ? `${c.author.icon} ` : ''}
               {c.author.displayName ?? c.author.name}
-              <Text className="font-normal text-muted"> · {timeAgo(c.createdAt)}</Text>
+              <Text className="font-sans text-muted"> · {timeAgo(c.createdAt)}</Text>
             </Text>
-            <Text className="text-sm text-ink">{c.value}</Text>
+            <Text className="font-sans text-sm text-ink">{c.value}</Text>
           </View>
           <Pressable onPress={() => onDelete(c.id)} hitSlop={8}>
             <Text className="text-muted">✕</Text>
