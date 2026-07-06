@@ -1,16 +1,22 @@
-import { useCallback, useState } from 'react';
-import { FlatList, Pressable, Text, View } from 'react-native';
+import { useCallback, useMemo, useState } from 'react';
+import { FlatList, Pressable, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect, useRouter } from 'expo-router';
 
 import { trpc } from '@/client/api';
+import { useTheme } from '@/theme/theme-provider';
+import { THEME_TOKENS } from '@/theme/tokens';
 
 // Inferred straight from web's tRPC procedure — no hand-written DTOs.
 type Memberships = Awaited<ReturnType<typeof trpc.lists.mine.query>>;
 
 export default function HomeScreen() {
   const router = useRouter();
+  const { theme } = useTheme();
+  const muted = THEME_TOKENS[theme].muted;
+
   const [lists, setLists] = useState<Memberships>([]);
+  const [query, setQuery] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -25,6 +31,12 @@ export default function HomeScreen() {
     }, []),
   );
 
+  const shown = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    if (!q) return lists;
+    return lists.filter((m) => m.list.name.toLowerCase().includes(q));
+  }, [lists, query]);
+
   return (
     <SafeAreaView style={{ flex: 1 }} className="bg-bg">
       <View className="flex-1 gap-3 px-4 pt-4">
@@ -35,11 +47,25 @@ export default function HomeScreen() {
           </Pressable>
         </View>
 
+        <TextInput
+          className="rounded-lg border border-border px-4 py-2 text-ink"
+          placeholder="Search lists"
+          placeholderTextColor={muted}
+          autoCapitalize="none"
+          value={query}
+          onChangeText={setQuery}
+        />
+
         {loading && <Text className="text-muted">Loading…</Text>}
         {error && <Text className="text-danger">Not signed in — {error}</Text>}
+        {!loading && !error && shown.length === 0 && (
+          <Text className="text-muted">
+            {query ? 'No lists match.' : 'No lists yet — tap + New.'}
+          </Text>
+        )}
 
         <FlatList
-          data={lists}
+          data={shown}
           keyExtractor={(m) => m.list.id}
           contentContainerStyle={{ gap: 8 }}
           renderItem={({ item }) => (
