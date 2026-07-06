@@ -383,11 +383,15 @@ table in sync whenever a procedure is added or changed.**
 | `profile.update` | mutation | `ProfileInput` | self | `core.saveProfile` |
 | `tags.mine` | query | – | user-scoped | `getUserTags` |
 | `nearby.find` | query | `{ lat, lon, radiusMiles, listIds }` | user-scoped | `core.findNearbyBookmarks` |
+| `places.search` | query | `{ text, sessionToken }` | signed-in | `core/places.searchPlaces` |
+| `places.retrieve` | query | `{ id, sessionToken }` | signed-in | `core/places.retrievePlace` |
+| `places.reverseGeocode` | query | `{ lat, lon }` | signed-in | `core/places.reverseGeocode` |
+| `metadata.fetch` | query | `{ url }` | signed-in | `core/metadata.fetchLinkMetadata` |
+| `comprehend.caption` | query | `{ caption, author?, sourceUrl? }` | signed-in | `core/comprehend.comprehendCaption` |
 
-**Not yet exposed:** the external-service actions (`places` — Mapbox autocomplete, `metadata` —
-Microlink link/video, `comprehend` — Anthropic extraction) still live only as web server actions.
-They need thin query procedures before mobile can use autofill/geocode/AI-extract without its own
-keys.
+The external-service lookups (`places` — Mapbox, `metadata` — Microlink, `comprehend` — Anthropic)
+run server-side so mobile gets autocomplete/autofill/AI-extract without shipping any API keys; the
+secrets stay in `web/`'s env.
 
 ---
 

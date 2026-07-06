@@ -6,6 +6,11 @@ import { sharingRouter } from "./routers/sharing";
 import { profileRouter } from "./routers/profile";
 import { tagsRouter } from "./routers/tags";
 import { nearbyRouter } from "./routers/nearby";
+import {
+  placesRouter,
+  metadataRouter,
+  comprehendRouter,
+} from "./routers/external";
 
 /**
  * The tRPC surface the mobile app consumes. Each procedure is a thin wrapper over
@@ -21,6 +26,9 @@ export const appRouter = router({
   profile: profileRouter,
   tags: tagsRouter,
   nearby: nearbyRouter,
+  places: placesRouter,
+  metadata: metadataRouter,
+  comprehend: comprehendRouter,
 });
 
 export type AppRouter = typeof appRouter;
