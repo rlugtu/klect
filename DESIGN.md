@@ -310,40 +310,88 @@ prisma/                     # schema.prisma + migrations (committed)
 
 ---
 
-## 9. React Native portability
+## 9. Web + mobile split (two-app architecture)
 
-The app is structured so a future React Native (Expo) client is a realistic, incremental
-project rather than a rewrite. What transfers vs. what needs an RN-native equivalent:
+Saive is **two independent apps in one repo** (`web/`, `mobile/`), sharing a spec and a runtime
+API — **not** a monorepo with shared code packages. This section is the shared contract both apps
+build against; see the top-level `CLAUDE.md` for the per-feature workflow and the earlier
+`docs/monorepo-migration.md` (superseded) for the rejected shared-packages topology.
 
-**Reusable as-is (server / shared)**
-- **Prisma schema + migrations** — the entire data model is platform-agnostic.
-- **Domain logic in `lib/`** — read queries, `permissions.ts`, tag-sync, invite/auto-link logic.
-  It's plain TypeScript with no React/DOM dependency.
-- **Auth** — better-auth has a first-party **Expo** client/plugin, so the same auth server works;
-  RN uses `@better-auth/expo` instead of `better-auth/react`.
-- **Types** (`lib/types.ts`), `timeAgo()`, and the **design tokens** (palette values) can be
-  shared as data.
+**Topology**
+- **`web/`** owns the database, auth, and **all** business logic (Prisma schema + migrations, read
+  queries, `permissions.ts`, tag-sync, invite/auto-link, external-service calls). It keeps its
+  server-first model (RSC reads + server actions) unchanged, and *additionally* hosts a **tRPC**
+  API at `/api/trpc`.
+- **`mobile/`** (Expo) is a **thin client**: it calls the tRPC API and rebuilds only the UI. No DB
+  access, no business logic of its own.
+- Backend logic is written **once** in web. Each mutation is a pure `core(input)` function
+  (validate → `assertRole` → Prisma → return); the `"use server"` `action(formData)` wrapper and
+  the tRPC procedure both call the same `core()` — never duplicated.
 
-**Needs an RN parallel (web-specific today)**
-- **Transport**: the web calls Prisma via RSC/server actions directly. RN can't — it needs an
-  **HTTP/typed API**. Recommended: add a **tRPC (or route-handler) layer that wraps the existing
-  `lib/` functions**, so web *and* RN consume one typed surface. The mutation logic already lives
-  in small functions inside `lib/actions/*`; splitting each into a pure `core(input)` + a thin
-  `action(formData)` wrapper makes it directly callable by both.
-- **UI**: everything in `components/` is DOM + Tailwind + Framer Motion → rebuild with RN views.
-  - Tailwind classes → **NativeWind** (reuse most class names; feed it the same token palette).
-  - Framer Motion → **Moti/Reanimated** (similar declarative API).
-  - `next/link` + App Router → **expo-router** (same file-based mental model).
-  - `<img>`/remote images → `expo-image`; the pixel-border look → shared style helpers.
+**What web owns vs. what mobile rebuilds**
+- Owned by web (shared via the API, not copied): data model, read queries, `permissions.ts`, auth
+  server (better-auth), and the external-service integrations (Mapbox places, Microlink metadata,
+  Anthropic extraction) — mobile reaches these through procedures, so no keys ship in the app.
+- Rebuilt in mobile: everything in `components/` (DOM + Tailwind + Framer Motion) →
+  RN views + **NativeWind** (same token palette) + **Moti/Reanimated**; `next/link` + App Router →
+  **expo-router**; `<img>`/remote images → **expo-image**; the pixel-border look → shared style
+  helpers. Auth client: `better-auth/react` (web) → `@better-auth/expo` (mobile), same server.
+- Design **tokens** (the palette for the 4 themes) are defined once as data in web and mirrored by
+  mobile's NativeWind config.
 
-**To make the eventual port smoother (recommended, not yet done)**
-1. Extract a **`tokens.ts`** as the single source of truth for the palette; have `globals.css`
-   and (later) NativeWind both read from it.
-2. Introduce the **API boundary** (tRPC) over `lib/` before starting RN; refactor actions into
-   `core(input)` + `action(formData)`.
-3. Keep new business logic **out of components** and in `lib/` (already the norm).
+**Type sharing:** mobile imports web's tRPC `AppRouter` **type-only** for end-to-end types; this is
+erased at compile time (no runtime coupling). Fallback if the cross-folder reference is unwanted:
+plain REST + types redeclared in mobile, with the API contract below as the only guard against drift.
 
-These are optional and can be done when RN work actually starts — none block the current app.
+### API contract (tRPC surface)
+
+The tRPC router lives in `web/src/server/trpc/` (mounted at `/api/trpc`, alongside the auth
+handler). Every procedure is a thin wrapper over `web/src/lib/core/*` (mutations) or
+`web/src/lib/*` read modules (queries); mobile imports the `AppRouter` type only. All procedures
+are `protectedProcedure` (require a signed-in user; `ctx.user` is the session user). **Keep this
+table in sync whenever a procedure is added or changed.**
+
+| Procedure | Kind | Input | Auth beyond sign-in | Delegates to |
+|---|---|---|---|---|
+| `lists.mine` | query | – | – | `getUserLists` |
+| `lists.get` | query | `{ listId }` | user-scoped (membership or null) | `getListForUser` |
+| `lists.create` | mutation | `ListInput` | – | `core.createList` |
+| `lists.update` | mutation | `{ listId, data: ListInput }` | COLLABORATOR (in core) | `core.updateList` |
+| `lists.delete` | mutation | `{ listId }` | OWNER (in core) | `core.deleteList` |
+| `lists.reorder` | mutation | `{ orderedListIds }` | user-scoped | `core.reorderLists` |
+| `bookmarks.forList` | query | `{ listId }` | `assertRole` VIEWER | `getBookmarksForList` |
+| `bookmarks.get` | query | `{ bookmarkId }` | membership check (or null) | `getBookmarkForUser` |
+| `bookmarks.byTags` | query | `{ tagNames }` | user-scoped | `getBookmarksByTags` |
+| `bookmarks.create` | mutation | `{ listId, data: BookmarkInput }` | COLLABORATOR (in core) | `core.createBookmark` |
+| `bookmarks.createInLists` | mutation | `{ existingListIds, newListNames, data }` | COLLABORATOR per list (in core) | `core.createBookmarkInLists` |
+| `bookmarks.update` | mutation | `{ bookmarkId, data: BookmarkInput }` | COLLABORATOR (in core) | `core.updateBookmark` |
+| `bookmarks.delete` | mutation | `{ bookmarkId }` | COLLABORATOR (in core) | `core.deleteBookmark` |
+| `bookmarks.toggleVisited` | mutation | `{ bookmarkId }` | COLLABORATOR (in core) | `core.toggleVisited` |
+| `comments.forList` | query | `{ listId }` | `assertRole` VIEWER | `getListComments` |
+| `comments.forBookmark` | query | `{ bookmarkId }` | membership check | `getBookmarkComments` |
+| `comments.addToList` | mutation | `{ listId, value }` | VIEWER (in core) | `core.addListComment` |
+| `comments.addToBookmark` | mutation | `{ bookmarkId, value }` | VIEWER (in core) | `core.addBookmarkComment` |
+| `comments.delete` | mutation | `{ commentId }` | author or OWNER (in core) | `core.deleteComment` |
+| `sharing.members` | query | `{ listId }` | `assertRole` VIEWER | `getListMembers` |
+| `sharing.pendingInvites` | query | `{ listId }` | `assertRole` OWNER | `getPendingInvites` |
+| `sharing.invite` | mutation | `{ listId, email, role }` | OWNER (in core) | `core.inviteToList` |
+| `sharing.changeRole` | mutation | `{ listId, userId, role }` | OWNER (in core) | `core.changeMemberRole` |
+| `sharing.removeMember` | mutation | `{ listId, userId }` | OWNER (in core) | `core.removeMember` |
+| `sharing.revokeInvite` | mutation | `{ inviteId }` | OWNER (in core) | `core.revokeInvite` |
+| `sharing.leave` | mutation | `{ listId }` | non-owner member (in core) | `core.leaveList` |
+| `sharing.accept` | mutation | `{ token }` | any signed-in user w/ link | `core.acceptInvite` |
+| `profile.update` | mutation | `ProfileInput` | self | `core.saveProfile` |
+| `tags.mine` | query | – | user-scoped | `getUserTags` |
+| `nearby.find` | query | `{ lat, lon, radiusMiles, listIds }` | user-scoped | `core.findNearbyBookmarks` |
+| `places.search` | query | `{ text, sessionToken }` | signed-in | `core/places.searchPlaces` |
+| `places.retrieve` | query | `{ id, sessionToken }` | signed-in | `core/places.retrievePlace` |
+| `places.reverseGeocode` | query | `{ lat, lon }` | signed-in | `core/places.reverseGeocode` |
+| `metadata.fetch` | query | `{ url }` | signed-in | `core/metadata.fetchLinkMetadata` |
+| `comprehend.caption` | query | `{ caption, author?, sourceUrl? }` | signed-in | `core/comprehend.comprehendCaption` |
+
+The external-service lookups (`places` — Mapbox, `metadata` — Microlink, `comprehend` — Anthropic)
+run server-side so mobile gets autocomplete/autofill/AI-extract without shipping any API keys; the
+secrets stay in `web/`'s env.
 
 ---
 

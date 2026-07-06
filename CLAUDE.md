@@ -1,5 +1,3 @@
-@AGENTS.md
-
 # Saive
 
 Bookmarking app where bookmarks live inside shareable **lists**. A bookmark has a name,
@@ -15,55 +13,39 @@ page (`/nearby`) finds geocoded bookmarks within a chosen radius of the user's c
 Two selectable **themes** — **pixel** (retro 8-bit) and
 **modern** (sleek/minimalist), each light + dark. Installable **PWA**.
 
-**Full design doc: `DESIGN.md`** (data model, permissions, routes, architecture, RN-portability).
+**Docs:** `DESIGN.md` (data model, permissions, routes, API contract) · `docs/ARCHITECTURE.md`
+(human-readable design + architecture overview) · `docs/DEVELOPMENT.md` (run/build/extend +
+conventions + gotchas).
 
-## Stack
-Next.js 16 (App Router, RSC + server actions), React 19, TypeScript, Tailwind v4, Framer Motion,
-Prisma 7 (pg driver adapter) → Supabase Postgres, better-auth (Google + email/password). Deploys
-from `main`.
+## This repo = two apps that share a spec, not code
 
-## Commands
-- `npm run dev` — dev server (note: the service worker is registered **prod-only**, so use
-  `npm run build && npm start` to exercise PWA install/offline locally).
-- `npm run build` / `npm run lint` — keep both green before committing.
-- `npx prisma migrate dev --name <x>` then **`npx prisma generate`** — see gotcha below.
+One git repo, two independent apps as sibling folders. **No workspace tooling** (no pnpm
+workspaces, no Turborepo) and **no shared code packages**.
 
-## Architecture / conventions
-- **Server-first, no separate HTTP API.** Pages are RSC that read via `lib/<entity>.ts` data
-  access; mutations are server actions in `lib/actions/<entity>.ts` (`"use server"`: parse
-  FormData → validate → `assertRole` → Prisma → `revalidatePath`/`redirect`), bound with
-  `.bind(null, id)` and handed to client components.
-- **`src/lib/`** = all non-UI logic (db, auth, session, permissions, data access, actions, types,
-  utils). **`src/components/`** = UI grouped by domain, with `ui/` holding the pixel primitives
-  (`Pixel*`, `Skeleton`, `EmojiField`, `SubmitButton`, `ConfirmDeleteButton`). **`src/app/`** =
-  routes.
-- **Auth**: `requireUser` / `requireOnboardedUser` guard server components; **every mutation
-  re-checks `assertRole(userId, listId, minRole)`** — never trust UI gating.
-- **Ownership**: every participant (incl. owner) has a `ListMembership` row (uniform ordering +
-  access); `List.ownerId` is the canonical owner.
-- **Styling / themes**: design tokens are CSS vars in `src/app/globals.css` (`@theme inline`),
-  swapped per theme via `data-theme` on `<html>` (from `user.theme`). Themes = `Theme` enum
-  `PIXEL_LIGHT|PIXEL_DARK|MODERN_LIGHT|MODERN_DARK`; registry + enum↔`data-theme` map + validation
-  in `src/lib/theme.ts`. The `.pixel-*` primitives are the retro skin; **unlayered**
-  `[data-theme^="modern"]` CSS overrides them for the modern skin (adding a theme is pure CSS).
+- **`web/`** — Next.js 16 app; owns the database, auth, and **all** business logic. Also hosts the
+  HTTP API (tRPC) that mobile consumes. See `web/CLAUDE.md`.
+- **`mobile/`** — Expo / React Native app; a **thin client** of web's API. UI only. *(Not built
+  yet — added in the RN conversion.)* Will have its own `mobile/CLAUDE.md`.
 
-## Gotchas
-- **Prisma 7**: `migrate dev` does NOT reliably regenerate the client — run `npx prisma generate`
-  explicitly after any schema change, then restart dev. (Verify: `grep -c <field>
-  src/generated/prisma/models/<Model>.ts`.)
-- `.env` holds Supabase + Google + better-auth + **Mapbox** secrets (gitignored); `.env.example`
-  documents them. `MAPBOX_TOKEN` must also be set in the deploy host's env (not just local).
-- Link autofill uses **Microlink** (free tier is IP-rate-limited) with YouTube via oEmbed;
-  `fetchLinkMetadata` logs `[link-metadata]` on the server.
-- Location field is a **Mapbox Search Box** autocomplete (`lib/actions/places.ts`, proxied
-  server-side, `[places]` log prefix, `proximity=ip` bias). It's two-step: `searchPlaces`
-  (/suggest) returns coordinate-less suggestions, `retrievePlace` (/retrieve) resolves the
-  picked one's `latitude`/`longitude`; both share a client `session_token` for session billing.
-  The address opens in a maps app via `LocationLink`. Degrades to plain text if the token is
-  unset. No in-app map.
-- **Near me** (`/nearby`, `docs/nearby.md`): client island (`NearbyFinder`) reads browser
-  geolocation, a server action (`findNearbyBookmarks` in `lib/actions/nearby.ts`, `[nearby]` log
-  prefix) haversine-filters (`lib/geo.ts`) the user's coordinate-bearing bookmarks. Only bookmarks
-  picked from location autocomplete have coordinates, so free-typed/legacy ones never appear (they
-  show as an "N skipped" note).
-- Bookmark **images are hotlinked remote URLs** (can break if the source blocks hotlinking).
+**The two sharing seams (and only these):**
+1. **The spec** — this `CLAUDE.md` + `DESIGN.md` are the single source of truth for product, data
+   model, permissions, routes, and the API contract. Each app also keeps its own `CLAUDE.md` +
+   `docs/` for implementation specifics.
+2. **The runtime API** — web exposes tRPC at `/api/trpc`; mobile calls it. Backend logic is written
+   **once** (in web); only UI is built per app. The apps never import each other's runtime code —
+   the only cross-folder reference is a **type-only** import of web's tRPC `AppRouter` (erased at
+   compile time, so no runtime coupling).
+
+## Building a feature — do it for BOTH apps
+
+1. **Schema** change (if any) → `web/prisma` + migration.
+2. **Business logic** → `web/src/lib` as a pure `core(input)` function.
+3. **Expose** → add a tRPC procedure in `web` that wraps `core`; **document it in the DESIGN.md API
+   contract**.
+4. **Web UI** → web server-action wrapper + RSC/components.
+5. **Mobile UI** → mobile screen consuming the tRPC procedure.
+
+Steps 1–3 are done once and serve both apps; 4 and 5 are per-platform on the same typed surface, so
+the two clients can't silently drift. Because there is no compiler-enforced shared package, drift is
+prevented by (a) this shared spec, (b) the typed tRPC contract, and (c) landing both apps'
+UI in the same change.
