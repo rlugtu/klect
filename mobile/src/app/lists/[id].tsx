@@ -1,6 +1,11 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useState } from 'react';
 import { FlatList, Pressable, Text, View } from 'react-native';
-import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
+import {
+  Stack,
+  useFocusEffect,
+  useLocalSearchParams,
+  useRouter,
+} from 'expo-router';
 
 import { trpc } from '@/client/api';
 
@@ -14,18 +19,37 @@ export default function ListScreen() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    if (!id) return;
-    trpc.bookmarks.forList
-      .query({ listId: id })
-      .then(setBookmarks)
-      .catch((e) => setError(e instanceof Error ? e.message : 'Request failed'))
-      .finally(() => setLoading(false));
-  }, [id]);
+  // Refetch on focus so a newly-created bookmark shows on return.
+  useFocusEffect(
+    useCallback(() => {
+      if (!id) return;
+      setLoading(true);
+      trpc.bookmarks.forList
+        .query({ listId: id })
+        .then(setBookmarks)
+        .catch((e) => setError(e instanceof Error ? e.message : 'Request failed'))
+        .finally(() => setLoading(false));
+    }, [id]),
+  );
 
   return (
     <View className="flex-1 bg-bg px-4 pt-4">
-      <Stack.Screen options={{ title: name ?? 'List' }} />
+      <Stack.Screen
+        options={{
+          title: name ?? 'List',
+          headerRight: () => (
+            <Pressable
+              onPress={() =>
+                router.push({
+                  pathname: '/bookmarks/new',
+                  params: { listId: id, listName: name },
+                })
+              }>
+              <Text className="text-base font-semibold text-primary">Add</Text>
+            </Pressable>
+          ),
+        }}
+      />
 
       {loading && <Text className="text-muted">Loading…</Text>}
       {error && <Text className="text-danger">{error}</Text>}

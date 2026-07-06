@@ -31,6 +31,10 @@ export default function RootLayout() {
             <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
             <Stack.Screen name="lists/[id]" options={{ title: 'List' }} />
             <Stack.Screen name="bookmarks/[id]" options={{ title: 'Bookmark' }} />
+            <Stack.Screen
+              name="bookmarks/new"
+              options={{ presentation: 'modal', title: 'New bookmark' }}
+            />
           </Stack>
         ) : (
           <LoginScreen />
