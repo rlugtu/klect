@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Pressable,
   ScrollView,
@@ -12,6 +12,7 @@ import { BottomSheetModal, BottomSheetView } from '@gorhom/bottom-sheet';
 
 import { trpc } from '@/client/api';
 import DateTimeField from '@/components/date-time-field';
+import Skeleton from '@/components/skeleton';
 import { useTheme } from '@/theme/theme-provider';
 import { THEME_TOKENS } from '@/theme/tokens';
 
@@ -19,7 +20,12 @@ type Bookmarks = Awaited<ReturnType<typeof trpc.bookmarks.forList.query>>;
 
 export default function NewPollScreen() {
   const router = useRouter();
-  const { listId } = useLocalSearchParams<{ listId: string; listName?: string }>();
+  const { listId, pollId } = useLocalSearchParams<{
+    listId: string;
+    listName?: string;
+    pollId?: string; // present → edit an existing poll
+  }>();
+  const isEdit = !!pollId;
   const t = THEME_TOKENS[useTheme().theme];
   const sheetRef = useRef<BottomSheetModal>(null);
 
@@ -51,6 +57,23 @@ export default function NewPollScreen() {
         .finally(() => setLoading(false));
     }, [listId]),
   );
+
+  // Edit mode: prefill fields + selected options from the existing poll (once).
+  useEffect(() => {
+    if (!pollId) return;
+    trpc.polls.get
+      .query({ pollId })
+      .then((poll) => {
+        setName(poll.name);
+        setDescription(poll.description);
+        setStartAt(new Date(poll.startAt));
+        setEndAt(poll.endAt ? new Date(poll.endAt) : null);
+        setMaxVotes(poll.maxVotes != null ? String(poll.maxVotes) : '');
+        setRevotesAllowed(poll.revotesAllowed);
+        setSelected(new Set(poll.options.map((o) => o.bookmarkId)));
+      })
+      .catch(() => {});
+  }, [pollId]);
 
   const availableTags = useMemo(() => {
     const map = new Map<string, { id: string; name: string; color: string }>();
@@ -90,28 +113,27 @@ export default function NewPollScreen() {
     });
   }
 
-  async function create() {
+  async function submit() {
     setError(null);
     if (!name.trim()) return setError('Poll name is required.');
     if (selected.size < 2) return setError('Pick at least two bookmarks.');
     const maxV = maxVotes.trim() === '' ? null : Math.max(1, parseInt(maxVotes, 10) || 1);
+    const data = {
+      name: name.trim(),
+      description: description.trim(),
+      startAt,
+      endAt,
+      maxVotes: maxV,
+      revotesAllowed,
+      bookmarkIds: [...selected],
+    };
     setBusy(true);
     try {
-      await trpc.polls.create.mutate({
-        listId,
-        data: {
-          name: name.trim(),
-          description: description.trim(),
-          startAt,
-          endAt,
-          maxVotes: maxV,
-          revotesAllowed,
-          bookmarkIds: [...selected],
-        },
-      });
+      if (pollId) await trpc.polls.update.mutate({ pollId, data });
+      else await trpc.polls.create.mutate({ listId, data });
       router.back();
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Could not create poll.');
+      setError(e instanceof Error ? e.message : 'Could not save poll.');
       setBusy(false);
     }
   }
@@ -120,7 +142,7 @@ export default function NewPollScreen() {
 
   return (
     <View className="flex-1 bg-bg">
-      <Stack.Screen options={{ title: 'New poll' }} />
+      <Stack.Screen options={{ title: isEdit ? 'Edit poll' : 'New poll' }} />
 
       <ScrollView contentContainerStyle={{ padding: 16, gap: 16, paddingBottom: 40 }}>
         <View className="gap-2">
@@ -231,7 +253,11 @@ export default function NewPollScreen() {
         )}
 
         {loading ? (
-          <Text className="font-sans text-muted">Loading bookmarks…</Text>
+          <View className="gap-2">
+            <Skeleton height={44} />
+            <Skeleton height={44} />
+            <Skeleton height={44} />
+          </View>
         ) : shown.length === 0 ? (
           <Text className="font-serif-italic text-muted">No bookmarks match.</Text>
         ) : (
@@ -258,13 +284,19 @@ export default function NewPollScreen() {
         {error && <Text className="font-sans text-danger">{error}</Text>}
 
         <Pressable
-          onPress={create}
+          onPress={submit}
           disabled={busy || selected.size < 2}
           className={`items-center rounded-skin py-3 ${
             busy || selected.size < 2 ? 'bg-border' : 'bg-primary'
           }`}>
           <Text className="font-sans-semibold text-primary-ink">
-            {busy ? 'Creating…' : 'Create poll'}
+            {busy
+              ? isEdit
+                ? 'Saving…'
+                : 'Creating…'
+              : isEdit
+                ? 'Save changes'
+                : 'Create poll'}
           </Text>
         </Pressable>
       </ScrollView>
