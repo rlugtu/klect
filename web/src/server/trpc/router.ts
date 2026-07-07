@@ -2,6 +2,7 @@ import { router } from "./trpc";
 import { listsRouter } from "./routers/lists";
 import { bookmarksRouter } from "./routers/bookmarks";
 import { commentsRouter } from "./routers/comments";
+import { pollsRouter } from "./routers/polls";
 import { sharingRouter } from "./routers/sharing";
 import { profileRouter } from "./routers/profile";
 import { tagsRouter } from "./routers/tags";
@@ -22,6 +23,7 @@ export const appRouter = router({
   lists: listsRouter,
   bookmarks: bookmarksRouter,
   comments: commentsRouter,
+  polls: pollsRouter,
   sharing: sharingRouter,
   profile: profileRouter,
   tags: tagsRouter,
