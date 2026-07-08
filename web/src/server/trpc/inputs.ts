@@ -29,6 +29,16 @@ export const bookmarkInput = z.object({
   tagNames: z.array(z.string()),
 });
 
+export const pollInput = z.object({
+  name: z.string(),
+  description: z.string(),
+  startAt: z.coerce.date(),
+  endAt: z.coerce.date().nullable(),
+  maxVotes: z.number().int().nullable(),
+  revotesAllowed: z.boolean(),
+  bookmarkIds: z.array(z.string()),
+});
+
 export const profileInput = z.object({
   firstName: z.string().nullable(),
   lastName: z.string().nullable(),

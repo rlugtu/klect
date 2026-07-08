@@ -118,6 +118,13 @@ export default function ListScreen() {
                 className="flex-1 items-center rounded-skin border-skin border-border py-3">
                 <Text className="font-sans text-ink">Members</Text>
               </Pressable>
+              <Pressable
+                onPress={() =>
+                  router.push({ pathname: '/polls', params: { listId: id, listName: name } })
+                }
+                className="flex-1 items-center rounded-skin border-skin border-border py-3">
+                <Text className="font-sans text-ink">Polls</Text>
+              </Pressable>
             </View>
 
             <View className="flex-row items-center gap-2">

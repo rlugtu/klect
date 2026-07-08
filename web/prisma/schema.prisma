@@ -57,6 +57,8 @@ model User {
   invitesSent ListInvite[]     @relation("InviteSender")
   tags        Tag[]
   comments    Comment[]
+  polls       Poll[]           @relation("PollCreator")
+  pollVotes   PollVote[]
 }
 
 // ---- better-auth managed models (generated via @better-auth/cli) ----
@@ -119,6 +121,7 @@ model List {
   invites     ListInvite[]
   bookmarks   Bookmark[]
   comments    Comment[]
+  polls       Poll[]
 
   @@index([ownerId])
 }
@@ -174,8 +177,9 @@ model Bookmark {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  tags     BookmarkTag[]
-  comments Comment[]
+  tags        BookmarkTag[]
+  comments    Comment[]
+  pollOptions PollOption[]
 
   @@index([listId])
 }
@@ -221,4 +225,64 @@ model Comment {
   @@index([bookmarkId])
   @@index([listId])
   @@index([authorId])
+}
+
+// A poll inside a list. Options are bookmarks from the same list (PollOption);
+// members vote on them (PollVote). `creatorId` drives the "collaborator edits
+// only their own poll; owner edits any" rule (see core/polls.ts).
+model Poll {
+  id             String   @id @default(uuid())
+  listId         String
+  list           List     @relation(fields: [listId], references: [id], onDelete: Cascade)
+  creatorId      String
+  creator        User     @relation("PollCreator", fields: [creatorId], references: [id], onDelete: Cascade)
+  name           String
+  description    String   @default("")
+  startAt        DateTime @default(now())
+  endAt          DateTime? // null = no end (open indefinitely)
+  maxVotes       Int? // votes per participant; null = unlimited
+  revotesAllowed Boolean  @default(false)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  options PollOption[]
+  votes   PollVote[]
+
+  @@index([listId])
+  @@index([creatorId])
+}
+
+// A bookmark offered as a choice in a poll. Deleting the bookmark (or the poll)
+// cascades this row away, which cascades its votes — so removing an option or
+// deleting a bookmark auto-frees each voter's spent vote (refund is derived).
+model PollOption {
+  id         String   @id @default(uuid())
+  pollId     String
+  poll       Poll     @relation(fields: [pollId], references: [id], onDelete: Cascade)
+  bookmarkId String
+  bookmark   Bookmark @relation(fields: [bookmarkId], references: [id], onDelete: Cascade)
+  createdAt  DateTime @default(now())
+
+  votes PollVote[]
+
+  @@unique([pollId, bookmarkId]) // a bookmark appears at most once per poll
+  @@index([pollId])
+  @@index([bookmarkId])
+}
+
+// One user's vote for one option. Unweighted: at most one vote per option per
+// user. `pollId` is denormalized for cheap per-poll tallies/refund counts.
+model PollVote {
+  id        String     @id @default(uuid())
+  pollId    String
+  poll      Poll       @relation(fields: [pollId], references: [id], onDelete: Cascade)
+  optionId  String
+  option    PollOption @relation(fields: [optionId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime   @default(now())
+
+  @@unique([optionId, userId])
+  @@index([pollId])
+  @@index([userId])
 }

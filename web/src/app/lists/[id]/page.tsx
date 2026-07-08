@@ -67,11 +67,20 @@ export default async function ListPage({
             ← Home
           </PixelButton>
         </Link>
-        {role !== "OWNER" && (
-          <PixelBadge tone="accent">
-            {role === "COLLABORATOR" ? "Collaborator" : "Viewer"}
-          </PixelBadge>
-        )}
+        <div className="flex items-center gap-3">
+          {!canEdit && (
+            <Link href={`/lists/${id}/polls`}>
+              <PixelButton variant="secondary" size="sm">
+                🗳 Polls
+              </PixelButton>
+            </Link>
+          )}
+          {role !== "OWNER" && (
+            <PixelBadge tone="accent">
+              {role === "COLLABORATOR" ? "Collaborator" : "Viewer"}
+            </PixelBadge>
+          )}
+        </div>
       </div>
 
       <header className="flex items-start gap-4">
@@ -100,6 +109,7 @@ export default async function ListPage({
             description: list.description,
             icon: list.icon,
           }}
+          pollsHref={`/lists/${id}/polls`}
           deleteAction={canDelete ? deleteList.bind(null, id) : undefined}
           shareChildren={
             role === "OWNER" ? (

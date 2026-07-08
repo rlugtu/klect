@@ -112,6 +112,12 @@ export default function RootLayout() {
                   name="bookmarks/edit"
                   options={{ presentation: 'modal', title: 'Edit bookmark' }}
                 />
+                <Stack.Screen name="polls/index" options={{ title: 'Polls' }} />
+                <Stack.Screen
+                  name="polls/new"
+                  options={{ presentation: 'modal', title: 'New poll' }}
+                />
+                <Stack.Screen name="polls/[pollId]" options={{ title: 'Poll' }} />
               </Stack>
               <ShareIntentRouter />
               </>

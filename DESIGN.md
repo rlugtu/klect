@@ -116,13 +116,21 @@ BookmarkTag     bookmarkId, tagId         — join table
 
 Comment         id, authorId, value, createdAt,
                 bookmarkId?, listId?      — exactly one of the two set
+
+Poll            id, listId, creatorId, name, description, startAt,
+                endAt?, maxVotes?, revotesAllowed, timestamps
+                                          — maxVotes null = unlimited; endAt null = open
+PollOption      id, pollId, bookmarkId    — unique per (pollId, bookmarkId); a list bookmark as a choice
+PollVote        id, pollId, optionId, userId — unique per (optionId, userId); unweighted (one/option/user)
 ```
 
 **Relationships & rules**
 - A user sees a list on their home page if they own it **or** have a `ListMembership`.
 - Tags are user-scoped and shared across all of a user's lists (OR-matching in filters).
-- Deleting a list cascades its bookmarks, comments, memberships, invites.
-- Deleting a bookmark cascades its `BookmarkTag` links and comments.
+- Deleting a list cascades its bookmarks, comments, memberships, invites, **and polls**.
+- Deleting a bookmark cascades its `BookmarkTag` links, comments, **and poll options** (each
+  removed `PollOption` cascades its `PollVote`s, so the voter's spent vote is freed —
+  "refund" is derived as `maxVotes − current votes`, not stored).
 
 ---
 
@@ -138,6 +146,9 @@ Comment         id, authorId, value, createdAt,
 | Delete list | ✓ | — | — |
 | Delete a comment | own + any on their list | own only | own only |
 | Reorder lists on **own** home page | ✓ | ✓ | ✓ |
+| Create a poll | ✓ | ✓ | — |
+| Vote in a poll | ✓ | ✓ | ✓ |
+| Edit / delete a poll | any on their list | own only | — |
 
 Enforced **server-side on every mutation** via a shared `assertRole(listId, userId, minRole)`
 helper — never rely on UI gating alone.
@@ -159,6 +170,10 @@ helper — never rely on UI gating alone.
 | `/bookmarks/new` | **New bookmark**: standalone create flow; pick/create one or more target lists and add the bookmark independently to each |
 | `/lists/[id]` | Bookmarks in a list; filter/search within; list-level comments; invite UI (owner) |
 | `/lists/[id]/bookmarks/[bid]` | Bookmark detail: 8-bit layout, tag pills, comments newest-first; **← Back** returns to the previous page (list / nearby / search), falling back to the list on direct load |
+| `/lists/[id]/polls` | Polls in a list (newest first, with status + counts); **New poll** for collaborators+ |
+| `/lists/[id]/polls/new` | Create a poll: fields + a searchable/tag-filterable bookmark option picker (≥2) |
+| `/lists/[id]/polls/[pollId]` | Poll detail: **Vote**/**Results** toggle; edit/delete for the creator or list owner |
+| `/lists/[id]/polls/[pollId]/edit` | Edit a poll (creator or list owner); reconciles options |
 | `/settings` | Edit profile/theme/icon; manage/leave shared lists; pending invites |
 | `/invite/[token]` | Accept an invite |
 
@@ -381,6 +396,12 @@ table in sync whenever a procedure is added or changed.**
 | `comments.addToList` | mutation | `{ listId, value }` | VIEWER (in core) | `core.addListComment` |
 | `comments.addToBookmark` | mutation | `{ bookmarkId, value }` | VIEWER (in core) | `core.addBookmarkComment` |
 | `comments.delete` | mutation | `{ commentId }` | author or OWNER (in core) | `core.deleteComment` |
+| `polls.forList` | query | `{ listId }` | `assertRole` VIEWER | `getListPolls` |
+| `polls.get` | query | `{ pollId }` | membership check (NOT_FOUND) | `getPollForUser` |
+| `polls.create` | mutation | `{ listId, data: PollInput }` | COLLABORATOR (in core) | `core.createPoll` |
+| `polls.update` | mutation | `{ pollId, data: PollInput }` | creator or OWNER (in core) | `core.updatePoll` |
+| `polls.delete` | mutation | `{ pollId }` | creator or OWNER (in core) | `core.deletePoll` |
+| `polls.submitVotes` | mutation | `{ pollId, optionIds }` | VIEWER (in core) | `core.submitVotes` |
 | `sharing.members` | query | `{ listId }` | `assertRole` VIEWER | `getListMembers` |
 | `sharing.pendingInvites` | query | `{ listId }` | `assertRole` OWNER | `getPendingInvites` |
 | `sharing.invite` | mutation | `{ listId, email, role }` | OWNER (in core) | `core.inviteToList` |

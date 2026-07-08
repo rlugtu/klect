@@ -1,11 +1,12 @@
 "use client";
 
 import { useState, type ReactNode } from "react";
+import Link from "next/link";
 import { ListForm, type ListDefaults } from "./ListForm";
 import { ConfirmDeleteButton } from "@/components/ui/ConfirmDeleteButton";
 import { PixelButton } from "@/components/ui/PixelButton";
 import { PixelCard } from "@/components/ui/PixelCard";
-import { Pencil, Users, X } from "lucide-react";
+import { Pencil, Users, Vote, X } from "lucide-react";
 
 function PanelHeader({
   title,
@@ -41,11 +42,13 @@ export function ListControls({
   defaults,
   deleteAction,
   shareChildren,
+  pollsHref,
 }: {
   editAction: (formData: FormData) => void | Promise<void>;
   defaults: ListDefaults;
   deleteAction?: (formData: FormData) => void | Promise<void>;
   shareChildren?: ReactNode;
+  pollsHref?: string;
 }) {
   const [editOpen, setEditOpen] = useState(false);
   const [shareOpen, setShareOpen] = useState(false);
@@ -61,6 +64,14 @@ export function ListControls({
           {editOpen ? <X size={14} aria-hidden /> : <Pencil size={14} aria-hidden />}
           {editOpen ? "Close" : "Edit"}
         </PixelButton>
+        {pollsHref && (
+          <Link href={pollsHref}>
+            <PixelButton variant="secondary" size="xs">
+              <Vote size={14} aria-hidden />
+              Polls
+            </PixelButton>
+          </Link>
+        )}
         {shareChildren && (
           <PixelButton
             variant="secondary"
