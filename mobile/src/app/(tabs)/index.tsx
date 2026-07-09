@@ -48,7 +48,7 @@ export default function HomeScreen() {
         ListHeaderComponent={
           <View className="gap-3 pb-1">
             <View className="flex-row items-center justify-between">
-              <Text className="font-serif text-3xl text-ink">Saive</Text>
+              <Text className="font-serif text-3xl text-ink">Klect</Text>
               <View className="flex-row items-center gap-4">
                 <Pressable onPress={() => router.push('/lists/new')}>
                   <Text className="font-sans-semibold text-base text-primary">

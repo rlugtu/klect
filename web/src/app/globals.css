@@ -1,7 +1,7 @@
 @import "tailwindcss";
 
 /* ------------------------------------------------------------------ *
- * Saive 8-bit design tokens
+ * Klect 8-bit design tokens
  * Two palette variants live within the retro theme, switched via the
  * `data-theme` attribute on <html> (driven by user.theme later).
  * ------------------------------------------------------------------ */

@@ -1,6 +1,6 @@
 @AGENTS.md
 
-# Saive — web app
+# Klect — web app
 
 The Next.js client (and, for now, the whole backend). Product description, data model,
 permissions, routes, and the API contract that `mobile/` consumes live in the **shared**

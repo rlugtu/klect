@@ -18,7 +18,7 @@ type ThemeContextValue = {
 };
 
 const ThemeContext = createContext<ThemeContextValue | null>(null);
-const STORE_KEY = 'saive.theme';
+const STORE_KEY = 'klect.theme';
 
 function isTheme(v: string | null): v is ThemeName {
   return v != null && v in THEME_TOKENS;
@@ -31,7 +31,7 @@ export function useTheme() {
 }
 
 /**
- * Applies a Saive theme's tokens as CSS variables (via NativeWind `vars()`) to a
+ * Applies a Klect theme's tokens as CSS variables (via NativeWind `vars()`) to a
  * root wrapper, so `bg-bg` / `text-ink` / `bg-primary` resolve to the active
  * palette. Reproduces web's `data-theme` var-swap. Defaults to the Modern theme
  * following system light/dark; an explicit choice is persisted to secure-store so

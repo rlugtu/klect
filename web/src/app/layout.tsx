@@ -47,12 +47,12 @@ const workSans = Work_Sans({
 });
 
 export const metadata: Metadata = {
-  title: "Saive — retro bookmarks",
+  title: "Klect — retro bookmarks",
   description: "Bookmarks organized into shareable lists. 8-bit style.",
-  applicationName: "Saive",
+  applicationName: "Klect",
   appleWebApp: {
     capable: true,
-    title: "Saive",
+    title: "Klect",
     statusBarStyle: "black-translucent",
   },
   icons: {

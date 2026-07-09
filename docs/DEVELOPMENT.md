@@ -1,6 +1,6 @@
-# Saive — Development & Maintenance Guide
+# Klect — Development & Maintenance Guide
 
-How to run, change, and extend Saive. Read [`ARCHITECTURE.md`](./ARCHITECTURE.md) first for
+How to run, change, and extend Klect. Read [`ARCHITECTURE.md`](./ARCHITECTURE.md) first for
 the mental model; this doc is the practical companion.
 
 The repo is two independent apps under one root: **`web/`** (Next.js — the backend + web UI)
@@ -167,7 +167,7 @@ manual verification.
   `web/.env` secrets set (notably `MAPBOX_TOKEN`, `BETTER_AUTH_URL`, Google creds), and register
   the prod Google redirect URI `https://<host>/api/auth/callback/google`.
 - **Mobile** ships via EAS Build → TestFlight/App Store. Before a real build: set a proper
-  `ios.bundleIdentifier` (currently the `com.anonymous.saive` placeholder), app icon/splash,
+  `ios.bundleIdentifier` (currently the `com.anonymous.klect` placeholder), app icon/splash,
   and point `EXPO_PUBLIC_API_URL` at the deployed web host.
 - **Current state:** all of the two-app work lives on the branch `restructure-two-apps` and has
   **not** been merged to `main` or pushed. Merging is the gate to shipping web with the API +

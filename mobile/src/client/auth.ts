@@ -31,8 +31,8 @@ export const authClient = createAuthClient({
       },
     }),
     expoClient({
-      scheme: "saive",
-      storagePrefix: "saive",
+      scheme: "klect",
+      storagePrefix: "klect",
       storage: SecureStore,
     }),
   ],

@@ -4,7 +4,7 @@ module.exports = {
   presets: [require("nativewind/preset")],
   theme: {
     extend: {
-      // Semantic Saive colors -> CSS vars set per theme by ThemeProvider (vars()).
+      // Semantic Klect colors -> CSS vars set per theme by ThemeProvider (vars()).
       colors: {
         bg: "var(--color-bg)",
         panel: "var(--color-panel)",

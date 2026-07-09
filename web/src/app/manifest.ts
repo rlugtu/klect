@@ -2,8 +2,8 @@ import type { MetadataRoute } from "next";
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: "Saive — retro bookmarks",
-    short_name: "Saive",
+    name: "Klect — retro bookmarks",
+    short_name: "Klect",
     description: "Bookmarks organized into shareable lists. 8-bit style.",
     start_url: "/",
     scope: "/",

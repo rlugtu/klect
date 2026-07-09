@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { PixelCard } from "@/components/ui/PixelCard";
 
 export const metadata: Metadata = {
-  title: "Offline — Saive",
+  title: "Offline — Klect",
 };
 
 export default function OfflinePage() {
@@ -14,7 +14,7 @@ export default function OfflinePage() {
         </span>
         <h1 className="text-2xl text-primary">You&apos;re offline</h1>
         <p className="text-muted">
-          Saive needs a connection for this. Reconnect and try again.
+          Klect needs a connection for this. Reconnect and try again.
         </p>
       </PixelCard>
     </main>

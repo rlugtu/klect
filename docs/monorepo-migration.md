@@ -1,4 +1,4 @@
-# Structuring Saive for a shared web + React Native codebase
+# Structuring Klect for a shared web + React Native codebase
 
 > **⚠️ SUPERSEDED.** This proposed a pnpm + Turborepo **monorepo** with shared `packages/*`
 > (`db`, `core`, `api`, `validators`, `tokens`, `auth`). We chose a different topology instead:
@@ -10,7 +10,7 @@
 
 ## Context
 
-Saive today is a single Next.js 16 app (server-first: RSC reads + server actions,
+Klect today is a single Next.js 16 app (server-first: RSC reads + server actions,
 no HTTP API). We want to add a React Native (Expo) client so that **the two apps
 are independent** (build/deploy/release on their own) **but a feature can be built
 for both at the same time** rather than twice.
@@ -32,7 +32,7 @@ doesn't specify. Confirmed decisions:
 ## Target structure
 
 ```
-saive/                         # one repo, pnpm workspaces + Turborepo
+klect/                         # one repo, pnpm workspaces + Turborepo
   package.json                 # workspace root: pnpm-workspace.yaml, turbo.json
   apps/
     web/                       # today's Next.js app, moved here ~as-is
@@ -98,7 +98,7 @@ Do these in order; each is independently reviewable. Web keeps working after eve
 
 2. **Extract `packages/db`.** Move `prisma/` and the `src/lib/db.ts` Prisma client
    singleton into `packages/db`; export the client + generated types. Point
-   `apps/web` at `@saive/db`. Re-run `npx prisma generate` (Prisma 7 gotcha — regen
+   `apps/web` at `@klect/db`. Re-run `npx prisma generate` (Prisma 7 gotcha — regen
    explicitly).
 
 3. **Extract `packages/core` (the key step).** Move the data-access modules

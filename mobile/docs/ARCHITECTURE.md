@@ -1,4 +1,4 @@
-# Saive mobile — architecture & features
+# Klect mobile — architecture & features
 
 Human-readable overview of the Expo / React Native app: what it does, how it's wired, and where
 things live. Product, data model, permissions, and the API contract are the shared source of truth
@@ -16,7 +16,7 @@ Built on **Expo SDK 54** (RN 0.81, React 19, the React Compiler enabled via
 anymore, because three features add native code that Expo Go can't load:
 
 - **`expo-share-intent`** — a native iOS Share Extension + Android intent-filter (share a URL into
-  Saive from any app).
+  Klect from any app).
 - **`expo-video`** — the native player for direct media files in the bookmark video player.
 - **`react-native-webview`** — hosts provider iframes (YouTube/Vimeo/TikTok/Instagram) in that same
   player.
@@ -55,7 +55,7 @@ Everything else hot-reloads normally against the dev client.
   drift from web. A couple of shared web value-types are imported type-only where the shape is needed
   in props (`RetrievedPlace` / `PlaceSuggestion` from `@web/lib/core/places`).
 - **Auth.** `src/client/auth.ts` — `@better-auth/expo` client against the same better-auth server web
-  hosts (`API_URL`, deep-link `scheme: "saive"`, `storagePrefix: "saive"`), tokens in
+  hosts (`API_URL`, deep-link `scheme: "klect"`, `storagePrefix: "klect"`), tokens in
   `expo-secure-store`. It adds `inferAdditionalFields({ user: … })` mirroring web's
   `user.additionalFields`, so the session user is typed with the profile fields — notably
   `displayName`, the "onboarded" signal. The root layout gates on `authClient.useSession()`: pending →
@@ -75,7 +75,7 @@ as **modals** (`presentation: 'modal'`).
 - **Stack screens**: `lists/[id]` (list detail), `lists/members`, `bookmarks/[id]` (detail).
 - **Modal screens**: `lists/new`, `lists/edit`, `bookmarks/new`, `bookmarks/edit`.
 - **`+native-intent.tsx`** — `redirectSystemPath` intercepts the Share Extension's re-open deep link
-  (`saive://dataUrl=<key>…`, not a real route) and rewrites it to `/`, so expo-router doesn't render
+  (`klect://dataUrl=<key>…`, not a real route) and rewrites it to `/`, so expo-router doesn't render
   the not-found screen; the share payload is then picked up by the provider (see Share intent below).
 
 Navigate with `router.push({ pathname, params })`; read params with `useLocalSearchParams`; dismiss a
@@ -144,7 +144,7 @@ modal with `router.back()` (or `router.dismissAll()` after leaving a list).
   themes are local (`secure-store`) and include Journal, but the server `Theme` enum is only
   Pixel/Modern — a Journal pick is `coerceTheme`d to Pixel server-side (affecting web only; mobile
   keeps its local theme).
-- **Share intent** (`expo-share-intent`) — Saive appears in other apps' native share sheets (web
+- **Share intent** (`expo-share-intent`) — Klect appears in other apps' native share sheets (web
   URLs; the iOS activation rule is `NSExtensionActivationSupportsWebURLWithMaxCount: 1`). `_layout.tsx`
   wraps the app in `ShareIntentProvider`; a `ShareIntentRouter` in the **authenticated** subtree
   routes an incoming URL (`webUrl ?? text`) to the standalone New-bookmark flow (`/bookmarks/new?url=…`),
@@ -204,7 +204,7 @@ differ, screen structure is shared.
   produces the CSS-variable map (colors + `--border-w` / `--radius` / `--radius-sm`).
 - **`theme-provider.tsx`** — applies `themeVars` via NativeWind `vars()` on a root wrapper (web's
   `data-theme` swap, ported). Defaults to **Journal** following system light/dark; an explicit pick is
-  persisted to secure-store (`saive.theme`). `useTheme()` exposes `{ theme, setTheme }`.
+  persisted to secure-store (`klect.theme`). `useTheme()` exposes `{ theme, setTheme }`.
 - **`tailwind.config.js`** — maps the semantic classes to the CSS vars and registers the skin
   utilities + per-weight font families.
 - **Styling** — semantic NativeWind classes only: `bg-bg` / `bg-panel` / `text-ink` / `text-muted` /

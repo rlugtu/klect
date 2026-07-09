@@ -1,14 +1,14 @@
-# Saive — Architecture & Design Overview
+# Klect — Architecture & Design Overview
 
-A human-readable tour of what Saive is and how it's built. For the canonical data
+A human-readable tour of what Klect is and how it's built. For the canonical data
 model, permission matrix, and the full tRPC procedure list, see [`../DESIGN.md`](../DESIGN.md).
 For "how do I run/change/extend it," see [`DEVELOPMENT.md`](./DEVELOPMENT.md).
 
 ---
 
-## 1. What Saive is
+## 1. What Klect is
 
-Saive is a **bookmarking app where bookmarks live inside shareable lists**. A bookmark
+Klect is a **bookmarking app where bookmarks live inside shareable lists**. A bookmark
 has a name, description, one or more URLs (the first is the original source), extracted
 photos, notes, a location, a 0–5 rating, a visited flag, and user-scoped tags (each auto-
 assigned a color). Lists are drag-reorderable per user, searchable, and shareable — you
@@ -26,7 +26,7 @@ Native **mobile** app.
 ## 2. The big picture: two apps, one repo
 
 ```
-saive/                        one git repo — NO monorepo tooling (no workspaces/turbo)
+klect/                        one git repo — NO monorepo tooling (no workspaces/turbo)
 ├─ CLAUDE.md  DESIGN.md        the SHARED SPEC (source of truth for both apps)
 ├─ docs/                       cross-cutting docs (this file, DEVELOPMENT.md, plans)
 ├─ web/                        Next.js 16 app — owns the DB, auth, ALL business logic,
@@ -157,8 +157,8 @@ displayName, birthday, icon, theme).
   storing tokens in `expo-secure-store`.
 - **Google on mobile** goes *through* the web server: the app opens the server's OAuth URL,
   the server runs Google with its existing web client, then deep-links back to the app's
-  `saive://` scheme. This needs the `expo()` **server** plugin and
-  `trustedOrigins: ["saive://"]` in web's auth config — no separate native Google client id.
+  `klect://` scheme. This needs the `expo()` **server** plugin and
+  `trustedOrigins: ["klect://"]` in web's auth config — no separate native Google client id.
 
 ---
 

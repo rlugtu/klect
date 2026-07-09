@@ -1,8 +1,9 @@
-# Saive — Design Doc
+# Klect — Design Doc
 
 > Bookmarks organized into shareable lists, with tags, filtering, and collaboration.
 > Retro 8-bit aesthetic. This document is the single source of truth for the design;
 > update it whenever a decision changes.
+> See also: `docs/FEATURES.md` (core user features + web/mobile parity).
 
 **Status:** ✅ Feature-complete (all 8 build steps) + post-v1 additions (link autofill,
 photos, installable PWA). Deployed from `main`.
@@ -10,7 +11,7 @@ photos, installable PWA). Deployed from `main`.
 
 ## Overview
 
-Saive is a bookmarking app where bookmarks live inside **lists** that can be shared with other
+Klect is a bookmarking app where bookmarks live inside **lists** that can be shared with other
 people. A bookmark is richer than a URL — it has a name, description, multiple URLs (the first is
 the original source), extracted **photos**, free-form notes, a location, a 0–5 rating, a
 visited flag, and user-scoped **tags**. Lists can be organized (per-user drag-reorder) and
@@ -336,7 +337,7 @@ prisma/                     # schema.prisma + migrations (committed)
 
 ## 9. Web + mobile split (two-app architecture)
 
-Saive is **two independent apps in one repo** (`web/`, `mobile/`), sharing a spec and a runtime
+Klect is **two independent apps in one repo** (`web/`, `mobile/`), sharing a spec and a runtime
 API — **not** a monorepo with shared code packages. This section is the shared contract both apps
 build against; see the top-level `CLAUDE.md` for the per-feature workflow and the earlier
 `docs/monorepo-migration.md` (superseded) for the rejected shared-packages topology.

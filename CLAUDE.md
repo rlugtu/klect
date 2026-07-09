@@ -1,4 +1,4 @@
-# Saive
+# Klect
 
 Bookmarking app where bookmarks live inside shareable **lists**. A bookmark has a name,
 description, multiple URLs (`urls[0]` = original source), extracted **photos** (`images[]`),
@@ -15,7 +15,7 @@ Two selectable **themes** — **pixel** (retro 8-bit) and
 
 **Docs:** `DESIGN.md` (data model, permissions, routes, API contract) · `docs/ARCHITECTURE.md`
 (human-readable design + architecture overview) · `docs/DEVELOPMENT.md` (run/build/extend +
-conventions + gotchas).
+conventions + gotchas) · `docs/FEATURES.md` (core user features, web vs mobile parity).
 
 ## This repo = two apps that share a spec, not code
 

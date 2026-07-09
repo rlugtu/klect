@@ -8,7 +8,7 @@ export const auth = betterAuth({
   database: prismaAdapter(prisma, { provider: "postgresql" }),
   // Allow the native app's deep-link scheme as an OAuth redirect target so the
   // mobile Google flow (via @better-auth/expo) can return to the app.
-  trustedOrigins: ["saive://"],
+  trustedOrigins: ["klect://"],
   emailAndPassword: {
     enabled: true,
   },

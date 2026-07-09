@@ -24,7 +24,7 @@ export default async function OnboardingPage() {
       <PixelCard>
         <ProfileForm
           action={completeOnboarding}
-          submitLabel="Enter Saive"
+          submitLabel="Enter Klect"
           defaults={{
             firstName: user.firstName ?? null,
             lastName: user.lastName ?? null,

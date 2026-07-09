@@ -201,7 +201,7 @@ export default function OnboardingScreen({
           {busy ? (
             <ActivityIndicator color={THEME_TOKENS[theme].primaryInk} />
           ) : (
-            <Text className="font-sans-semibold text-primary-ink">Enter Saive</Text>
+            <Text className="font-sans-semibold text-primary-ink">Enter Klect</Text>
           )}
         </Pressable>
       </ScrollView>

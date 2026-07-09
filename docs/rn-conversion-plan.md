@@ -1,12 +1,12 @@
 # React Native / App Store conversion — effort analysis
 
-> Estimate + plan for shipping Saive as a native iOS (and likely Android) app. Companion to
+> Estimate + plan for shipping Klect as a native iOS (and likely Android) app. Companion to
 > DESIGN.md §9 (RN portability), which this quantifies. Not yet started — this is a go/no-go
 > reference. Last analyzed: 2026-07-04.
 
 ## Context
-Goal: estimate the work to ship Saive as a native iOS (and likely Android) app on the App
-Store. Saive is a Next.js 16 App-Router web app: **server-first, no HTTP API** — pages are RSC
+Goal: estimate the work to ship Klect as a native iOS (and likely Android) app on the App
+Store. Klect is a Next.js 16 App-Router web app: **server-first, no HTTP API** — pages are RSC
 that read `lib/*.ts` directly and mutate via server actions bound to `FormData`. That
 architecture is the crux: React Native cannot call Prisma/server actions, so a native client
 needs a real network API plus a full UI rebuild. DESIGN.md §9 already lays out the strategy;

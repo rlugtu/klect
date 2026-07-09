@@ -1,6 +1,6 @@
 @AGENTS.md
 
-# Saive — mobile app
+# Klect — mobile app
 
 Expo (**SDK 54**) / React Native client. It now requires a **custom dev build** (`npx expo
 prebuild` → `npx expo run:ios` / `run:android`) because the **share intent** feature adds a native
