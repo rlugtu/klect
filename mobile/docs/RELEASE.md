@@ -15,11 +15,19 @@ These are wrong/placeholder in the repo today and block a real production build:
       device builds hit the live API instead of localhost. The local `mobile/.env` stays dev-only.
 - [ ] **iOS icon** — `app.json` `ios.icon` is `./assets/expo.icon`; confirm it resolves to a real
       1024×1024 PNG (root `icon` is `./assets/images/icon.png`).
-- [ ] **`eas.json` `submit.production.ascAppId`** — currently a placeholder
-      (`REPLACE_WITH_KLECT_APP_STORE_CONNECT_APP_ID`). The old value `6788942895` was the
-      **`com.saive.app`** record and can't accept a `com.klect.app` build. Create the new Klect
-      app in App Store Connect (see below) and paste its Apple ID here. Apple ID
-      `ryanlugtu@gmail.com` + Team ID `UMPLL5A8L3` are unchanged.
+- [x] **`eas.json` `submit.production.ascAppId`** — set to `6789320507` (the App Store Connect
+      Apple ID for the new `com.klect.app` app). The old `6788942895` was the `com.saive.app` record
+      and can't accept a `com.klect.app` build. Apple ID `ryanlugtu@gmail.com` + Team ID
+      `UMPLL5A8L3` are unchanged.
+- [ ] **Web deployment auth config (mobile Google login depends on it)** — the deployed web app's
+      **`BETTER_AUTH_URL` must equal the mobile build's `EXPO_PUBLIC_API_URL`**
+      (`https://klect.vercel.app`), and Google Cloud Console must list
+      `https://klect.vercel.app/api/auth/callback/google` as an authorized redirect URI. If
+      `BETTER_AUTH_URL` points elsewhere (e.g. the old `saive-three.vercel.app`), the mobile Google
+      flow completes but loads the web app instead of deep-linking back via `klect://`. Config only —
+      no rebuild needed. Verify: `curl -s -X POST https://klect.vercel.app/api/auth/sign-in/social -H
+      'Content-Type: application/json' -d '{"provider":"google","callbackURL":"klect://"}'` — the
+      returned Google URL's `redirect_uri` must be on `klect.vercel.app`.
 
 ## Phase 1 — TestFlight
 
@@ -30,11 +38,14 @@ These are wrong/placeholder in the repo today and block a real production build:
       new app identity — the old `com.saive.app` records don't transfer):
       - `com.klect.app` with the **App Groups** capability + `group.com.klect.app`.
       - `com.klect.app.share-extension` (the share extension) with the **same** app group.
-        EAS reads `extra.eas.build.experimental.ios.appExtensions` in `app.json` to provision it.
-- [ ] **App record created** in App Store Connect for **`com.klect.app`** (a *new* app, not the
-      old Saive record) → copy its Apple ID into `eas.json` `submit.production.ascAppId`.
-- [ ] `eas whoami` logged in; EAS project slug reconciled to `klect` so `eas project:info` no
-      longer errors on the slug mismatch (rename the project on expo.dev, or re-init).
+        `expo-share-intent` generates + provisions this extension itself — **do not** add a manual
+        `extra.eas.build.experimental.ios.appExtensions` block to `app.json`. A manual entry is a
+        duplicate that crashes `expo config` / every `eas` command; `expo prebuild` / EAS keep
+        re-adding it, so strip it whenever it reappears.
+- [x] **App record created** in App Store Connect for **`com.klect.app`** (a *new* app, not the
+      old Saive record); its Apple ID (`6789320507`) is in `eas.json` `submit.production.ascAppId`.
+- [x] `eas whoami` logged in; project linked to a fresh EAS project **`@ryanlugtu/klect`**
+      (projectId `1047d87e-…`) whose slug matches `app.json`, so `eas project:info` resolves clean.
 - [ ] Production build: `eas build --platform ios --profile production`.
 - [ ] Submit: `eas submit --platform ios --profile production`.
 - [ ] TestFlight **export-compliance** answered; internal testers added.

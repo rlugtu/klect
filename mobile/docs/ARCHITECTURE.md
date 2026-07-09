@@ -64,6 +64,13 @@ Everything else hot-reloads normally against the dev client.
   (`signIn.email` / `signUp.email` with a name + password ≥ 8) and Google social sign-in
   (`signIn.social`); after onboarding saves, the layout `refetch()`es the session so the gate advances.
   Sign-out lives on Settings.
+  - **Google OAuth deep-link gotcha.** The social flow only returns to the app if the whole OAuth
+    round-trip stays on the origin the app calls. The deployed web app's **`BETTER_AUTH_URL` must
+    equal `EXPO_PUBLIC_API_URL`** (`https://klect.vercel.app`), and Google Cloud Console must list
+    `https://klect.vercel.app/api/auth/callback/google` as an authorized redirect URI. If
+    `BETTER_AUTH_URL` points at a different domain (e.g. the old `saive-three.vercel.app`), Google
+    signs in but redirects to *that* web app instead of firing the `klect://` deep link that closes
+    the in-app browser — so the user lands on the web app rather than back in the native app.
 
 ## Navigation
 
