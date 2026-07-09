@@ -67,7 +67,7 @@ export default async function Home({
             {user.icon ?? "🔖"}
           </span>
           <div className="min-w-0">
-            <h1 className="text-xl text-primary font-bold">SAIVE</h1>
+            <h1 className="text-xl text-primary font-bold">KLECT</h1>
             <p className="text-muted text-sm truncate">
               Hi, {user.displayName ?? user.name}
             </p>

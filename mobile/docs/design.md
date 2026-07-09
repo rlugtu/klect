@@ -1,4 +1,4 @@
-# Saive — Journal Theme (design doc)
+# Klect — Journal Theme (design doc)
 
 > The Journal theme is **shipped and is the default** family (light + dark), alongside Pixel and
 > Modern. This doc is the visual-design reference for it; for app structure, navigation, and the

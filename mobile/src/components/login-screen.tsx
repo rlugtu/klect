@@ -19,7 +19,7 @@ type Mode = 'signin' | 'signup';
  * box (sign-up mirrors web's `LoginForm`: name + email + password ≥ 8); Google uses the
  * social flow (needs a native OAuth client id configured — see DESIGN.md / mobile setup
  * notes). New accounts have no displayName yet, so the root layout routes them to
- * onboarding. Styled with the shared Saive tokens.
+ * onboarding. Styled with the shared Klect tokens.
  */
 export default function LoginScreen() {
   const { theme } = useTheme();
@@ -73,7 +73,7 @@ export default function LoginScreen() {
   return (
     <SafeAreaView style={{ flex: 1 }} className="bg-bg">
       <View className="flex-1 justify-center gap-3 px-6">
-        <Text className="text-center text-3xl font-bold text-ink">Saive</Text>
+        <Text className="text-center text-3xl font-bold text-ink">Klect</Text>
         <Text className="mb-4 text-center text-muted">
           {mode === 'signin'
             ? 'Sign in to your bookmarks'

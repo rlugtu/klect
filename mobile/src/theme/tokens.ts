@@ -1,5 +1,5 @@
 /**
- * Saive design tokens. Pixel/Modern mirror web/src/app/globals.css; **Journal** is
+ * Klect design tokens. Pixel/Modern mirror web/src/app/globals.css; **Journal** is
  * a mobile-first family (warm "scrapbook" theme) — see mobile/docs/design.md. Mobile
  * can't import web at runtime, so these mirror the web values as data; keep in sync.
  */

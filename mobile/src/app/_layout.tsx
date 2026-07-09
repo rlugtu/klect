@@ -34,7 +34,7 @@ import { ThemeProvider as AppThemeProvider } from '@/theme/theme-provider';
 SplashScreen.preventAutoHideAsync();
 
 /**
- * Routes an incoming share intent (a URL shared into Saive from another app) to the
+ * Routes an incoming share intent (a URL shared into Klect from another app) to the
  * standalone new-bookmark flow, prefilled with the shared URL. Rendered only inside the
  * authenticated subtree, so a share received while logged out waits until after login.
  */

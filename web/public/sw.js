@@ -1,5 +1,5 @@
-// Saive service worker — installability + basic offline support.
-const CACHE = "saive-v1";
+// Klect service worker — installability + basic offline support.
+const CACHE = "klect-v1";
 const OFFLINE_URL = "/offline";
 const PRECACHE = [OFFLINE_URL, "/icon-192.png", "/icon-512.png"];
 

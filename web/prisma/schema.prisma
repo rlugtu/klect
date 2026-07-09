@@ -1,4 +1,4 @@
-// Saive schema — see DESIGN.md §3 for the model overview.
+// Klect schema — see DESIGN.md §3 for the model overview.
 // Auth tables (Session/Account/Verification) and better-auth wiring are added in Step 2.
 
 generator client {

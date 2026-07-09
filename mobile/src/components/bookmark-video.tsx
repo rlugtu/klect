@@ -90,7 +90,7 @@ function IframeVideo({ url, poster }: { url: string; poster?: string }) {
     <Card>
       <View style={style}>
         <WebView
-          source={{ html, baseUrl: 'https://saive.app' }}
+          source={{ html, baseUrl: 'https://klect.app' }}
           originWhitelist={['*']}
           style={{ flex: 1, backgroundColor: '#000' }}
           javaScriptEnabled
