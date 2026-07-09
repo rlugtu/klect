@@ -15,16 +15,26 @@ These are wrong/placeholder in the repo today and block a real production build:
       device builds hit the live API instead of localhost. The local `mobile/.env` stays dev-only.
 - [ ] **iOS icon** — `app.json` `ios.icon` is `./assets/expo.icon`; confirm it resolves to a real
       1024×1024 PNG (root `icon` is `./assets/images/icon.png`).
-- [x] **`eas.json` `submit.production`** — Apple ID `ryanlugtu@gmail.com`, ascAppId `6788942895`,
-      Team ID `UMPLL5A8L3`.
+- [ ] **`eas.json` `submit.production.ascAppId`** — currently a placeholder
+      (`REPLACE_WITH_KLECT_APP_STORE_CONNECT_APP_ID`). The old value `6788942895` was the
+      **`com.saive.app`** record and can't accept a `com.klect.app` build. Create the new Klect
+      app in App Store Connect (see below) and paste its Apple ID here. Apple ID
+      `ryanlugtu@gmail.com` + Team ID `UMPLL5A8L3` are unchanged.
 
 ## Phase 1 — TestFlight
 
 - [ ] **Apple Developer Program** enrollment active ($99/yr).
 - [ ] Web app deployed to a public HTTPS URL (DONE) and wired into the production build.
 - [ ] Real bundle identifier set (see above).
-- [ ] App record created in **App Store Connect** + bundle ID registered in the Developer portal.
-- [ ] `eas whoami` logged in; project linked to `projectId` in `app.json` `extra.eas`.
+- [ ] **Register identifiers** in the Apple Developer portal (the rename to `com.klect.app` is a
+      new app identity — the old `com.saive.app` records don't transfer):
+      - `com.klect.app` with the **App Groups** capability + `group.com.klect.app`.
+      - `com.klect.app.share-extension` (the share extension) with the **same** app group.
+        EAS reads `extra.eas.build.experimental.ios.appExtensions` in `app.json` to provision it.
+- [ ] **App record created** in App Store Connect for **`com.klect.app`** (a *new* app, not the
+      old Saive record) → copy its Apple ID into `eas.json` `submit.production.ascAppId`.
+- [ ] `eas whoami` logged in; EAS project slug reconciled to `klect` so `eas project:info` no
+      longer errors on the slug mismatch (rename the project on expo.dev, or re-init).
 - [ ] Production build: `eas build --platform ios --profile production`.
 - [ ] Submit: `eas submit --platform ios --profile production`.
 - [ ] TestFlight **export-compliance** answered; internal testers added.

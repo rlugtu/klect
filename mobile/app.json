@@ -71,8 +71,26 @@
     "extra": {
       "router": {},
       "eas": {
-        "projectId": "f059d373-81ef-4124-b1bd-165bca1db26f"
+        "projectId": "f059d373-81ef-4124-b1bd-165bca1db26f",
+        "build": {
+          "experimental": {
+            "ios": {
+              "appExtensions": [
+                {
+                  "targetName": "ShareExtension",
+                  "bundleIdentifier": "com.klect.app.share-extension",
+                  "entitlements": {
+                    "com.apple.security.application-groups": [
+                      "group.com.klect.app"
+                    ]
+                  }
+                }
+              ]
+            }
+          }
+        }
       }
-    }
+    },
+    "owner": "ryanlugtu"
   }
 }

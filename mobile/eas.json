@@ -22,7 +22,7 @@
     "production": {
       "ios": {
         "appleId": "ryanlugtu@gmail.com",
-        "ascAppId": "6788942895",
+        "ascAppId": "REPLACE_WITH_KLECT_APP_STORE_CONNECT_APP_ID",
         "appleTeamId": "UMPLL5A8L3"
       }
     }
