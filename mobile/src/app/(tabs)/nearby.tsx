@@ -5,6 +5,7 @@ import { useRouter } from 'expo-router';
 import * as Location from 'expo-location';
 
 import { trpc } from '@/client/api';
+import TagPill from '@/components/tag-pill';
 
 type NearbyResult = Awaited<ReturnType<typeof trpc.nearby.find.query>>;
 type NearbyItem = Extract<NearbyResult, { ok: true }>['data'][number];
@@ -70,7 +71,7 @@ export default function NearbyScreen() {
             <Pressable
               key={r}
               onPress={() => find(r)}
-              className={`rounded-skin border px-3 py-2 ${
+              className={`flex-1 items-center rounded-skin border py-3 ${
                 radius === r ? 'border-primary bg-primary' : 'border-border'
               }`}>
               <Text className={radius === r ? 'text-primary-ink' : 'text-ink'}>
@@ -116,13 +117,20 @@ export default function NearbyScreen() {
                 <Text className="flex-1 pr-2 text-base font-semibold text-ink">
                   {item.card.name}
                 </Text>
-                <Text className="text-xs text-muted">
+                <Text className="text-base font-semibold text-ink">
                   {item.distanceMiles.toFixed(1)} mi
                 </Text>
               </View>
               <Text className="text-xs text-muted">
                 {item.listLabel.icon} {item.listLabel.name}
               </Text>
+              {item.card.tags.length > 0 && (
+                <View className="flex-row flex-wrap gap-1">
+                  {item.card.tags.slice(0, 3).map((tag) => (
+                    <TagPill key={tag.id} name={tag.name} color={tag.color} />
+                  ))}
+                </View>
+              )}
             </Pressable>
           )}
         />

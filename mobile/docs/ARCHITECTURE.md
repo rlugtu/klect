@@ -132,10 +132,11 @@ modal with `router.back()` (or `router.dismissAll()` after leaving a list).
   the 403 for non-owners.
 - **Nearby** (`(tabs)/nearby.tsx`) — reads device GPS (`expo-location`, foreground permission), then
   in parallel calls `nearby.find` (haversine-filters the user's coordinate-bearing bookmarks within a
-  chosen radius — chips 1/5/10/25 mi) and `places.reverseGeocode` (a readable "Your location" label,
-  falling back to a raw coordinate readout). Results are compact rows with distance; a "N skipped (no
-  coordinates)" note covers bookmarks without coordinates. Only bookmarks given coordinates via
-  location search have them.
+  chosen radius — full-width, evenly-spaced chips 1/5/10/25 mi) and `places.reverseGeocode` (a
+  readable "Your location" label, falling back to a raw coordinate readout). Results are compact
+  rows with an emphasized distance and up to 3 tag pills (`TagPill`, from `card.tags`) under the
+  list label; a "N skipped (no coordinates)" note covers bookmarks without coordinates. Only
+  bookmarks given coordinates via location search have them.
 - **Settings** (`(tabs)/settings.tsx`) — account summary (name/email from the session); **theme
   picker** (all six themes, four-swatch preview + check); sign out.
 - **Login / sign-up** (`components/login-screen.tsx`) — shown when signed out. A mode toggle switches

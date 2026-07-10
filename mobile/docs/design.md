@@ -25,7 +25,8 @@ its own palette + type + component treatment. Ships light + dark, and is the def
 - **Bookmark detail** (`bookmarks/[id].tsx`) — hero photos, rating, tags, notes, location, comments
 - **New / edit bookmark** (`bookmarks/new.tsx`, `bookmarks/edit.tsx`) — shared `BookmarkForm`:
   link autofill, location search, and (standalone flow) the multi-list picker
-- **Nearby** (`(tabs)/nearby.tsx`) — compact rows, distance, radius chips
+- **Nearby** (`(tabs)/nearby.tsx`) — compact rows (name, emphasized distance, list label, up
+  to 3 tag pills), full-width evenly-spaced radius chips
 - **Settings** (`(tabs)/settings.tsx`) — account, theme picker, sign out · **Login**, **Members**
 
 ## Color tokens — `JOURNAL_LIGHT` / `JOURNAL_DARK`
@@ -68,8 +69,9 @@ below describes the **Journal**/Pixel families:
   photo (first extracted image, or a warm tinted placeholder) with a slight white
   "print border," title in Newsreader below, tag pills + rating underneath.
 - **Compact row** — Nearby & search results: small square thumbnail, name + list
-  icon/name, distance or muted meta on the right. No large photo, optimized for
-  scanning many results.
+  icon/name, distance or muted meta on the right. On Nearby the distance is emphasized
+  (larger, bold) and up to 3 tag pills sit under the list label. No large photo,
+  optimized for scanning many results.
 - **Rating** — keep the 5-star glyph rating (`StarRating.tsx`/bookmark detail),
   recolor filled stars to `accent` gold instead of the old yellow/warning token.
 - **Tag pills** — same per-tag colored pills, softened to fully-rounded

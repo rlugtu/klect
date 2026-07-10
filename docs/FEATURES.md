@@ -223,8 +223,9 @@ date picker); same procedures.
 bookmarks with a typed (non-geocoded) location are skipped and counted.
 **Web.** `/nearby` → `NearbyFinder` (browser Geolocation API), radius **0.5 / 1 / 2 / 5 / 10 mi**,
 per-list toggles; `nearby.find` (haversine).
-**Mobile.** `src/app/(tabs)/nearby.tsx` (native `expo-location` GPS), radius **1 / 5 / 10 / 25 mi**,
-reverse-geocoded location label; `nearby.find`.
+**Mobile.** `src/app/(tabs)/nearby.tsx` (native `expo-location` GPS), radius **1 / 5 / 10 / 25 mi**
+(full-width, evenly-spaced chips), reverse-geocoded location label; `nearby.find`. Result rows show
+an emphasized distance and up to 3 tag pills under the list label.
 **Differences.** Radius options differ; web offers per-list toggles, mobile searches all.
 
 ### Profile & settings
