@@ -87,13 +87,26 @@ export default function ListScreen() {
           headerRight: () => (
             <Pressable
               accessibilityLabel="Add bookmark"
+              hitSlop={8}
               onPress={() =>
                 router.push({
                   pathname: '/bookmarks/new',
                   params: { listId: id, listName: name },
                 })
-              }>
-              <Ionicons name="add" size={28} color={t.primary} />
+              }
+              style={{
+                width: 32,
+                height: 32,
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}>
+              {/* Nudge right to counter the Ionicons "add" glyph's left side-bearing. */}
+              <Ionicons
+                name="add"
+                size={28}
+                color={t.primary}
+                style={{ marginLeft: 1 }}
+              />
             </Pressable>
           ),
         }}

@@ -74,9 +74,14 @@ Everything else hot-reloads normally against the dev client.
 
 ## Navigation
 
-**expo-router** (file-based, `src/app/`, `experiments.typedRoutes`). Root `_layout.tsx` is a `Stack`
-(header title in Newsreader); the `(tabs)` group is a bottom `Tabs` navigator. Editors are presented
-as **modals** (`presentation: 'modal'`).
+**expo-router** (file-based, `src/app/`, `experiments.typedRoutes`). Root `_layout.tsx` renders
+`AppStack` — a `Stack` extracted into a child of the app `ThemeProvider` so its `screenOptions` can
+read the active palette. Pushed screens use a **seamless "floating" header**: the header background
+is the page `bg` token with no shadow (`headerShadowVisible: false`), the title is `ink` in
+Newsreader, the back button is chevron-only (`headerBackButtonDisplayMode: 'minimal'` — no route-name
+text), and the tint (back chevron) is `primary` — mirroring the header-less homepage look. The
+`(tabs)` group is a bottom `Tabs` navigator. Editors are presented as **modals**
+(`presentation: 'modal'`).
 
 - **Tabs** (`(tabs)/_layout.tsx`, Ionicons, themed bar): **Lists** (`index`), **Nearby**, **Settings**.
 - **Stack screens**: `lists/[id]` (list detail), `lists/members`, `bookmarks/[id]` (detail).
