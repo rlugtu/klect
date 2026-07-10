@@ -164,8 +164,11 @@ and description (and unfurls the site for images/video).
 **Web.** `LocationInput` + `places.search` / `places.retrieve` (Mapbox Search Box), Mapbox session
 tokens for billing. Degrades to plain text if no Mapbox token.
 **Mobile.** `src/components/bookmark-form.tsx` location search, same procedures, rotating session
-tokens; free typing clears coordinates.
-**Differences.** None material.
+tokens; free typing clears coordinates. A business pick fills name/description/URL/photos **only when
+those fields are empty** (the location/address + coordinates always overwrite), so it never clobbers
+what the user already typed.
+**Differences.** Mobile's business autofill is empty-field-only; web still overwrites those fields on
+a business pick.
 
 ### Video detection & player
 **Description.** Bookmarks with a playable video (YouTube / Vimeo / TikTok / Instagram, or a direct

@@ -177,7 +177,8 @@ form opens with a shared URL.
   (≥3 chars, 350 ms) → pick → `retrieve` coordinates, with request-id guarding against stale
   responses and a rotating session token for Mapbox billing. Free typing clears the parent's
   coordinates (text no longer matches the pin); picking a **business** (POI) autofills
-  name/description/URL/images (and unfurls its website), a plain address sets location + coordinates
+  name/description/URL/images **only into empty fields** (and unfurls its website for the same empty
+  fields), while location + coordinates always overwrite; a plain address sets location + coordinates
   only.
 - **`ListPicker`** (`components/list-picker.tsx`) — standalone-flow multi-list target picker: toggle
   chips for editable lists (OWNER/COLLABORATOR) + inline new-list creation (dismissible "(new)"
