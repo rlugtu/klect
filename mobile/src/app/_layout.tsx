@@ -35,7 +35,8 @@ import {
 import LoginScreen from '@/components/login-screen';
 import OnboardingScreen from '@/components/onboarding-screen';
 import { authClient } from '@/client/auth';
-import { ThemeProvider as AppThemeProvider } from '@/theme/theme-provider';
+import { ThemeProvider as AppThemeProvider, useTheme } from '@/theme/theme-provider';
+import { THEME_TOKENS } from '@/theme/tokens';
 
 SplashScreen.preventAutoHideAsync();
 
@@ -56,6 +57,53 @@ function ShareIntentRouter() {
   }, [hasShareIntent, shareIntent, router, resetShareIntent]);
 
   return null;
+}
+
+/**
+ * The authenticated navigation stack. Lives inside <AppThemeProvider> so it can read the active
+ * palette and give every pushed screen a seamless "floating" header — the header shares the page
+ * background (no black bar, no shadow) like the homepage, with a chevron-only back button.
+ */
+function AppStack() {
+  const t = THEME_TOKENS[useTheme().theme];
+  return (
+    <Stack
+      screenOptions={{
+        headerStyle: { backgroundColor: t.bg },
+        headerShadowVisible: false,
+        headerTintColor: t.primary,
+        headerTitleStyle: { fontFamily: 'Newsreader_600SemiBold', color: t.ink },
+        headerBackButtonDisplayMode: 'minimal',
+        contentStyle: { backgroundColor: t.bg },
+      }}>
+      <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+      <Stack.Screen name="lists/[id]" options={{ title: 'List' }} />
+      <Stack.Screen name="lists/members" options={{ title: 'Members' }} />
+      <Stack.Screen
+        name="lists/new"
+        options={{ presentation: 'modal', title: 'New list' }}
+      />
+      <Stack.Screen
+        name="lists/edit"
+        options={{ presentation: 'modal', title: 'Edit list' }}
+      />
+      <Stack.Screen name="bookmarks/[id]" options={{ title: 'Bookmark' }} />
+      <Stack.Screen
+        name="bookmarks/new"
+        options={{ presentation: 'modal', title: 'New bookmark' }}
+      />
+      <Stack.Screen
+        name="bookmarks/edit"
+        options={{ presentation: 'modal', title: 'Edit bookmark' }}
+      />
+      <Stack.Screen name="polls/index" options={{ title: 'Polls' }} />
+      <Stack.Screen
+        name="polls/new"
+        options={{ presentation: 'modal', title: 'New poll' }}
+      />
+      <Stack.Screen name="polls/[pollId]" options={{ title: 'Poll' }} />
+    </Stack>
+  );
 }
 
 export default function RootLayout() {
@@ -99,37 +147,7 @@ export default function RootLayout() {
               />
             ) : (
               <>
-              <Stack
-                screenOptions={{
-                  headerTitleStyle: { fontFamily: 'Newsreader_600SemiBold' },
-                }}>
-                <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-                <Stack.Screen name="lists/[id]" options={{ title: 'List' }} />
-                <Stack.Screen name="lists/members" options={{ title: 'Members' }} />
-                <Stack.Screen
-                  name="lists/new"
-                  options={{ presentation: 'modal', title: 'New list' }}
-                />
-                <Stack.Screen
-                  name="lists/edit"
-                  options={{ presentation: 'modal', title: 'Edit list' }}
-                />
-                <Stack.Screen name="bookmarks/[id]" options={{ title: 'Bookmark' }} />
-                <Stack.Screen
-                  name="bookmarks/new"
-                  options={{ presentation: 'modal', title: 'New bookmark' }}
-                />
-                <Stack.Screen
-                  name="bookmarks/edit"
-                  options={{ presentation: 'modal', title: 'Edit bookmark' }}
-                />
-                <Stack.Screen name="polls/index" options={{ title: 'Polls' }} />
-                <Stack.Screen
-                  name="polls/new"
-                  options={{ presentation: 'modal', title: 'New poll' }}
-                />
-                <Stack.Screen name="polls/[pollId]" options={{ title: 'Poll' }} />
-              </Stack>
+              <AppStack />
               <ShareIntentRouter />
               </>
             )}
