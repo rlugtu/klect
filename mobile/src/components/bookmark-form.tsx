@@ -11,6 +11,7 @@ import {
   TextInput,
   View,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { trpc } from '@/client/api';
 import { LocationInput } from '@/components/location-input';
@@ -66,6 +67,7 @@ export default function BookmarkForm({
 }: Props) {
   const { theme } = useTheme();
   const muted = THEME_TOKENS[theme].muted;
+  const insets = useSafeAreaInsets();
 
   const [url, setUrl] = useState(initial.urls[0] ?? '');
   const [name, setName] = useState(initial.name);
@@ -211,7 +213,9 @@ export default function BookmarkForm({
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       <ScrollView
         className="flex-1 bg-bg"
-        contentContainerStyle={{ padding: 16, gap: 12 }}
+        // Add the bottom safe-area inset so the Save button clears the home
+        // indicator (notably in the share-extension flow, which has no tab bar).
+        contentContainerStyle={{ padding: 16, paddingBottom: 16 + insets.bottom, gap: 12 }}
         keyboardShouldPersistTaps="handled">
         {header ? (
           <>
