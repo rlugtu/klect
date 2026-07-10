@@ -137,20 +137,26 @@ export default function BookmarkForm({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [autofillOnMount]);
 
-  // Autofill when a place is picked in the Location field. Always sets location + coords; for a
-  // business (POI) it overwrites name/description/url/images, then enriches from the website unfurl.
+  // Autofill when a place is picked in the Location field. Location + coords always overwrite
+  // (that's the point of picking a place). For a business (POI) the name/description/url/photos are
+  // filled only when the user hasn't already typed them, so a pick never clobbers existing input;
+  // the website unfurl that follows respects the same pre-pick emptiness.
   async function handleLocationAutofill(place: RetrievedPlace) {
     setLocation(place.address);
     setLatitude(place.lat);
     setLongitude(place.lon);
     if (!place.isPoi) return; // plain address — location only
 
-    setName(place.name);
-    setUrl(place.website); // '' clears the field when the business has no site
-    setDescription(place.category); // provisional; the unfurl may replace it
-    setImages([]);
-    setVideoUrl('');
-    setVideoType('');
+    // Capture emptiness once, before any setState — closure values reflect the pre-pick state and
+    // gate both the place data below and the later website unfurl.
+    const fillName = !name.trim();
+    const fillDescription = !description.trim();
+    const fillUrl = !url.trim();
+    const fillImages = images.length === 0;
+
+    if (fillName) setName(place.name);
+    if (fillUrl) setUrl(place.website); // '' clears the field when the business has no site
+    if (fillDescription) setDescription(place.category); // provisional; the unfurl may replace it
 
     if (!place.website) return;
     Keyboard.dismiss();
@@ -163,11 +169,16 @@ export default function BookmarkForm({
         { signal: controller.signal },
       );
       if (res.ok) {
-        if (res.data.title && !place.name) setName(res.data.title);
-        if (res.data.description) setDescription(res.data.description);
-        if (res.data.images.length) setImages(res.data.images);
-        setVideoUrl(res.data.video?.url ?? '');
-        setVideoType(res.data.video?.type ?? '');
+        // A POI's own name wins over the unfurl title; only fall back to the title when the POI had
+        // no name and the field was empty.
+        if (fillName && !place.name && res.data.title) setName(res.data.title);
+        if (fillDescription && res.data.description) setDescription(res.data.description);
+        if (fillImages && res.data.images.length) setImages(res.data.images);
+        // Video tracks the photos/media slot, which "fill only when empty" also protects.
+        if (fillImages) {
+          setVideoUrl(res.data.video?.url ?? '');
+          setVideoType(res.data.video?.type ?? '');
+        }
       }
     } catch {
       // Keep the basics set above.
