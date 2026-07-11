@@ -1,7 +1,7 @@
 import { createTRPCClient, httpBatchLink } from "@trpc/client";
 import type { AppRouter } from "@web/server/trpc/router";
 import * as SecureStore from "expo-secure-store";
-import { getBearerToken, API_URL } from "./auth";
+import { resolveBearerToken, API_URL } from "./auth";
 
 /**
  * Typed tRPC client for web's API. `AppRouter` is a **type-only** import from
@@ -18,9 +18,11 @@ export const trpc = createTRPCClient<AppRouter>({
     httpBatchLink({
       url: `${API_URL}/api/trpc`,
       async headers() {
-        // Prefer the in-memory token; fall back to SecureStore for the cold-start race
-        // before the in-memory copy has hydrated.
-        const token = getBearerToken() ?? (await SecureStore.getItemAsync("klect_bearer"));
+        // Resolve from the captured token or the stored session cookie (covers both the
+        // email/password and Google OAuth sign-in paths); fall back to a direct SecureStore
+        // read for the cold-start race before the in-memory token has hydrated.
+        const token =
+          resolveBearerToken() ?? (await SecureStore.getItemAsync("klect_bearer"));
         return token ? { Authorization: `Bearer ${token}` } : {};
       },
     }),

@@ -18,6 +18,12 @@ export const API_URL = process.env.EXPO_PUBLIC_API_URL ?? "http://localhost:3000
  *
  * We mirror the token in memory (sync reads for request headers) and in SecureStore (survives
  * restarts). `fetchOptions.onSuccess` below refreshes it whenever better-auth rotates it.
+ *
+ * The `set-auth-token` header only rides on **fetch** responses (email/password sign-in), so it
+ * never fires for the Google OAuth flow — there the session arrives as a `cookie` query param on
+ * the `klect://` deep-link redirect, which `@better-auth/expo` stores but our client never sees as
+ * a response. `resolveBearerToken` therefore falls back to the stored session cookie, whose
+ * session-token value the server's `bearer()` plugin accepts as a bearer token.
  */
 const BEARER_KEY = "klect_bearer";
 let cachedToken: string | null = null;
@@ -29,8 +35,6 @@ SecureStore.getItemAsync(BEARER_KEY)
     if (t) cachedToken = t;
   })
   .catch(() => {});
-
-export const getBearerToken = () => cachedToken;
 
 /** Drop the stored bearer token (call on sign-out). */
 export function clearBearerToken() {
@@ -87,3 +91,26 @@ export const authClient = createAuthClient({
     }),
   ],
 });
+
+/**
+ * Pull the session-token value out of the stored better-auth cookie
+ * (`<...>session_token=<value>; ...`). Populated by the Google OAuth deep-link flow even when
+ * `set-auth-token` never fired. The value is a signed cookie token the `bearer()` plugin accepts.
+ */
+function sessionTokenFromCookie(): string | null {
+  const cookie = authClient.getCookie();
+  if (!cookie) return null;
+  for (const part of cookie.split(";")) {
+    const [name, ...rest] = part.trim().split("=");
+    if (name.endsWith("session_token")) return rest.join("=") || null;
+  }
+  return null;
+}
+
+/**
+ * Best available bearer token for authenticating API calls, covering both sign-in paths:
+ * the `set-auth-token` header (email/password) and the stored session cookie (Google OAuth).
+ */
+export function resolveBearerToken(): string | null {
+  return cachedToken ?? sessionTokenFromCookie();
+}
