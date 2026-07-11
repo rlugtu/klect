@@ -20,10 +20,12 @@ mobile-specific implementation only.
   there is no runtime coupling to web. `EXPO_PUBLIC_API_URL` sets the web base URL.
 - **Auth**: `@better-auth/expo` against the same better-auth server web hosts (web uses
   `better-auth/react`). Tokens live in `expo-secure-store`. The tRPC client authenticates with
-  `Authorization: Bearer <sessionToken>` (server runs better-auth's `bearer()` plugin; the token
-  arrives on responses via the `set-auth-token` header and is mirrored in memory + SecureStore in
-  `src/client/auth.ts`) — **not** the session cookie, which iOS release builds swallow (`Secure`
-  Set-Cookie is intercepted by native networking before the client can store it).
+  `Authorization: Bearer <sessionToken>` (server runs better-auth's `bearer()` plugin), resolved by
+  `resolveBearerToken()` in `src/client/auth.ts` — **not** the session cookie, which iOS release
+  builds swallow (`Secure` Set-Cookie is intercepted by native networking before the client can
+  store it, so it only breaks in TestFlight/store builds, not dev). Two capture paths, both required:
+  email/password → the `set-auth-token` response header; Google OAuth → parsed from the stored
+  cookie (`getCookie()`). **Don't revert to a `Cookie` header.** Full rationale: `docs/ARCHITECTURE.md` Auth.
 - Never add business logic or direct DB access here — new backend work lands once in `web/` (see the
   per-feature workflow in `../CLAUDE.md`), then you build the screen consuming the procedure.
 
