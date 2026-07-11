@@ -41,8 +41,9 @@ Everything else hot-reloads normally against the dev client.
   `${EXPO_PUBLIC_API_URL}/api/trpc`). It imports web's `AppRouter` as a **type-only** import
   (`@web/*` → web's `src/*` path alias, erased at compile time — zero runtime coupling), so every
   call is end-to-end typed against the exact procedures web exposes. Each request's `headers()`
-  attaches the better-auth session cookie (`authClient.getCookie()`) so `protectedProcedure` sees the
-  signed-in user.
+  attaches the better-auth session as an `Authorization: Bearer <sessionToken>` header
+  (`resolveBearerToken()`) so `protectedProcedure` sees the signed-in user. **It must be a Bearer
+  token, not a `Cookie` header** — see the transport gotcha under **Auth** below.
 - **Data-fetching pattern.** Screens call the vanilla client directly — `trpc.<router>.<proc>.query(…)`
   inside `useFocusEffect` (refetch on focus so lists/bookmarks refresh after a modal closes), and
   `trpc.<router>.<proc>.mutate(…)` in event handlers, then `router.back()` or a manual refetch.
@@ -64,6 +65,19 @@ Everything else hot-reloads normally against the dev client.
   (`signIn.email` / `signUp.email` with a name + password ≥ 8) and Google social sign-in
   (`signIn.social`); after onboarding saves, the layout `refetch()`es the session so the gate advances.
   Sign-out lives on Settings.
+  - **API transport = Bearer token, not cookie (release-build gotcha).** The tRPC client
+    (`src/client/api.ts`) authenticates with `Authorization: Bearer <sessionToken>`; the server
+    runs better-auth's `bearer()` plugin to accept it. **Never revert this to
+    `Cookie: authClient.getCookie()`.** In an iOS **release/TestFlight** build over HTTPS, native
+    networking swallows `Secure` `Set-Cookie` headers before `@better-auth/expo` persists them, so
+    `getCookie()` returns empty and every protected call fails with *"Sign in required"* — while
+    dev/simulator (plain-HTTP localhost, cookie kept) works fine, so it slips through local testing.
+  - **`resolveBearerToken()` handles both sign-in paths.** Email/password captures the token from
+    the `set-auth-token` **response header** (`authClient` `fetchOptions.onSuccess`, mirrored to
+    `expo-secure-store` + memory). Google OAuth never emits that header — its session arrives as a
+    `cookie` query param on the `klect://` deep-link redirect — so the resolver falls back to the
+    session-token value parsed out of `authClient.getCookie()` (the stored cookie), which the
+    `bearer()` plugin accepts (incl. URL-encoded). Both paths must stay covered.
   - **Google OAuth deep-link gotcha.** The social flow only returns to the app if the whole OAuth
     round-trip stays on the origin the app calls. The deployed web app's **`BETTER_AUTH_URL` must
     equal `EXPO_PUBLIC_API_URL`** (`https://klect.vercel.app`), and Google Cloud Console must list
@@ -71,6 +85,8 @@ Everything else hot-reloads normally against the dev client.
     `BETTER_AUTH_URL` points at a different domain (e.g. the old `saive-three.vercel.app`), Google
     signs in but redirects to *that* web app instead of firing the `klect://` deep link that closes
     the in-app browser — so the user lands on the web app rather than back in the native app.
+    Because web + mobile share that redirect URI, a Google failure that happens *only on mobile*
+    (prod web Google works) is **not** a Google Cloud Console issue — look at token capture above.
 
 ## Navigation
 

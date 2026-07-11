@@ -73,7 +73,8 @@ The backbone is the same for both clients: **all business logic lives in one pla
   `lib/<entity>.ts` read modules; mutations are **server actions** that call `core` and then
   `revalidatePath`/`redirect`. No network hop.
 - **Mobile** has no database access. Every read and write is a **tRPC call** over HTTP to
-  web's `/api/trpc`, carrying the better-auth session cookie.
+  web's `/api/trpc`, carrying the better-auth session as an `Authorization: Bearer` token
+  (**not** a cookie — see §5).
 - Both a web action and its tRPC procedure delegate to the **same** `core()` function — the
   logic is never duplicated between transports.
 
@@ -155,10 +156,29 @@ displayName, birthday, icon, theme).
   (`requireUser`, `requireOnboardedUser`) plus the `nextCookies()` plugin.
 - **Mobile** uses `@better-auth/expo` (`mobile/src/client/auth.ts`) against the same server,
   storing tokens in `expo-secure-store`.
+- **Mobile API transport = Bearer token, NOT cookie.** The tRPC client sends
+  `Authorization: Bearer <sessionToken>`; the server runs better-auth's **`bearer()`** plugin
+  (`plugins: [expo(), bearer(), nextCookies()]`) to accept it. **Do not "simplify" this back to a
+  `Cookie: authClient.getCookie()` header** — in an iOS **release** build over HTTPS the native
+  networking layer swallows `Secure` `Set-Cookie` headers before `@better-auth/expo` can persist
+  them, so `getCookie()` returns empty and every protected call fails with *"Sign in required"*.
+  This only reproduces in a store/TestFlight build (plain-HTTP localhost keeps the cookie), so it
+  passes dev/simulator. The `bearer()` hook is inert unless an `Authorization` header is present,
+  so web's cookie flow is untouched.
+- **Two sign-in paths capture the token differently — both must keep working** (see
+  `resolveBearerToken` in `mobile/src/client/auth.ts`): email/password gets the token from the
+  `set-auth-token` **response header** (`fetchOptions.onSuccess`); Google OAuth never fires that
+  header — its session arrives as a `cookie` query param on the `klect://` deep-link redirect, so
+  the client falls back to the session-token value parsed out of the stored cookie (which the
+  `bearer()` plugin accepts). Miss the Google fallback and Google users sign in but hit *"Sign in
+  required"* on every list/bookmark call.
 - **Google on mobile** goes *through* the web server: the app opens the server's OAuth URL,
   the server runs Google with its existing web client, then deep-links back to the app's
   `klect://` scheme. This needs the `expo()` **server** plugin and
   `trustedOrigins: ["klect://"]` in web's auth config — no separate native Google client id.
+  Web and mobile share the redirect URI `https://klect.vercel.app/api/auth/callback/google`, so a
+  *mobile-only* Google failure is **not** a Google Cloud Console problem (prod web Google working
+  proves the OAuth client is fine).
 
 ---
 
