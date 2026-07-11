@@ -73,9 +73,7 @@ export default function HomeScreen() {
             />
 
             {loading && <Text className="font-sans text-muted">Loading…</Text>}
-            {error && (
-              <Text className="font-sans text-danger">Not signed in — {error}</Text>
-            )}
+            {error && <Text className="font-sans text-danger">{error}</Text>}
             {!loading && !error && shown.length === 0 && (
               <Text className="font-serif-italic text-muted">
                 {query ? 'No lists match.' : 'No lists yet — tap + New.'}

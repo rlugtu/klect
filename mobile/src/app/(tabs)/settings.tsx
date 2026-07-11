@@ -1,7 +1,7 @@
 import { Pressable, ScrollView, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { authClient } from '@/client/auth';
+import { authClient, clearBearerToken } from '@/client/auth';
 import { useTheme } from '@/theme/theme-provider';
 import { THEME_TOKENS, type ThemeName } from '@/theme/tokens';
 
@@ -65,7 +65,10 @@ export default function SettingsScreen() {
 
         <Pressable
           className="items-center rounded-skin border-skin border-border py-3"
-          onPress={() => authClient.signOut()}>
+          onPress={() => {
+            clearBearerToken();
+            authClient.signOut();
+          }}>
           <Text className="font-semibold text-danger">Sign out</Text>
         </Pressable>
       </ScrollView>

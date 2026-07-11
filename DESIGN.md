@@ -382,6 +382,10 @@ handler). Every procedure is a thin wrapper over `web/src/lib/core/*` (mutations
 are `protectedProcedure` (require a signed-in user; `ctx.user` is the session user). **Keep this
 table in sync whenever a procedure is added or changed.**
 
+**Auth transport:** web calls the API with the better-auth session **cookie**; mobile sends the
+session token as `Authorization: Bearer` (server runs better-auth's `bearer()` plugin) because iOS
+release builds don't reliably persist `Secure` cookies. `auth.api.getSession()` resolves either.
+
 | Procedure | Kind | Input | Auth beyond sign-in | Delegates to |
 |---|---|---|---|---|
 | `lists.mine` | query | – | – | `getUserLists` |
