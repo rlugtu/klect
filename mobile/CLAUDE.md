@@ -19,7 +19,11 @@ mobile-specific implementation only.
   `src/client/api.ts`, which imports web's `AppRouter` **type only** — erased at compile time, so
   there is no runtime coupling to web. `EXPO_PUBLIC_API_URL` sets the web base URL.
 - **Auth**: `@better-auth/expo` against the same better-auth server web hosts (web uses
-  `better-auth/react`). Tokens live in `expo-secure-store`.
+  `better-auth/react`). Tokens live in `expo-secure-store`. The tRPC client authenticates with
+  `Authorization: Bearer <sessionToken>` (server runs better-auth's `bearer()` plugin; the token
+  arrives on responses via the `set-auth-token` header and is mirrored in memory + SecureStore in
+  `src/client/auth.ts`) — **not** the session cookie, which iOS release builds swallow (`Secure`
+  Set-Cookie is intercepted by native networking before the client can store it).
 - Never add business logic or direct DB access here — new backend work lands once in `web/` (see the
   per-feature workflow in `../CLAUDE.md`), then you build the screen consuming the procedure.
 

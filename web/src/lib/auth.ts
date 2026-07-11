@@ -1,6 +1,7 @@
 import { betterAuth } from "better-auth";
 import { prismaAdapter } from "better-auth/adapters/prisma";
 import { nextCookies } from "better-auth/next-js";
+import { bearer } from "better-auth/plugins";
 import { expo } from "@better-auth/expo";
 import { prisma } from "@/lib/db";
 
@@ -70,7 +71,11 @@ export const auth = betterAuth({
       },
     },
   },
-  // expo() enables the @better-auth/expo native flow; nextCookies() must stay last
-  // so server actions can set auth cookies.
-  plugins: [expo(), nextCookies()],
+  // expo() enables the @better-auth/expo native flow. bearer() lets the mobile app
+  // authenticate the tRPC API with `Authorization: Bearer <sessionToken>` instead of a
+  // cookie — iOS release builds swallow `Secure` Set-Cookie headers into the native cookie
+  // store, so the cookie round-trip is unreliable in production (see mobile/src/client).
+  // The bearer hook only fires when an Authorization header is present, so web's cookie flow
+  // is untouched. nextCookies() must stay last so server actions can set auth cookies.
+  plugins: [expo(), bearer(), nextCookies()],
 });
