@@ -136,6 +136,7 @@ model List {
   name        String
   description String   @default("")
   icon        String   @default("📁") // emoji
+  isPublic    Boolean  @default(false) // private by default; public = read-only viewable by anyone
   ownerId     String
   owner       User     @relation("ListOwner", fields: [ownerId], references: [id], onDelete: Cascade)
   createdAt   DateTime @default(now())

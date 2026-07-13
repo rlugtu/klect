@@ -5,10 +5,15 @@ description, multiple URLs (`urls[0]` = original source), extracted **photos** (
 notes, location, 0–5 rating, visited flag, and user-scoped **tags** (each auto-assigned a color at
 creation, rendered on the tag pills). Lists are drag-reorderable
 (per-user), searchable (name + OR tag filter), and shareable by inviting **viewers** (view +
-comment) or **collaborators** (edit + comment); the **owner** manages membership. Invites are
+comment) or **collaborators** (edit + comment); the **owner** manages membership. Each list is
+**public or private** (owner-only toggle; **private by default**) — a public list is read-only
+viewable by anyone and appears on the owner's profile, while writes always require membership.
+Invites are
 **request-based** — the invitee approves/rejects a join request from their home page (nobody is
 auto-added). Users can also add each other as **friends** (`/friends`, request + accept) and
-bulk-invite a friend to their lists. Lists and bookmarks both support **comments**. Pasting a link auto-fills a bookmark from page metadata (and
+bulk-invite a friend to their lists. Every user has a **profile** (`/users/[id]`) showing their
+identity, stats, and public lists, with an add-friend action; reachable from a Profile nav button.
+Lists and bookmarks both support **comments**. Pasting a link auto-fills a bookmark from page metadata (and
 detects a playable video). Bookmarks are created inside a list, or via a standalone flow
 (`/bookmarks/new`) that adds an **independent copy to each of several lists** at once. A **Near me**
 page (`/nearby`) finds geocoded bookmarks within a chosen radius of the user's current location.

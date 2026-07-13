@@ -1,6 +1,6 @@
 import "server-only";
 import { prisma } from "@/lib/db";
-import { getMembership } from "@/lib/permissions";
+import { getViewerAccess } from "@/lib/permissions";
 
 /** Bookmarks in a list, newest first, with their tags + comment counts. */
 export function getBookmarksForList(listId: string) {
@@ -71,8 +71,9 @@ export function countBookmarksMissingCoords(userId: string, listIds?: string[]) 
 }
 
 /**
- * A bookmark plus the requesting user's role on its list, or null if the
- * bookmark doesn't exist or the user isn't a member of its list.
+ * A bookmark plus the requesting user's effective role on its list, or null if
+ * the bookmark doesn't exist or the user can't read the list. Public lists grant
+ * a guest VIEWER role to non-members (read-only).
  */
 export async function getBookmarkForUser(userId: string, bookmarkId: string) {
   const bookmark = await prisma.bookmark.findUnique({
@@ -84,8 +85,8 @@ export async function getBookmarkForUser(userId: string, bookmarkId: string) {
   });
   if (!bookmark) return null;
 
-  const membership = await getMembership(userId, bookmark.listId);
-  if (!membership) return null;
+  const access = await getViewerAccess(userId, bookmark.listId);
+  if (!access) return null;
 
-  return { bookmark, role: membership.role };
+  return { bookmark, role: access.role, isMember: access.isMember };
 }

@@ -54,6 +54,13 @@ export async function offerFriend(email: string): Promise<core.FriendState> {
   return core.sendFriendRequest(user.id, user.email, email);
 }
 
+/** Send a friend request straight to a user by id (from their profile page). */
+export async function sendFriendRequestToUser(targetUserId: string) {
+  const user = await requireUser();
+  await core.sendFriendRequestById(user.id, targetUserId);
+  revalidatePath(`/users/${targetUserId}`);
+}
+
 export async function addFriendToLists(
   friendId: string,
   _prev: InviteState,

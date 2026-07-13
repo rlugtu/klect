@@ -31,3 +31,30 @@ export async function assertRole(userId: string, listId: string, min: Role) {
   }
   return membership;
 }
+
+/**
+ * Read access for a list: the user's membership role, or a guest VIEWER role
+ * when the list is public. Non-members of a public list get `role: "VIEWER"`
+ * and `isMember: false` — enough to READ; every mutation still goes through
+ * `assertRole`, which requires a real membership. Returns null with no access.
+ */
+export async function getViewerAccess(
+  userId: string,
+  listId: string,
+): Promise<{ role: Role; isMember: boolean } | null> {
+  const membership = await getMembership(userId, listId);
+  if (membership) return { role: membership.role, isMember: true };
+  const list = await prisma.list.findUnique({
+    where: { id: listId },
+    select: { isPublic: true },
+  });
+  if (list?.isPublic) return { role: "VIEWER", isMember: false };
+  return null;
+}
+
+/** Throw unless the user can at least READ the list (member or public). */
+export async function assertCanView(userId: string, listId: string) {
+  const access = await getViewerAccess(userId, listId);
+  if (!access) throw new Error("You don't have permission to do that.");
+  return access;
+}

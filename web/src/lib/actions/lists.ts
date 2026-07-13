@@ -10,6 +10,7 @@ function listInputFromFormData(formData: FormData): core.ListInput {
     name: String(formData.get("name") ?? ""),
     description: String(formData.get("description") ?? ""),
     icon: String(formData.get("icon") ?? ""),
+    isPublic: formData.get("isPublic") === "on",
   };
 }
 
@@ -27,6 +28,15 @@ export async function updateList(listId: string, formData: FormData) {
 
   revalidatePath("/");
   revalidatePath(`/lists/${listId}`);
+}
+
+export async function setListVisibility(listId: string, isPublic: boolean) {
+  const user = await requireUser();
+  await core.setListVisibility(user.id, listId, isPublic);
+
+  revalidatePath("/");
+  revalidatePath(`/lists/${listId}`);
+  revalidatePath(`/users/${user.id}`);
 }
 
 export async function deleteList(listId: string) {

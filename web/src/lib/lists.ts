@@ -1,5 +1,6 @@
 import "server-only";
 import { prisma } from "@/lib/db";
+import { getViewerAccess } from "@/lib/permissions";
 
 const NAME_MAX = 30;
 
@@ -10,7 +11,12 @@ const NAME_MAX = 30;
  */
 export function createListRecord(
   userId: string,
-  { name, description = "", icon }: { name: string; description?: string; icon?: string },
+  {
+    name,
+    description = "",
+    icon,
+    isPublic = false,
+  }: { name: string; description?: string; icon?: string; isPublic?: boolean },
 ) {
   const trimmed = name.trim().slice(0, NAME_MAX);
   if (!trimmed) throw new Error("List name is required.");
@@ -22,6 +28,7 @@ export function createListRecord(
         name: trimmed,
         description: description.trim(),
         icon: icon?.trim() || "📁",
+        isPublic,
         ownerId: userId,
         memberships: { create: { userId, role: "OWNER", position } },
       },
@@ -44,17 +51,31 @@ export function getUserLists(userId: string) {
   });
 }
 
+const listDetailInclude = {
+  owner: { select: { id: true, displayName: true, name: true, icon: true } },
+  _count: { select: { bookmarks: true, memberships: true } },
+} as const;
+
 /** A single list plus the user's membership (role), or null if no access. */
 export function getListForUser(userId: string, listId: string) {
   return prisma.listMembership.findUnique({
     where: { listId_userId: { listId, userId } },
-    include: {
-      list: {
-        include: {
-          owner: { select: { displayName: true, name: true, icon: true } },
-          _count: { select: { bookmarks: true, memberships: true } },
-        },
-      },
-    },
+    include: { list: { include: listDetailInclude } },
   });
+}
+
+/**
+ * A single list the user can READ — as a member (their role) or as a guest of a
+ * public list (`role: "VIEWER"`, `isMember: false`). Returns null with no access.
+ * Same `list` shape as {@link getListForUser}; used by read-only public views.
+ */
+export async function getListForViewer(userId: string, listId: string) {
+  const access = await getViewerAccess(userId, listId);
+  if (!access) return null;
+  const list = await prisma.list.findUnique({
+    where: { id: listId },
+    include: listDetailInclude,
+  });
+  if (!list) return null;
+  return { list, role: access.role, isMember: access.isMember };
 }

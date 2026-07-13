@@ -9,7 +9,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Animated from 'react-native-reanimated';
-import { useFocusEffect } from 'expo-router';
+import { useFocusEffect, useRouter } from 'expo-router';
 
 import { trpc } from '@/client/api';
 import { useTheme } from '@/theme/theme-provider';
@@ -196,6 +196,7 @@ function FriendCard({
   onSubmitted: () => void;
 }) {
   const { theme } = useTheme();
+  const router = useRouter();
   const [panel, setPanel] = useState<null | 'edit' | 'add'>(null);
   const [selected, setSelected] = useState<string[]>([]);
   const [role, setRole] = useState<InviteRole>('COLLABORATOR');
@@ -252,13 +253,23 @@ function FriendCard({
       style={cardShadow}
       className="rounded-skin border-skin border-border bg-panel p-3">
       <View className="flex-row items-center justify-between">
-        <View className="flex-1 pr-2">
+        <Pressable
+          className="flex-1 pr-2"
+          onPress={() =>
+            router.push({
+              pathname: '/users/[id]',
+              params: {
+                id: friend.friend.id,
+                name: displayName(friend.friend),
+              },
+            })
+          }>
           <Text className="font-sans-medium text-base text-ink">
             {friend.friend.icon ? `${friend.friend.icon} ` : ''}
             {displayName(friend.friend)}
           </Text>
           <Text className="text-xs text-muted">{friend.friend.email}</Text>
-        </View>
+        </Pressable>
         <View className="flex-row items-center gap-4">
           <Pressable
             onPress={() => setPanel((p) => (p === 'edit' ? null : 'edit'))}

@@ -1,5 +1,5 @@
 import { useCallback, useMemo, useRef, useState } from 'react';
-import { FlatList, Pressable, Text, TextInput, View } from 'react-native';
+import { FlatList, Pressable, Switch, Text, TextInput, View } from 'react-native';
 import {
   Stack,
   useFocusEffect,
@@ -17,8 +17,9 @@ import { screenshotThumbUrl, videoPosterUrl } from '@/lib/video-embed';
 import { useTheme } from '@/theme/theme-provider';
 import { THEME_TOKENS } from '@/theme/tokens';
 
-// Inferred from web's tRPC procedure.
+// Inferred from web's tRPC procedures.
 type Bookmarks = Awaited<ReturnType<typeof trpc.bookmarks.forList.query>>;
+type ListAccess = Awaited<ReturnType<typeof trpc.lists.get.query>>;
 
 export default function ListScreen() {
   const router = useRouter();
@@ -27,7 +28,7 @@ export default function ListScreen() {
   const sheetRef = useRef<BottomSheetModal>(null);
 
   const [bookmarks, setBookmarks] = useState<Bookmarks>([]);
-  const [description, setDescription] = useState('');
+  const [access, setAccess] = useState<ListAccess>(null);
   const [comments, setComments] = useState<CommentItem[]>([]);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [query, setQuery] = useState('');
@@ -76,7 +77,7 @@ export default function ListScreen() {
         .finally(() => setLoading(false));
       trpc.lists.get
         .query({ listId: id })
-        .then((m) => setDescription(m?.list.description ?? ''))
+        .then(setAccess)
         .catch(() => {});
       loadComments();
     }, [id, loadComments]),
@@ -84,36 +85,53 @@ export default function ListScreen() {
 
   const selectedTags = availableTags.filter((tag) => selected.has(tag.id));
 
+  const description = access?.list.description ?? '';
+  const isMember = access?.isMember ?? false;
+  const isOwner = isMember && access?.role === 'OWNER';
+  const canEdit =
+    isMember && (access?.role === 'OWNER' || access?.role === 'COLLABORATOR');
+
+  async function toggleVisibility(next: boolean) {
+    if (!id || !access) return;
+    setAccess({ ...access, list: { ...access.list, isPublic: next } });
+    try {
+      await trpc.lists.setVisibility.mutate({ listId: id, isPublic: next });
+    } catch {
+      setAccess({ ...access, list: { ...access.list, isPublic: !next } });
+    }
+  }
+
   return (
     <View className="flex-1 bg-bg">
       <Stack.Screen
         options={{
           title: name ?? 'List',
-          headerRight: () => (
-            <Pressable
-              accessibilityLabel="Add bookmark"
-              hitSlop={8}
-              onPress={() =>
-                router.push({
-                  pathname: '/bookmarks/new',
-                  params: { listId: id, listName: name },
-                })
-              }
-              style={{
-                width: 32,
-                height: 32,
-                alignItems: 'center',
-                justifyContent: 'center',
-              }}>
-              {/* Nudge right to counter the Ionicons "add" glyph's left side-bearing. */}
-              <Ionicons
-                name="add"
-                size={28}
-                color={t.primary}
-                style={{ marginLeft: 1 }}
-              />
-            </Pressable>
-          ),
+          headerRight: () =>
+            canEdit ? (
+              <Pressable
+                accessibilityLabel="Add bookmark"
+                hitSlop={8}
+                onPress={() =>
+                  router.push({
+                    pathname: '/bookmarks/new',
+                    params: { listId: id, listName: name },
+                  })
+                }
+                style={{
+                  width: 32,
+                  height: 32,
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}>
+                {/* Nudge right to counter the Ionicons "add" glyph's left side-bearing. */}
+                <Ionicons
+                  name="add"
+                  size={28}
+                  color={t.primary}
+                  style={{ marginLeft: 1 }}
+                />
+              </Pressable>
+            ) : null,
         }}
       />
 
@@ -127,27 +145,62 @@ export default function ListScreen() {
               <Text className="font-sans text-muted">{description}</Text>
             )}
 
-            <View className="flex-row gap-2">
-              <Pressable
-                onPress={() => router.push({ pathname: '/lists/edit', params: { id } })}
-                className="flex-1 items-center rounded-skin border-skin border-border py-3">
-                <Text className="font-sans text-ink">Edit list</Text>
-              </Pressable>
-              <Pressable
-                onPress={() =>
-                  router.push({ pathname: '/lists/members', params: { id, name } })
-                }
-                className="flex-1 items-center rounded-skin border-skin border-border py-3">
-                <Text className="font-sans text-ink">Members</Text>
-              </Pressable>
-              <Pressable
-                onPress={() =>
-                  router.push({ pathname: '/polls', params: { listId: id, listName: name } })
-                }
-                className="flex-1 items-center rounded-skin border-skin border-border py-3">
-                <Text className="font-sans text-ink">Polls</Text>
-              </Pressable>
-            </View>
+            {!isMember && (
+              <View className="flex-row items-center gap-1.5 rounded-skin border-skin border-border px-3 py-2">
+                <Ionicons name="globe-outline" size={14} color={t.muted} />
+                <Text className="font-sans text-sm text-muted">
+                  Public list · view only
+                </Text>
+              </View>
+            )}
+
+            {isMember && (
+              <View className="flex-row gap-2">
+                {canEdit && (
+                  <Pressable
+                    onPress={() =>
+                      router.push({ pathname: '/lists/edit', params: { id } })
+                    }
+                    className="flex-1 items-center rounded-skin border-skin border-border py-3">
+                    <Text className="font-sans text-ink">Edit list</Text>
+                  </Pressable>
+                )}
+                <Pressable
+                  onPress={() =>
+                    router.push({ pathname: '/lists/members', params: { id, name } })
+                  }
+                  className="flex-1 items-center rounded-skin border-skin border-border py-3">
+                  <Text className="font-sans text-ink">Members</Text>
+                </Pressable>
+                <Pressable
+                  onPress={() =>
+                    router.push({ pathname: '/polls', params: { listId: id, listName: name } })
+                  }
+                  className="flex-1 items-center rounded-skin border-skin border-border py-3">
+                  <Text className="font-sans text-ink">Polls</Text>
+                </Pressable>
+              </View>
+            )}
+
+            {isOwner && (
+              <View className="flex-row items-center justify-between rounded-skin border-skin border-border px-4 py-3">
+                <View className="flex-1 pr-3">
+                  <Text className="font-sans-medium text-ink">
+                    {access?.list.isPublic ? 'Public list' : 'Private list'}
+                  </Text>
+                  <Text className="font-sans text-xs text-muted">
+                    {access?.list.isPublic
+                      ? 'Anyone can view it and it shows on your profile.'
+                      : 'Only members can view it.'}
+                  </Text>
+                </View>
+                <Switch
+                  value={access?.list.isPublic ?? false}
+                  onValueChange={toggleVisibility}
+                  trackColor={{ true: t.primary }}
+                />
+              </View>
+            )}
 
             <View className="flex-row items-center gap-2">
               <TextInput
@@ -205,6 +258,7 @@ export default function ListScreen() {
           <View className="mt-6">
             <CommentsSection
               comments={comments}
+              readOnly={!isMember}
               onAdd={async (value) => {
                 if (!id) return;
                 await trpc.comments.addToList.mutate({ listId: id, value });

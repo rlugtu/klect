@@ -10,7 +10,7 @@ import { SearchBar } from "@/components/search/SearchBar";
 import { BookmarkCard } from "@/components/bookmarks/BookmarkCard";
 import { CollabRequests } from "@/components/sharing/CollabRequests";
 import { PixelButton } from "@/components/ui/PixelButton";
-import { Settings, MapPin, Users } from "lucide-react";
+import { Settings, MapPin, Users, User } from "lucide-react";
 
 function parseTags(raw: string | undefined): string[] {
   if (!raw) return [];
@@ -83,6 +83,11 @@ export default async function Home({
           <Link href="/friends">
             <PixelButton variant="secondary" size="sm">
               <Users size={14} aria-hidden /> Friends
+            </PixelButton>
+          </Link>
+          <Link href={`/users/${user.id}`}>
+            <PixelButton variant="secondary" size="sm">
+              <User size={14} aria-hidden /> Profile
             </PixelButton>
           </Link>
           <Link href="/settings">

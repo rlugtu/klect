@@ -13,7 +13,12 @@ import { createListRecord } from "@/lib/lists";
 
 export const LIST_NAME_MAX = 30;
 
-export type ListInput = { name: string; description?: string; icon?: string };
+export type ListInput = {
+  name: string;
+  description?: string;
+  icon?: string;
+  isPublic?: boolean;
+};
 
 /** Trim/clamp/validate raw list fields into what Prisma stores. */
 export function normalizeListInput(input: ListInput) {
@@ -23,6 +28,7 @@ export function normalizeListInput(input: ListInput) {
     name,
     description: (input.description ?? "").trim(),
     icon: (input.icon ?? "").trim() || "📁",
+    isPublic: input.isPublic ?? false,
   };
 }
 
@@ -31,12 +37,27 @@ export function createList(userId: string, input: ListInput) {
   return createListRecord(userId, normalizeListInput(input));
 }
 
-/** Edit list metadata — requires COLLABORATOR or higher. */
+/** Toggle a list's public/private visibility — owner only. */
+export async function setListVisibility(
+  userId: string,
+  listId: string,
+  isPublic: boolean,
+) {
+  await assertRole(userId, listId, "OWNER");
+  await prisma.list.update({ where: { id: listId }, data: { isPublic } });
+}
+
+/**
+ * Edit list metadata — requires COLLABORATOR or higher. Visibility is NOT edited
+ * here (it's an owner-only decision via {@link setListVisibility}), so `isPublic`
+ * in the input is ignored.
+ */
 export async function updateList(userId: string, listId: string, input: ListInput) {
   await assertRole(userId, listId, "COLLABORATOR");
+  const { name, description, icon } = normalizeListInput(input);
   await prisma.list.update({
     where: { id: listId },
-    data: normalizeListInput(input),
+    data: { name, description, icon },
   });
 }
 

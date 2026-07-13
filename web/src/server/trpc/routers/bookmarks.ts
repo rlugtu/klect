@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { router, protectedProcedure } from "../trpc";
 import { bookmarkInput } from "../inputs";
-import { assertRole } from "@/lib/permissions";
+import { assertCanView } from "@/lib/permissions";
 import {
   getBookmarksForList,
   getBookmarksByTags,
@@ -10,11 +10,11 @@ import {
 import * as core from "@/lib/core/bookmarks";
 
 export const bookmarksRouter = router({
-  /** Bookmarks in a list (viewer+). */
+  /** Bookmarks in a list — members (viewer+) or anyone if the list is public. */
   forList: protectedProcedure
     .input(z.object({ listId: z.string() }))
     .query(async ({ ctx, input }) => {
-      await assertRole(ctx.user.id, input.listId, "VIEWER");
+      await assertCanView(ctx.user.id, input.listId);
       return getBookmarksForList(input.listId);
     }),
 

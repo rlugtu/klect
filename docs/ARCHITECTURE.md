@@ -92,7 +92,7 @@ Framer Motion, Prisma 7 (pg driver adapter) → Supabase Postgres, better-auth.
 | DB | `db.ts` (Prisma singleton), `prisma/schema.prisma` | Data model + client |
 | Reads | `lists.ts`, `bookmarks.ts`, `comments.ts`, `sharing.ts`, `tags.ts` | Pure Prisma read queries (`import "server-only"`) |
 | **Core (writes/logic)** | `core/*.ts` | `core(userId, input)`: validate → `assertRole` → Prisma → return |
-| Permissions | `permissions.ts` | `Role` rank, `assertRole`, `getMembership` |
+| Permissions | `permissions.ts` | `Role` rank, `assertRole`, `getMembership`; **`getViewerAccess`/`assertCanView`** grant a read-only guest `VIEWER` on **public** lists (non-members) |
 | Actions | `actions/*.ts` | `"use server"` wrappers: FormData → core → revalidate/redirect |
 | Utilities | `geo.ts`, `video.ts`, `theme.ts`, `tag-colors.ts`, `types.ts`, `utils.ts` | Pure, portable helpers |
 | Auth | `auth.ts` (server), `auth-client.ts`, `session.ts` | better-auth config + guards |
@@ -127,14 +127,16 @@ The mobile-facing surface, mounted at `/api/trpc` beside the auth handler.
 - `trpc.ts` — context (resolves the better-auth session) + `protectedProcedure` (requires a
   signed-in user, narrows `ctx.user`).
 - `inputs.ts` — reusable zod input schemas (the typed contract mobile sends).
-- `routers/*.ts` — one router per domain; **35 procedures** total. Each is a thin wrapper
+- `routers/*.ts` — one router per domain; **38 procedures** total. Each is a thin wrapper
   over a `core` mutation or a `lib` read.
 - `router.ts` — combines them into `appRouter` and `export type AppRouter`.
 
 **Security note:** the read modules have no built-in authz (RSC pages gate before reading),
-so **query** procedures add explicit `assertRole` (e.g. `bookmarks.forList` requires VIEWER,
-`sharing.pendingInvites` requires OWNER). Mutations are already safe because `core` calls
-`assertRole` internally.
+so **query** procedures add explicit checks — `assertRole` for members-only reads
+(`sharing.pendingInvites` requires OWNER), or `assertCanView` for reads that also allow a
+**public** list's guests (`bookmarks.forList`, `comments.forList`). Mutations are already safe
+because `core` calls `assertRole` internally — including visibility, where `lists.setVisibility`
+requires OWNER and `lists.update` deliberately ignores `isPublic`.
 
 ### Ownership model
 

@@ -93,7 +93,10 @@ fields extend the user record; app entities below.
 User            id, email, firstName, lastName, displayName,
                 birthday?, icon (emoji), theme (Theme enum), createdAt
 
-List            id, name, description, icon, ownerId, createdAt
+List            id, name, description, icon, isPublic (bool), ownerId, createdAt
+                — isPublic defaults **false** (private); public = read-only viewable by
+                  anyone signed in (and shown on the owner's profile). Membership still
+                  gates every write.
 
 ListMembership  id, listId, userId, role (OWNER|COLLABORATOR|VIEWER),
                 position (int — per-user ordering), createdAt
@@ -134,6 +137,11 @@ PollVote        id, pollId, optionId, userId — unique per (optionId, userId); 
 
 **Relationships & rules**
 - A user sees a list on their home page if they own it **or** have a `ListMembership`.
+- **List visibility** (`isPublic`, owner-only toggle): a **public** list is read-only viewable
+  by any signed-in user (its bookmarks + comments are readable without a membership) and appears
+  on the owner's profile. A **private** list (the default) is visible only to members. Reads use
+  a public fallback (`getViewerAccess` / `assertCanView`); **every mutation still requires a real
+  `ListMembership`** via `assertRole`, so public viewers cannot edit, comment, or leave.
 - **List sharing is request-based**: `inviteToList` creates a PENDING `ListInvite`; the invitee
   approves it (→ `ListMembership` with the invite's role) or rejects it (→ REJECTED) from the
   home-page "collab requests" section. Inviting a non-friend also offers to send a friend request.
@@ -158,6 +166,7 @@ PollVote        id, pollId, optionId, userId — unique per (optionId, userId); 
 |---|:---:|:---:|:---:|
 | View list & bookmarks | ✓ | ✓ | ✓ |
 | Comment (list & bookmark) | ✓ | ✓ | ✓ |
+| Toggle list visibility (public/private) | ✓ | — | — |
 | Create/edit/delete bookmarks | ✓ | ✓ | — |
 | Edit list metadata (name/icon/desc) | ✓ | ✓ | — |
 | Invite (send join request) / change roles / remove members | ✓ | — | — |
@@ -170,8 +179,12 @@ PollVote        id, pollId, optionId, userId — unique per (optionId, userId); 
 | Vote in a poll | ✓ | ✓ | ✓ |
 | Edit / delete a poll | any on their list | own only | — |
 
+Plus: **any signed-in user can view a public list** (its bookmarks + comments) read-only, even
+with no membership — see List visibility above.
+
 Enforced **server-side on every mutation** via a shared `assertRole(listId, userId, minRole)`
-helper — never rely on UI gating alone.
+helper — never rely on UI gating alone. Read-only public access uses `assertCanView` /
+`getViewerAccess`, which grant a guest `VIEWER` role when the list is public.
 
 **Convention:** every participant — including the owner — has a `ListMembership` row
 (the owner's has role `OWNER`). This makes access checks and per-user ordering uniform;
@@ -195,6 +208,7 @@ helper — never rely on UI gating alone.
 | `/lists/[id]/polls/new` | Create a poll: fields + a searchable/tag-filterable bookmark option picker (≥2) |
 | `/lists/[id]/polls/[pollId]` | Poll detail: **Vote**/**Results** toggle; edit/delete for the creator or list owner |
 | `/lists/[id]/polls/[pollId]/edit` | Edit a poll (creator or list owner); reconciles options |
+| `/users/[id]` | **Profile**: a user's identity (avatar/icon, name, member-since), stats (public lists · friends), their **public lists**, and an Add-friend action on others' profiles. Your own profile is linked from a **Profile** button in the home header (before Settings). |
 | `/settings` | Edit profile/theme/icon; manage/leave shared lists; pending requests |
 | `/invite/[token]` | Accept an invite |
 
@@ -418,20 +432,21 @@ release builds don't reliably persist `Secure` cookies. `auth.api.getSession()` 
 | Procedure | Kind | Input | Auth beyond sign-in | Delegates to |
 |---|---|---|---|---|
 | `lists.mine` | query | – | – | `getUserLists` |
-| `lists.get` | query | `{ listId }` | user-scoped (membership or null) | `getListForUser` |
-| `lists.create` | mutation | `ListInput` | – | `core.createList` |
-| `lists.update` | mutation | `{ listId, data: ListInput }` | COLLABORATOR (in core) | `core.updateList` |
+| `lists.get` | query | `{ listId }` | member role **or** guest VIEWER if public (null if private + non-member) | `getListForViewer` |
+| `lists.create` | mutation | `ListInput` (incl. optional `isPublic`) | – | `core.createList` |
+| `lists.update` | mutation | `{ listId, data: ListInput }` | COLLABORATOR (in core); ignores `isPublic` | `core.updateList` |
 | `lists.delete` | mutation | `{ listId }` | OWNER (in core) | `core.deleteList` |
+| `lists.setVisibility` | mutation | `{ listId, isPublic }` | OWNER (in core) | `core.setListVisibility` |
 | `lists.reorder` | mutation | `{ orderedListIds }` | user-scoped | `core.reorderLists` |
-| `bookmarks.forList` | query | `{ listId }` | `assertRole` VIEWER | `getBookmarksForList` |
-| `bookmarks.get` | query | `{ bookmarkId }` | membership check (or null) | `getBookmarkForUser` |
+| `bookmarks.forList` | query | `{ listId }` | `assertCanView` (member **or** public list) | `getBookmarksForList` |
+| `bookmarks.get` | query | `{ bookmarkId }` | member or public list (or null) | `getBookmarkForUser` |
 | `bookmarks.byTags` | query | `{ tagNames }` | user-scoped | `getBookmarksByTags` |
 | `bookmarks.create` | mutation | `{ listId, data: BookmarkInput }` | COLLABORATOR (in core) | `core.createBookmark` |
 | `bookmarks.createInLists` | mutation | `{ existingListIds, newListNames, data }` | COLLABORATOR per list (in core) | `core.createBookmarkInLists` |
 | `bookmarks.update` | mutation | `{ bookmarkId, data: BookmarkInput }` | COLLABORATOR (in core) | `core.updateBookmark` |
 | `bookmarks.delete` | mutation | `{ bookmarkId }` | COLLABORATOR (in core) | `core.deleteBookmark` |
 | `bookmarks.toggleVisited` | mutation | `{ bookmarkId }` | COLLABORATOR (in core) | `core.toggleVisited` |
-| `comments.forList` | query | `{ listId }` | `assertRole` VIEWER | `getListComments` |
+| `comments.forList` | query | `{ listId }` | `assertCanView` (member **or** public list) | `getListComments` |
 | `comments.forBookmark` | query | `{ bookmarkId }` | membership check | `getBookmarkComments` |
 | `comments.addToList` | mutation | `{ listId, value }` | VIEWER (in core) | `core.addListComment` |
 | `comments.addToBookmark` | mutation | `{ bookmarkId, value }` | VIEWER (in core) | `core.addBookmarkComment` |
@@ -456,11 +471,13 @@ release builds don't reliably persist `Secure` cookies. `auth.api.getSession()` 
 | `friends.list` | query | – | self | `getFriends` + `getIncomingFriendRequests` |
 | `friends.friendListIds` | query | `{ friendId, listIds }` | self | `getFriendListIds` |
 | `friends.sendRequest` | mutation | `{ email }` | self | `core/friends.sendFriendRequest` |
+| `friends.requestByUser` | mutation | `{ userId }` | self | `core/friends.sendFriendRequestById` (from a profile page) |
 | `friends.accept` | mutation | `{ id }` | addressee (in core) | `core/friends.acceptFriendRequest` |
 | `friends.decline` | mutation | `{ id }` | addressee (in core) | `core/friends.declineFriendRequest` |
 | `friends.remove` | mutation | `{ id }` | either party (in core) | `core/friends.removeFriend` |
 | `friends.addToLists` | mutation | `{ friendId, listIds, role }` | OWNER per list (in core) | `core.addFriendToLists` |
 | `profile.update` | mutation | `ProfileInput` | self | `core.saveProfile` |
+| `profile.get` | query | `{ userId }` | signed-in (public data only) | `getPublicProfile` — identity + public lists + friend count + viewer↔target friendship state |
 | `tags.mine` | query | – | user-scoped | `getUserTags` |
 | `nearby.find` | query | `{ lat, lon, radiusMiles, listIds }` | user-scoped | `core.findNearbyBookmarks` |
 | `places.search` | query | `{ text, sessionToken }` | signed-in | `core/places.searchPlaces` |

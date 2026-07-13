@@ -28,9 +28,16 @@ type Props = {
   comments: CommentItem[];
   onAdd: (value: string) => Promise<void>;
   onDelete: (id: string) => Promise<void>;
+  /** Hide the compose box + delete affordance (non-member viewing a public list). */
+  readOnly?: boolean;
 };
 
-export default function CommentsSection({ comments, onAdd, onDelete }: Props) {
+export default function CommentsSection({
+  comments,
+  onAdd,
+  onDelete,
+  readOnly = false,
+}: Props) {
   const { theme } = useTheme();
   const muted = THEME_TOKENS[theme].muted;
   const [value, setValue] = useState('');
@@ -54,25 +61,27 @@ export default function CommentsSection({ comments, onAdd, onDelete }: Props) {
         Comments ({comments.length})
       </Text>
 
-      <View className="flex-row gap-2">
-        <TextInput
-          className="flex-1 rounded-skin border-skin border-border px-4 py-2 font-sans text-ink"
-          placeholder="Add a comment"
-          placeholderTextColor={muted}
-          value={value}
-          onChangeText={setValue}
-        />
-        <Pressable
-          className="items-center justify-center rounded-skin bg-primary px-4"
-          disabled={busy}
-          onPress={post}>
-          {busy ? (
-            <ActivityIndicator color={THEME_TOKENS[theme].primaryInk} />
-          ) : (
-            <Text className="font-sans-semibold text-primary-ink">Post</Text>
-          )}
-        </Pressable>
-      </View>
+      {!readOnly && (
+        <View className="flex-row gap-2">
+          <TextInput
+            className="flex-1 rounded-skin border-skin border-border px-4 py-2 font-sans text-ink"
+            placeholder="Add a comment"
+            placeholderTextColor={muted}
+            value={value}
+            onChangeText={setValue}
+          />
+          <Pressable
+            className="items-center justify-center rounded-skin bg-primary px-4"
+            disabled={busy}
+            onPress={post}>
+            {busy ? (
+              <ActivityIndicator color={THEME_TOKENS[theme].primaryInk} />
+            ) : (
+              <Text className="font-sans-semibold text-primary-ink">Post</Text>
+            )}
+          </Pressable>
+        </View>
+      )}
 
       {comments.map((c) => (
         <View
@@ -86,9 +95,11 @@ export default function CommentsSection({ comments, onAdd, onDelete }: Props) {
             </Text>
             <Text className="font-sans text-sm text-ink">{c.value}</Text>
           </View>
-          <Pressable onPress={() => onDelete(c.id)} hitSlop={8}>
-            <Text className="text-muted">✕</Text>
-          </Pressable>
+          {!readOnly && (
+            <Pressable onPress={() => onDelete(c.id)} hitSlop={8}>
+              <Text className="text-muted">✕</Text>
+            </Pressable>
+          )}
         </View>
       ))}
     </View>

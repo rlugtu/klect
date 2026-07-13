@@ -29,7 +29,7 @@ export function CreateListPanel() {
           ×
         </button>
       </div>
-      <ListForm action={createList} submitLabel="Create" />
+      <ListForm action={createList} submitLabel="Create" showVisibility />
     </PixelCard>
   );
 }

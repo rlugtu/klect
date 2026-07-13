@@ -103,6 +103,7 @@ function AppStack() {
         options={{ presentation: 'modal', title: 'New poll' }}
       />
       <Stack.Screen name="polls/[pollId]" options={{ title: 'Poll' }} />
+      <Stack.Screen name="users/[id]" options={{ title: 'Profile' }} />
     </Stack>
   );
 }

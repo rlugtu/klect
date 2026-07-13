@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useActionState, useState } from "react";
 import {
   addFriendToLists,
@@ -50,7 +51,10 @@ export function FriendRow({
   return (
     <PixelCard className="flex flex-col gap-3">
       <div className="flex items-center justify-between gap-3">
-        <span className="flex min-w-0 items-center gap-2">
+        <Link
+          href={`/users/${friend.id}`}
+          className="flex min-w-0 items-center gap-2 hover:text-primary"
+        >
           <span aria-hidden className="text-lg">
             {friend.icon ?? "🔖"}
           </span>
@@ -58,7 +62,7 @@ export function FriendRow({
             <span className="truncate text-sm font-semibold">{name}</span>
             <span className="text-muted truncate text-sm">{friend.email}</span>
           </span>
-        </span>
+        </Link>
         <span className="flex shrink-0 items-center gap-2">
           <PixelButton
             variant="secondary"

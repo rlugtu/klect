@@ -99,7 +99,10 @@ text), and the tint (back chevron) is `primary` — mirroring the header-less ho
 `(tabs)` group is a bottom `Tabs` navigator. Editors are presented as **modals**
 (`presentation: 'modal'`).
 
-- **Tabs** (`(tabs)/_layout.tsx`, Ionicons): **Lists** (`index`), **Nearby**, **Settings**. Uses a
+- **Tabs** (`(tabs)/_layout.tsx`, Ionicons), left→right: **Nearby**, **Friends**, **Lists**
+  (`index`), **Profile**, **Settings** — order is deliberate so **Lists sits dead-center** of the
+  five tabs and Profile sits just before Settings (React Navigation renders tabs in `<Tabs.Screen>`
+  declaration order). Uses a
   **custom floating glass pill** tab bar (`components/floating-tab-bar.tsx`, an Instagram-style
   content-hugging pill — icon-only, vertically centered, `expo-blur` frosted background over a
   translucent `panel` fallback, `cardShadow`) so tab content scrolls behind it. It **shrinks on
@@ -107,7 +110,8 @@ text), and the tint (back chevron) is `primary` — mirroring the header-less ho
   `theme/tab-bar-scroll.tsx` (`TabBarScrollProvider` wraps the navigator; each tab's
   `Animated.FlatList`/`Animated.ScrollView` feeds `useTabBarScrollHandler`). Each scroll container
   pads its bottom to clear the pill. (Real blur needs a native build; dev shows the fallback.)
-- **Stack screens**: `lists/[id]` (list detail), `lists/members`, `bookmarks/[id]` (detail).
+- **Stack screens**: `lists/[id]` (list detail), `lists/members`, `bookmarks/[id]` (detail),
+  `users/[id]` (another user's profile, pushed from friend rows).
 - **Modal screens**: `lists/new`, `lists/edit`, `bookmarks/new`, `bookmarks/edit`.
 - **`+native-intent.tsx`** — `redirectSystemPath` intercepts the Share Extension's re-open deep link
   (`klect://dataUrl=<key>…`, not a real route) and rewrites it to `/`, so expo-router doesn't render
@@ -134,7 +138,10 @@ modal with `router.back()` (or `router.dismissAll()` after leaving a list).
   list has tags) that opens a `@gorhom/bottom-sheet` tag filter (multi-select **OR**, distinct tags
   across the list). Name search and the tag filter combine with **AND**. Selected tags render below
   as a removable pills row; a **Clear all** control appears whenever a tag is selected **or** the
-  search box has text, and clears **both**. Footer is the list `CommentsSection`.
+  search box has text, and clears **both**. Footer is the list `CommentsSection`. Access comes from
+  `lists.get` (`{ list, role, isMember }`): **non-members of a public list** get a read-only view —
+  the Add button, action row, and comment composer are all hidden and a "Public · view only" note
+  shows; the **owner** gets a public/private **Switch** (`lists.setVisibility`, optimistic).
 - **Bookmark detail** (`bookmarks/[id].tsx`) — `bookmarks.get` (`{ bookmark, role } | null`): hero
   photos (first image large + a horizontal thumbnail strip for the rest), rating, a **Mark visited**
   toggle (optimistic `bookmarks.toggleVisited`), tags, description, tappable source URLs
@@ -152,7 +159,9 @@ modal with `router.back()` (or `router.dismissAll()` after leaving a list).
   seeds the form's URL and sets `autofillOnMount` so metadata is fetched immediately.
 - **Edit bookmark** (`bookmarks/edit.tsx`) — same `BookmarkForm`, `bookmarks.update`.
 - **New / edit list** (`lists/new.tsx`, `lists/edit.tsx`) — `ListForm` (icon, name, description);
-  `lists.create` / `lists.update`; edit also offers **Delete list**.
+  create also shows a **Public** `Switch` (`showVisibility`, default off); `lists.create` /
+  `lists.update`; edit also offers **Delete list**. (Visibility on existing lists is toggled on the
+  list detail screen, owner-only — not in the edit form.)
 - **Members** (`lists/members.tsx`) — sharing UI. Owner-only invite by email as **Viewer** or
   **Collaborator** (`sharing.invite`), member list with role toggle + remove (`sharing.changeRole` /
   `sharing.removeMember`), pending-invite revoke (`sharing.pendingInvites` / `sharing.revokeInvite`);
@@ -165,6 +174,10 @@ modal with `router.back()` (or `router.dismissAll()` after leaving a list).
   rows with an emphasized distance and up to 3 tag pills (`TagPill`, from `card.tags`) under the
   list label; a "N skipped (no coordinates)" note covers bookmarks without coordinates. Only
   bookmarks given coordinates via location search have them.
+- **Profile** (`(tabs)/profile.tsx` own · `users/[id].tsx` others, both render
+  `components/profile-view.tsx`) — a user's avatar/icon, name, "Member since", stats (public lists ·
+  friends), and their public lists (`profile.get`). Others' profiles show an **Add friend** button
+  (`friends.requestByUser`); your own omits it.
 - **Settings** (`(tabs)/settings.tsx`) — account summary (name/email from the session); **theme
   picker** (all six themes, four-swatch preview + check); sign out.
 - **Login / sign-up** (`components/login-screen.tsx`) — shown when signed out. A mode toggle switches

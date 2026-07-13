@@ -30,6 +30,13 @@ export const friendsRouter = router({
       core.sendFriendRequest(ctx.user.id, ctx.user.email, input.email),
     ),
 
+  // Friend request straight to a user by id (from their profile page).
+  requestByUser: protectedProcedure
+    .input(z.object({ userId: z.string() }))
+    .mutation(({ ctx, input }) =>
+      core.sendFriendRequestById(ctx.user.id, input.userId),
+    ),
+
   accept: protectedProcedure
     .input(z.object({ id: z.string() }))
     .mutation(({ ctx, input }) =>

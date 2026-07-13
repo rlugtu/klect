@@ -39,8 +39,12 @@ with a link or a location.
 - **Share and collaborate.** Invite people to a list as a **viewer** (can look and comment) or a
   **collaborator** (can add and edit) — they get a **request** to accept, so nobody's added without
   opting in. You stay in control as the owner.
+- **Make a list public.** Flip any list to **public** (they start private) so anyone can view it
+  read-only and it shows up on your profile — editing still needs an invite.
 - **Add friends.** Add people by email and, once they accept, bulk-invite a friend to any of your
   lists in one step.
+- **Show off a profile.** Everyone has a profile page with their photo/icon, stats, and public
+  lists — visit a friend's or a list owner's profile and add them as a friend right there.
 - **Comment together.** Leave comments on lists and individual bookmarks to plan and discuss.
 - **Vote with polls.** Can't decide? Create a poll from bookmarks in a list and have the group vote
   (great for "where should we eat?").
@@ -63,6 +67,7 @@ with a link or a location.
 | Auth (email/password + Google) | ✅ | ✅ | Same better-auth backend |
 | Onboarding (profile setup) | ✅ | ✅ | Name, emoji avatar, theme |
 | Lists — CRUD | ✅ | ✅ | |
+| Lists — public/private visibility | ✅ | ✅ | Owner-only toggle; **private by default**; public = read-only for anyone (`lists.setVisibility`) |
 | Lists — drag-reorder | ✅ | ➖ | Web-only; per-user order (`lists.reorder`) |
 | Home search | ⚠️ | ⚠️ | Web: unified list + cross-list tag filter · Mobile: local name search |
 | Bookmarks — CRUD & fields | ✅ | ✅ | URLs, images, notes, rating, visited, location, tags |
@@ -74,6 +79,7 @@ with a link or a location.
 | Ratings / Visited / Notes | ✅ | ✅ | |
 | Sharing & permissions | ✅ | ✅ | Owner / Collaborator / Viewer; **request-based** invites (invitee approves/rejects) |
 | Friends | ✅ | ✅ | Add by email (request + accept); bulk-add a friend to your lists |
+| User profiles | ✅ | ✅ | `/users/[id]` (web) · Profile tab + `users/[id]` (mobile); identity + stats + public lists + add-friend (`profile.get`) |
 | Comments (lists & bookmarks) | ✅ | ✅ | |
 | Polls | ✅ | ✅ | Create / vote / edit / delete |
 | Nearby / geolocation | ⚠️ | ⚠️ | Web browser geo (0.5–10 mi) · Mobile native GPS (1–25 mi) |
@@ -112,6 +118,19 @@ or belong to with bookmark + member counts and a role badge.
 `lists.mine` / `lists.get` / `lists.create` / `lists.update` / `lists.delete`.
 **Mobile.** `src/app/(tabs)/index.tsx` (home cards), `src/app/lists/[id].tsx` (detail),
 `lists/new.tsx` + `lists/edit.tsx` modals. Same procedures.
+
+### Lists — public/private visibility
+**Description.** Each list is **public or private** — **private by default**. A public list is
+read-only viewable by any signed-in user (its bookmarks + comments load without a membership) and
+appears on the owner's profile; **writes always require a membership**. Only the **owner** can flip
+visibility. Reads use a public fallback (`getViewerAccess`/`assertCanView` in `permissions.ts`);
+mutations stay gated by `assertRole`. Toggling is separate from list edit — `lists.update` ignores
+`isPublic`; `lists.setVisibility` (owner-only) changes it.
+**Web.** Create toggle in `ListForm` (`showVisibility`); owner toggle on `/lists/[id]` via
+`ListVisibilityToggle` → `setListVisibility` action. Non-members see a read-only detail
+("Public · view only", no edit/comment controls).
+**Mobile.** `list-form.tsx` `Switch` (create); owner `Switch` on `src/app/lists/[id].tsx` →
+`lists.setVisibility`. Non-members get the read-only detail. Same `lists.setVisibility` procedure.
 
 ### Lists — drag-reorder
 **Description.** Reorder your lists on the home screen; the order is saved per-user.
@@ -222,8 +241,23 @@ request per selected list; lists they already belong to are pre-selected). Remov
 both parties.
 **Web.** `/friends` page (`AddFriendForm`, `FriendRequests`, `FriendRow`); `friends.*` procedures
 (`list`, `sendRequest`, `accept`, `decline`, `remove`, `addToLists`, `friendListIds`).
-**Mobile.** `src/app/(tabs)/friends.tsx` (Friends tab, before Settings), same `friends.*` procedures.
+**Mobile.** `src/app/(tabs)/friends.tsx` (Friends tab), same `friends.*` procedures; friend rows
+link to the tapped user's profile.
 **Differences.** None — logic is server-side and shared.
+
+### User profiles
+**Description.** Every user has a public **profile** — avatar (uploaded image, else emoji icon),
+display name, real name, "Member since {year}", a stats row (**public lists · friends**), and their
+**public lists** (tap to open, read-only if you're not a member). On **another** user's profile an
+**Add friend** button sends a request; your own profile omits it. Data comes from `profile.get`
+(identity + public lists + friend count + viewer↔target friendship state); the add-friend action is
+`friends.requestByUser`.
+**Web.** `/users/[id]` page; linked from a **Profile** button in the home header (before Settings),
+from a list's "owned by {owner}", and from friend rows.
+**Mobile.** A **Profile** tab (own profile, `src/app/(tabs)/profile.tsx`) plus a pushed
+`src/app/users/[id].tsx` for others — both render the shared `components/profile-view.tsx`. Reached
+from the tab and from friend rows.
+**Differences.** None functionally; layout follows each app's theme.
 
 ### Comments
 **Description.** Comment threads on both lists and bookmarks (any member, viewer+); delete your own,

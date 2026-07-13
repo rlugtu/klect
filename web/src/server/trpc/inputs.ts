@@ -11,6 +11,7 @@ export const listInput = z.object({
   name: z.string(),
   description: z.string().optional(),
   icon: z.string().optional(),
+  isPublic: z.boolean().optional(),
 });
 
 export const bookmarkInput = z.object({

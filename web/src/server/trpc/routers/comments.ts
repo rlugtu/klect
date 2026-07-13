@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
 import { router, protectedProcedure } from "../trpc";
-import { assertRole } from "@/lib/permissions";
+import { assertCanView } from "@/lib/permissions";
 import { getListComments, getBookmarkComments } from "@/lib/comments";
 import { getBookmarkForUser } from "@/lib/bookmarks";
 import * as core from "@/lib/core/comments";
@@ -10,7 +10,7 @@ export const commentsRouter = router({
   forList: protectedProcedure
     .input(z.object({ listId: z.string() }))
     .query(async ({ ctx, input }) => {
-      await assertRole(ctx.user.id, input.listId, "VIEWER");
+      await assertCanView(ctx.user.id, input.listId);
       return getListComments(input.listId);
     }),
 

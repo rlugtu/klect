@@ -8,18 +8,21 @@ export function CommentSection({
   addAction,
   currentUserId,
   canModerate,
+  readOnly = false,
 }: {
   comments: CommentItem[];
   addAction: (formData: FormData) => void | Promise<void>;
   currentUserId: string;
   canModerate: boolean;
+  /** Hide the compose box (e.g. a non-member viewing a public list). */
+  readOnly?: boolean;
 }) {
   return (
     <PixelCard className="flex flex-col gap-4">
       <h2 className="text-sm">
         Comments {comments.length > 0 && `(${comments.length})`}
       </h2>
-      <CommentForm action={addAction} />
+      {!readOnly && <CommentForm action={addAction} />}
       {comments.length === 0 ? (
         <p className="text-muted text-sm">No comments yet — say something. 💬</p>
       ) : (

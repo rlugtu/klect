@@ -3,6 +3,7 @@ import {
   ActivityIndicator,
   Pressable,
   ScrollView,
+  Switch,
   Text,
   TextInput,
   View,
@@ -11,7 +12,12 @@ import {
 import { useTheme } from '@/theme/theme-provider';
 import { THEME_TOKENS } from '@/theme/tokens';
 
-export type ListValues = { name: string; description: string; icon: string };
+export type ListValues = {
+  name: string;
+  description: string;
+  icon: string;
+  isPublic: boolean;
+};
 
 type Props = {
   initial: ListValues;
@@ -19,16 +25,26 @@ type Props = {
   onSubmit: (values: ListValues) => Promise<void>;
   /** When set, a destructive "Delete list" button is shown (edit only). */
   onDelete?: () => void;
+  /** Show the public/private toggle (create flow only). */
+  showVisibility?: boolean;
 };
 
 /** Reusable list editor (icon, name, description) for create + edit. */
-export default function ListForm({ initial, submitLabel, onSubmit, onDelete }: Props) {
+export default function ListForm({
+  initial,
+  submitLabel,
+  onSubmit,
+  onDelete,
+  showVisibility = false,
+}: Props) {
   const { theme } = useTheme();
-  const muted = THEME_TOKENS[theme].muted;
+  const t = THEME_TOKENS[theme];
+  const muted = t.muted;
 
   const [name, setName] = useState(initial.name);
   const [icon, setIcon] = useState(initial.icon);
   const [description, setDescription] = useState(initial.description);
+  const [isPublic, setIsPublic] = useState(initial.isPublic);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -44,6 +60,7 @@ export default function ListForm({ initial, submitLabel, onSubmit, onDelete }: P
         name: name.trim(),
         description: description.trim(),
         icon: icon.trim() || '📁',
+        isPublic,
       });
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Could not save');
@@ -80,6 +97,22 @@ export default function ListForm({ initial, submitLabel, onSubmit, onDelete }: P
         value={description}
         onChangeText={setDescription}
       />
+
+      {showVisibility && (
+        <View className="flex-row items-center justify-between rounded-skin border-skin border-border px-4 py-3">
+          <View className="flex-1 pr-3">
+            <Text className="font-sans-medium text-ink">Public list</Text>
+            <Text className="font-sans text-xs text-muted">
+              Anyone can view it (read-only) and it shows on your profile.
+            </Text>
+          </View>
+          <Switch
+            value={isPublic}
+            onValueChange={setIsPublic}
+            trackColor={{ true: t.primary }}
+          />
+        </View>
+      )}
 
       {error && <Text className="text-danger">{error}</Text>}
 

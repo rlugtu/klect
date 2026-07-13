@@ -25,6 +25,7 @@ export default function EditListScreen() {
           name: m.list.name,
           description: m.list.description ?? '',
           icon: m.list.icon,
+          isPublic: m.list.isPublic,
         });
       })
       .catch((e) => setError(e instanceof Error ? e.message : 'Request failed'));
