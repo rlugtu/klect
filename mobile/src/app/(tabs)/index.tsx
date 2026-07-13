@@ -44,7 +44,7 @@ export default function HomeScreen() {
       <FlatList
         data={shown}
         keyExtractor={(m) => m.list.id}
-        contentContainerStyle={{ padding: 16, paddingBottom: 96, gap: 16 }}
+        contentContainerStyle={{ padding: 16, paddingBottom: 120, gap: 16 }}
         ListHeaderComponent={
           <View className="gap-3 pb-1">
             <View className="flex-row items-center justify-between">

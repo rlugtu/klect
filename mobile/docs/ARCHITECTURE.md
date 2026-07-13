@@ -99,7 +99,9 @@ text), and the tint (back chevron) is `primary` — mirroring the header-less ho
 `(tabs)` group is a bottom `Tabs` navigator. Editors are presented as **modals**
 (`presentation: 'modal'`).
 
-- **Tabs** (`(tabs)/_layout.tsx`, Ionicons, themed bar): **Lists** (`index`), **Nearby**, **Settings**.
+- **Tabs** (`(tabs)/_layout.tsx`, Ionicons): **Lists** (`index`), **Nearby**, **Settings**. The bar
+  is a **floating `panel` pill** (absolute, inset from both edges, rounded, `cardShadow`) so tab
+  content scrolls behind it; each tab's scroll container pads its bottom to clear the pill.
 - **Stack screens**: `lists/[id]` (list detail), `lists/members`, `bookmarks/[id]` (detail).
 - **Modal screens**: `lists/new`, `lists/edit`, `bookmarks/new`, `bookmarks/edit`.
 - **`+native-intent.tsx`** — `redirectSystemPath` intercepts the Share Extension's re-open deep link
