@@ -30,6 +30,7 @@ export function PollVote({
   maxVotes,
   revotesAllowed,
   myOptionIds,
+  isAnonymous = false,
 }: {
   submitAction: (formData: FormData) => void | Promise<void>;
   options: PollVoteOption[];
@@ -38,6 +39,7 @@ export function PollVote({
   maxVotes: number | null;
   revotesAllowed: boolean;
   myOptionIds: string[];
+  isAnonymous?: boolean;
 }) {
   const phase = pollPhase(startAt, endAt);
   const active = phase === "active";
@@ -161,11 +163,17 @@ export function PollVote({
                   style={{ width: `${(o.votes.length / maxCount) * 100}%` }}
                 />
               </div>
-              {o.votes.length > 0 && (
-                <span className="text-sm" title={o.votes.map((v) => v.name).join(", ")}>
-                  {o.votes.map((v) => v.icon ?? "🙂").join(" ")}
-                </span>
-              )}
+              {o.votes.length > 0 &&
+                (isAnonymous ? (
+                  <span className="text-muted text-xs">🔒 Anonymous</span>
+                ) : (
+                  <span
+                    className="text-sm"
+                    title={o.votes.map((v) => v.name).join(", ")}
+                  >
+                    {o.votes.map((v) => v.icon ?? "🙂").join(" ")}
+                  </span>
+                ))}
             </li>
           ))}
         </ul>

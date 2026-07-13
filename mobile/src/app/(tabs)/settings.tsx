@@ -20,7 +20,7 @@ export default function SettingsScreen() {
 
   return (
     <SafeAreaView style={{ flex: 1 }} className="bg-bg">
-      <ScrollView contentContainerStyle={{ padding: 16, gap: 20 }}>
+      <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 96, gap: 20 }}>
         <Text className="text-2xl font-bold text-ink">Settings</Text>
 
         <View className="gap-2">

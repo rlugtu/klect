@@ -168,6 +168,7 @@ export default function PollDetailScreen() {
             {end != null
               ? ` · ${ended ? 'Ended' : `Ends ${new Date(end).toLocaleDateString()}`}`
               : ' · No end time'}
+            {poll.isAnonymous ? ' · 🔒 Anonymous' : ''}
           </Text>
         </View>
 
@@ -262,11 +263,14 @@ export default function PollDetailScreen() {
                       className="h-full rounded-full"
                     />
                   </View>
-                  {o.votes.length > 0 && (
-                    <Text className="text-sm">
-                      {o.votes.map((v) => v.user.icon ?? '🙂').join(' ')}
-                    </Text>
-                  )}
+                  {o.votes.length > 0 &&
+                    (poll.isAnonymous ? (
+                      <Text className="font-sans text-xs text-muted">🔒 Anonymous</Text>
+                    ) : (
+                      <Text className="text-sm">
+                        {o.votes.map((v) => v.user.icon ?? '🙂').join(' ')}
+                      </Text>
+                    ))}
                 </View>
               </Animated.View>
             ))}

@@ -38,6 +38,7 @@ export default function NewPollScreen() {
   const [endAt, setEndAt] = useState<Date | null>(null);
   const [maxVotes, setMaxVotes] = useState(''); // '' = unlimited
   const [revotesAllowed, setRevotesAllowed] = useState(false);
+  const [isAnonymous, setIsAnonymous] = useState(false); // create-only; immutable after
 
   const [query, setQuery] = useState('');
   const [tagFilter, setTagFilter] = useState<Set<string>>(new Set());
@@ -125,6 +126,7 @@ export default function NewPollScreen() {
       endAt,
       maxVotes: maxV,
       revotesAllowed,
+      isAnonymous,
       bookmarkIds: [...selected],
     };
     setBusy(true);
@@ -200,6 +202,19 @@ export default function NewPollScreen() {
           <Text className="font-sans-medium text-sm text-ink">Allow revotes</Text>
           <Switch value={revotesAllowed} onValueChange={setRevotesAllowed} />
         </View>
+
+        {!isEdit && (
+          <View className="gap-1.5">
+            <View className="flex-row items-center justify-between">
+              <Text className="font-sans-medium text-sm text-ink">Anonymous poll</Text>
+              <Switch value={isAnonymous} onValueChange={setIsAnonymous} />
+            </View>
+            <Text className="font-sans text-xs text-muted">
+              Hides who voted for what. This can only be set now and can’t be
+              changed later.
+            </Text>
+          </View>
+        )}
 
         <View className="h-px bg-border" />
 

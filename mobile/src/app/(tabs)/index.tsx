@@ -40,11 +40,11 @@ export default function HomeScreen() {
   }, [lists, query]);
 
   return (
-    <SafeAreaView style={{ flex: 1 }} className="bg-bg">
+    <SafeAreaView style={{ flex: 1 }} edges={['top', 'left', 'right']} className="bg-bg">
       <FlatList
         data={shown}
         keyExtractor={(m) => m.list.id}
-        contentContainerStyle={{ padding: 16, gap: 16 }}
+        contentContainerStyle={{ padding: 16, paddingBottom: 96, gap: 16 }}
         ListHeaderComponent={
           <View className="gap-3 pb-1">
             <View className="flex-row items-center justify-between">

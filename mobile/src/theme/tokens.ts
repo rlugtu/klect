@@ -95,7 +95,7 @@ const FONTS = {
   },
 } as const;
 
-function fontFor(name: ThemeName) {
+export function fontFor(name: ThemeName) {
   return name.startsWith('MODERN') ? FONTS.MODERN : FONTS.DEFAULT;
 }
 

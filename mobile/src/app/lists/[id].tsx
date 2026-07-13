@@ -27,6 +27,7 @@ export default function ListScreen() {
   const sheetRef = useRef<BottomSheetModal>(null);
 
   const [bookmarks, setBookmarks] = useState<Bookmarks>([]);
+  const [description, setDescription] = useState('');
   const [comments, setComments] = useState<CommentItem[]>([]);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [query, setQuery] = useState('');
@@ -73,6 +74,10 @@ export default function ListScreen() {
         .then(setBookmarks)
         .catch((e) => setError(e instanceof Error ? e.message : 'Request failed'))
         .finally(() => setLoading(false));
+      trpc.lists.get
+        .query({ listId: id })
+        .then((m) => setDescription(m?.list.description ?? ''))
+        .catch(() => {});
       loadComments();
     }, [id, loadComments]),
   );
@@ -118,6 +123,10 @@ export default function ListScreen() {
         contentContainerStyle={{ padding: 16, gap: 16, paddingBottom: 24 }}
         ListHeaderComponent={
           <View className="gap-3 pb-1">
+            {description.trim() !== '' && (
+              <Text className="font-sans text-muted">{description}</Text>
+            )}
+
             <View className="flex-row gap-2">
               <Pressable
                 onPress={() => router.push({ pathname: '/lists/edit', params: { id } })}

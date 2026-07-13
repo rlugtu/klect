@@ -145,8 +145,8 @@ surface (notes, coords, video, extra URLs).
 ### Link metadata autofill
 **Description.** Paste a link and the bookmark auto-fills with clean, readable fields — a
 tidied name, a `Link Summary:`-prefixed description that also breaks out vital details
-(Ingredients, Steps, Hours, Event Details, …) when the page has them, suggested tags, and an
-inferred location — plus images and a detected playable video.
+(Ingredients, Steps, Hours, Event Details, …) when the page has them, up to 3 suggested tags, and
+an inferred location — plus images and a detected playable video.
 **Web / Mobile.** Both call `metadata.fetch`, a two-stage pipeline: **extraction** (YouTube via
 fast oEmbed; everything else via **LinkPreview**, falling back to **Microlink**) + `detectVideo`,
 then a **comprehension** layer (`comprehendMetadata`, `claude-haiku-4-5`) that cleans the
@@ -214,8 +214,9 @@ or any as the list owner.
 
 ### Polls
 **Description.** Lightweight voting on bookmarks within a list — pick 2+ bookmarks as options, set
-start/end dates, max votes per person, and whether re-votes are allowed; see ranked results with
-voters.
+start/end dates, max votes per person, whether re-votes are allowed, and (at creation only) whether
+the poll is **anonymous**; see ranked results with voters. Anonymous polls hide *who* voted for
+what from everyone (counts still show) and can't be un-anonymized after creation.
 **Web.** `/lists/[id]/polls[...]` routes, `PollForm` + `PollVote`; `polls.*` procedures.
 **Mobile.** `src/app/polls/*` (list, detail with Vote/Results tabs, new/edit modal with a native
 date picker); same procedures.

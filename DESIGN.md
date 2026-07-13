@@ -119,8 +119,9 @@ Comment         id, authorId, value, createdAt,
                 bookmarkId?, listId?      — exactly one of the two set
 
 Poll            id, listId, creatorId, name, description, startAt,
-                endAt?, maxVotes?, revotesAllowed, timestamps
-                                          — maxVotes null = unlimited; endAt null = open
+                endAt?, maxVotes?, revotesAllowed, isAnonymous, timestamps
+                                          — maxVotes null = unlimited; endAt null = open;
+                                            isAnonymous set only at creation (immutable)
 PollOption      id, pollId, bookmarkId    — unique per (pollId, bookmarkId); a list bookmark as a choice
 PollVote        id, pollId, optionId, userId — unique per (optionId, userId); unweighted (one/option/user)
 ```
@@ -132,6 +133,10 @@ PollVote        id, pollId, optionId, userId — unique per (optionId, userId); 
 - Deleting a bookmark cascades its `BookmarkTag` links, comments, **and poll options** (each
   removed `PollOption` cascades its `PollVote`s, so the voter's spent vote is freed —
   "refund" is derived as `maxVotes − current votes`, not stored).
+- **Anonymous polls** (`isAnonymous`, set only at creation — never editable): `PollVote.userId`
+  is still stored (it enforces one-vote-per-user, `maxVotes`, and revote rules), but
+  `getPollForUser` strips voter identity from the payload so **no one** — creator or owner
+  included — sees who voted for what. Per-option vote **counts stay visible**.
 
 ---
 
@@ -235,7 +240,8 @@ Pause for review after **each** step.
   pipeline. **Extraction** unfurls the page (YouTube via oEmbed; everything else via
   **LinkPreview**, falling back to **Microlink**). **Comprehension** (`comprehendMetadata`,
   `claude-haiku-4-5`) then cleans the title, writes a `Link Summary:`-prefixed description, and
-  adds suggested `tags` + an inferred `location`. For articles it also fetches the page's readable
+  adds **up to 3** suggested `tags` (capped, never padded to reach 3) + an inferred `location`.
+  For articles it also fetches the page's readable
   text server-side (`core/page-text.ts`, SSRF-guarded) so the LLM can extract vital detail
   sections (Ingredients, Steps, Hours, Event Details, …) appended under the summary. The result
   carries `tags`/`location` alongside name/description/photos. `urls[0]` keeps the original source.

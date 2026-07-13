@@ -25,6 +25,7 @@ function pollInputFromFormData(formData: FormData): core.PollInput {
     endAt: toDate(formData.get("endAt"), null),
     maxVotes: maxVotes != null && Number.isFinite(maxVotes) ? maxVotes : null,
     revotesAllowed: formData.get("revotesAllowed") === "on",
+    isAnonymous: formData.get("anonymous") === "on",
     bookmarkIds: formData.getAll("bookmarkIds").map((b) => String(b)),
   };
 }

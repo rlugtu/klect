@@ -62,5 +62,18 @@ export async function getPollForUser(userId: string, pollId: string) {
   const remainingVotes =
     poll.maxVotes == null ? null : Math.max(0, poll.maxVotes - myOptionIds.length);
 
+  // Anonymous polls hide *who* voted from everyone (counts stay). Strip voter
+  // identity from the payload so the wire never carries who-voted-what — done
+  // after myOptionIds is derived above (which needs the real userIds).
+  if (poll.isAnonymous) {
+    for (const o of poll.options) {
+      o.votes = o.votes.map((v) => ({
+        ...v,
+        userId: "",
+        user: { id: "", displayName: null, name: null, icon: null },
+      }));
+    }
+  }
+
   return { ...poll, role: membership.role, myOptionIds, remainingVotes };
 }

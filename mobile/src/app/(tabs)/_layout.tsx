@@ -13,7 +13,14 @@ export default function AppTabs() {
         headerShown: false,
         tabBarActiveTintColor: t.primary,
         tabBarInactiveTintColor: t.muted,
-        tabBarStyle: { backgroundColor: t.panel, borderTopColor: t.border },
+        // Transparent + floating so list content scrolls behind it (no gray band).
+        // Scroll containers add bottom padding so nothing hides under the bar.
+        tabBarStyle: {
+          position: 'absolute',
+          backgroundColor: 'transparent',
+          borderTopWidth: 0,
+          elevation: 0,
+        },
       }}>
       <Tabs.Screen
         name="index"

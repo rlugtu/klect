@@ -242,6 +242,7 @@ model Poll {
   endAt          DateTime? // null = no end (open indefinitely)
   maxVotes       Int? // votes per participant; null = unlimited
   revotesAllowed Boolean  @default(false)
+  isAnonymous    Boolean  @default(false) // set only at creation; hides who voted for what
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 

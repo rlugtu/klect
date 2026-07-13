@@ -15,6 +15,7 @@ export type PollInput = {
   endAt: Date | null;
   maxVotes: number | null; // null = unlimited votes per participant
   revotesAllowed: boolean;
+  isAnonymous?: boolean; // set only at creation — updatePoll never changes it
   bookmarkIds: string[]; // options; must be bookmarks in the poll's list
 };
 
@@ -84,6 +85,7 @@ export async function createPoll(userId: string, listId: string, input: PollInpu
   return prisma.poll.create({
     data: {
       ...fields,
+      isAnonymous: input.isAnonymous ?? false,
       listId,
       creatorId: userId,
       options: { create: bookmarkIds.map((bookmarkId) => ({ bookmarkId })) },

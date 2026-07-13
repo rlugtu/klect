@@ -36,6 +36,7 @@ export const pollInput = z.object({
   endAt: z.coerce.date().nullable(),
   maxVotes: z.number().int().nullable(),
   revotesAllowed: z.boolean(),
+  isAnonymous: z.boolean().optional(),
   bookmarkIds: z.array(z.string()),
 });
 

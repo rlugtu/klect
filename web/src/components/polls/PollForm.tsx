@@ -41,11 +41,14 @@ export function PollForm({
   bookmarks,
   submitLabel,
   defaults,
+  showAnonymous = false,
 }: {
   action: (formData: FormData) => void | Promise<void>;
   bookmarks: PollOptionBookmark[];
   submitLabel: string;
   defaults?: PollFormDefaults;
+  // Only the create flow offers this — anonymity is fixed once a poll exists.
+  showAnonymous?: boolean;
 }) {
   const [selected, setSelected] = useState<Set<string>>(
     new Set(defaults?.bookmarkIds ?? []),
@@ -168,6 +171,23 @@ export function PollForm({
           <FieldLabel>Allow revotes</FieldLabel>
         </label>
       </div>
+
+      {showAnonymous && (
+        <div className="flex flex-col gap-1.5">
+          <label className="flex cursor-pointer items-center gap-2">
+            <input
+              type="checkbox"
+              name="anonymous"
+              className="accent-primary h-5 w-5"
+            />
+            <FieldLabel>Anonymous poll</FieldLabel>
+          </label>
+          <p className="text-muted text-sm">
+            Hides who voted for what. This can only be set now and can’t be
+            changed later.
+          </p>
+        </div>
+      )}
 
       <div className="border-border border-t-2" />
 

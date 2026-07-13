@@ -36,7 +36,7 @@ import LoginScreen from '@/components/login-screen';
 import OnboardingScreen from '@/components/onboarding-screen';
 import { authClient } from '@/client/auth';
 import { ThemeProvider as AppThemeProvider, useTheme } from '@/theme/theme-provider';
-import { THEME_TOKENS } from '@/theme/tokens';
+import { fontFor, THEME_TOKENS } from '@/theme/tokens';
 
 SplashScreen.preventAutoHideAsync();
 
@@ -65,14 +65,15 @@ function ShareIntentRouter() {
  * background (no black bar, no shadow) like the homepage, with a chevron-only back button.
  */
 function AppStack() {
-  const t = THEME_TOKENS[useTheme().theme];
+  const theme = useTheme().theme;
+  const t = THEME_TOKENS[theme];
   return (
     <Stack
       screenOptions={{
         headerStyle: { backgroundColor: t.bg },
         headerShadowVisible: false,
         headerTintColor: t.primary,
-        headerTitleStyle: { fontFamily: 'Newsreader_600SemiBold', color: t.ink },
+        headerTitleStyle: { fontFamily: fontFor(theme).title, color: t.ink },
         headerBackButtonDisplayMode: 'minimal',
         contentStyle: { backgroundColor: t.bg },
       }}>

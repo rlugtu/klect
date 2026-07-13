@@ -314,7 +314,8 @@ export async function fetchLinkMetadata(rawUrl: string): Promise<MetadataResult>
     if (refined) {
       if (refined.title) result.data.title = refined.title;
       if (refined.description) result.data.description = refined.description;
-      result.data.tags = refined.tags;
+      // At most 3 recommended tags — never padded up to 3 (see comprehend.ts).
+      result.data.tags = refined.tags.slice(0, 3);
       result.data.location = refined.location || null;
     }
   }

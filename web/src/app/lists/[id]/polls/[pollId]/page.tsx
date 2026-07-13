@@ -56,6 +56,7 @@ export default async function PollPage({
           {poll.endAt
             ? ` · ends ${new Date(poll.endAt).toLocaleString()}`
             : " · no end time"}
+          {poll.isAnonymous ? " · 🔒 anonymous" : ""}
         </p>
       </header>
 
@@ -68,6 +69,7 @@ export default async function PollPage({
         maxVotes={poll.maxVotes}
         revotesAllowed={poll.revotesAllowed}
         myOptionIds={poll.myOptionIds}
+        isAnonymous={poll.isAnonymous}
       />
 
       {canManage && (

@@ -50,6 +50,7 @@ export default async function NewPollPage({
           action={createPoll.bind(null, id)}
           bookmarks={bookmarks}
           submitLabel="Create poll"
+          showAnonymous
         />
       )}
     </main>

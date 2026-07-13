@@ -103,7 +103,7 @@ export default function NearbyScreen() {
         <FlatList
           data={items}
           keyExtractor={(it) => `${it.listId}:${it.card.id}`}
-          contentContainerStyle={{ gap: 8 }}
+          contentContainerStyle={{ gap: 8, paddingBottom: 96 }}
           renderItem={({ item }) => (
             <Pressable
               onPress={() =>
