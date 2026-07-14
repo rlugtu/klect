@@ -94,8 +94,9 @@ Everything else hot-reloads normally against the dev client.
 `AppStack` — a `Stack` extracted into a child of the app `ThemeProvider` so its `screenOptions` can
 read the active palette. Full-screen pushed screens use a **frosted glass header** that matches the
 tab screens' floating status bar: `headerTransparent: true` + a `headerBackground` rendering
-`components/header-blur-background.tsx` (the same `expo-blur` `BlurView` + translucent `bg` tint the
-floating status bar uses — one shared surface, so home and pushed pages read identically). There's no
+`components/header-blur-background.tsx` (the same `expo-blur` `BlurView` + a light `bg` tint —
+~40% in light / ~35% in dark, so the bar leans on the blur and stays see-through — the floating status
+bar uses the same shared surface, so home and pushed pages read identically). There's no
 shadow (`headerShadowVisible: false`), the title is `ink` in Newsreader, the back button is
 chevron-only (`headerBackButtonDisplayMode: 'minimal'` — no route-name text), and the tint (back
 chevron) is `primary`. Because the header is transparent, each full-screen screen **pads its scroll
@@ -178,7 +179,8 @@ modal with `router.back()` (or `router.dismissAll()` after leaving a list).
   toggle (optimistic `bookmarks.toggleVisited`), tags, description, tappable source URLs
   (`Linking.openURL`), a 📍 location row that opens the address in the device maps app
   (`maps.apple.com` deep link with coords when present), notes, the bookmark `CommentsSection`, and a
-  confirm-dialog **Delete**. Edit is in the header. When the bookmark has a detected video
+  confirm-dialog **Delete**. Edit is a header-right pencil icon (Ionicons `create-outline`, centered
+  in a 32×32 hit target → `bookmarks/edit`). When the bookmark has a detected video
   (`videoUrl`/`videoType`, set by autofill), a `BookmarkVideo` player **replaces** the hero image.
 - **New bookmark** (`bookmarks/new.tsx`) — **dual-mode**, keyed on the `listId` param:
   - *In-list* (`?listId=`, from a list's **Add**): saves one bookmark via `bookmarks.create`.
@@ -202,7 +204,9 @@ modal with `router.back()` (or `router.dismissAll()` after leaving a list).
 - **Nearby** (`(tabs)/nearby.tsx`) — reads device GPS (`expo-location`, foreground permission), then
   in parallel calls `nearby.find` (haversine-filters the user's coordinate-bearing bookmarks within a
   chosen radius — full-width, evenly-spaced chips 1/5/10/25 mi) and `places.reverseGeocode` (a
-  readable "Your location" label, falling back to a raw coordinate readout). Results are compact
+  readable "Your location" label, falling back to a raw coordinate readout). On load **no chip is
+  selected** (`radius` starts `null`) and a placeholder — "Tap a distance to find nearby bookmarks."
+  — prompts the user; it clears the moment a search runs. Results are compact
   rows with an emphasized distance and up to 3 tag pills (`TagPill`, from `card.tags`) under the
   list label; a "N skipped (no coordinates)" note covers bookmarks without coordinates. Only
   bookmarks given coordinates via location search have them.

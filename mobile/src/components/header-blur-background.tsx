@@ -26,8 +26,9 @@ export default function HeaderBlurBackground() {
           borderBottomColor: t.border,
           overflow: 'hidden',
           // Tint with the app background (not the lighter panel) so the strip reads as
-          // the same color as the content behind it, just frosted.
-          backgroundColor: t.bg + (isDark ? '99' : 'B3'),
+          // the same color as the content behind it, just frosted. Kept light (~40%
+          // light / ~35% dark) so the bar leans on the blur and stays see-through.
+          backgroundColor: t.bg + (isDark ? '59' : '66'),
         },
       ]}>
       <BlurView

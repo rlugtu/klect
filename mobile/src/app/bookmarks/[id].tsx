@@ -16,12 +16,15 @@ import {
   useRouter,
 } from 'expo-router';
 import { useHeaderHeight } from '@react-navigation/elements';
+import { Ionicons } from '@expo/vector-icons';
 
 import { trpc } from '@/client/api';
 import BookmarkVideo from '@/components/bookmark-video';
 import CommentsSection, { type CommentItem } from '@/components/comments-section';
 import TagPill from '@/components/tag-pill';
 import { screenshotThumbUrl, videoPosterUrl } from '@/lib/video-embed';
+import { useTheme } from '@/theme/theme-provider';
+import { THEME_TOKENS } from '@/theme/tokens';
 import { cardShadow } from '@/theme/shadows';
 
 // Inferred from web's tRPC procedure ({ bookmark, role } | null).
@@ -37,6 +40,7 @@ export default function BookmarkScreen() {
   const router = useRouter();
   const { id, name } = useLocalSearchParams<{ id: string; name?: string }>();
   const headerHeight = useHeaderHeight();
+  const t = THEME_TOKENS[useTheme().theme];
   const [data, setData] = useState<BookmarkResult>(null);
   const [comments, setComments] = useState<CommentItem[]>([]);
   const [error, setError] = useState<string | null>(null);
@@ -96,10 +100,18 @@ export default function BookmarkScreen() {
           headerRight: () =>
             b ? (
               <Pressable
+                accessibilityLabel="Edit bookmark"
+                hitSlop={8}
                 onPress={() =>
                   router.push({ pathname: '/bookmarks/edit', params: { id } })
-                }>
-                <Text className="font-sans-semibold text-base text-primary">Edit</Text>
+                }
+                style={{
+                  width: 32,
+                  height: 32,
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}>
+                <Ionicons name="create-outline" size={24} color={t.primary} />
               </Pressable>
             ) : null,
         }}

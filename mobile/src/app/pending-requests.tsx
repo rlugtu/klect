@@ -3,6 +3,7 @@ import { Pressable, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Animated from 'react-native-reanimated';
 import { Stack, useFocusEffect } from 'expo-router';
+import { useHeaderHeight } from '@react-navigation/elements';
 
 import { trpc } from '@/client/api';
 import { cardShadow } from '@/theme/shadows';
@@ -18,6 +19,7 @@ const displayName = (u: {
 
 /** Friend requests the user has sent, awaiting acceptance. Withdraw with Cancel. */
 export default function PendingRequestsScreen() {
+  const headerHeight = useHeaderHeight();
   const [outgoing, setOutgoing] = useState<Outgoing>([]);
   const [loading, setLoading] = useState(true);
 
@@ -41,7 +43,12 @@ export default function PendingRequestsScreen() {
     <SafeAreaView style={{ flex: 1 }} edges={['left', 'right']} className="bg-bg">
       <Stack.Screen options={{ title: 'Pending requests' }} />
       <Animated.ScrollView
-        contentContainerStyle={{ padding: 16, paddingBottom: 40, gap: 12 }}>
+        contentContainerStyle={{
+          padding: 16,
+          paddingTop: headerHeight + 8,
+          paddingBottom: 40,
+          gap: 12,
+        }}>
         {!loading && outgoing.length === 0 && (
           <Text className="font-serif-italic text-muted">
             No pending requests. Requests you send appear here until they&apos;re

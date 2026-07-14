@@ -23,12 +23,14 @@ export default function NearbyScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const onScroll = useTabBarScrollHandler();
-  const [radius, setRadius] = useState(5);
+  // Null until the user taps a distance — so no button starts selected and the
+  // placeholder below prompts them to pick one.
+  const [radius, setRadius] = useState<number | null>(null);
   const [items, setItems] = useState<NearbyItem[]>([]);
   const [skipped, setSkipped] = useState(0);
   const [locationLabel, setLocationLabel] = useState<string | null>(null);
   const [status, setStatus] = useState<string | null>(
-    'Pick a radius to search near you.',
+    'Tap a distance to find nearby bookmarks.',
   );
   const [busy, setBusy] = useState(false);
 
