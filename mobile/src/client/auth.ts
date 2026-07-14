@@ -3,8 +3,12 @@ import { expoClient } from "@better-auth/expo/client";
 import { inferAdditionalFields } from "better-auth/client/plugins";
 import * as SecureStore from "expo-secure-store";
 
-/** Base URL of the web app, which hosts the better-auth server + tRPC API. */
-export const API_URL = process.env.EXPO_PUBLIC_API_URL ?? "http://localhost:3000";
+import { API_URL, getCachedToken, persistBearer } from "./bearer-store";
+import { setLiveTokenResolver } from "./api";
+
+// Re-exported so existing importers of `@/client/auth` keep working; the storage itself now lives in
+// the better-auth-free `./bearer-store` (see that file for why the Share Extension can't load this).
+export { API_URL, clearBearerToken } from "./bearer-store";
 
 /**
  * Bearer session token for authenticating API calls.
@@ -16,8 +20,8 @@ export const API_URL = process.env.EXPO_PUBLIC_API_URL ?? "http://localhost:3000
  * runs better-auth's `bearer()` plugin, which emits the session token in a plain `set-auth-token`
  * response header (not swallowed by the cookie machinery) and accepts `Authorization: Bearer`.
  *
- * We mirror the token in memory (sync reads for request headers) and in SecureStore (survives
- * restarts). `fetchOptions.onSuccess` below refreshes it whenever better-auth rotates it.
+ * The token is mirrored in memory + SecureStore by `./bearer-store`; `fetchOptions.onSuccess`
+ * below refreshes it whenever better-auth rotates it.
  *
  * The `set-auth-token` header only rides on **fetch** responses (email/password sign-in), so it
  * never fires for the Google OAuth flow — there the session arrives as a `cookie` query param on
@@ -25,54 +29,6 @@ export const API_URL = process.env.EXPO_PUBLIC_API_URL ?? "http://localhost:3000
  * a response. `resolveBearerToken` therefore falls back to the stored session cookie, whose
  * session-token value the server's `bearer()` plugin accepts as a bearer token.
  */
-const BEARER_KEY = "klect_bearer";
-let cachedToken: string | null = null;
-
-/**
- * App Group shared with the iOS Share Extension (`group.com.klect.app`, wired into both targets'
- * entitlements by the expo-share-extension config plugin). On iOS an app group listed under
- * `com.apple.security.application-groups` is also treated as a keychain access group, so storing the
- * bearer token under it lets the extension's **separate process** read it (the extension has no
- * access to `cachedToken` or the better-auth cookie). Keeping every `klect_bearer` read/write scoped
- * to this group keeps the app and the extension pointed at the same keychain item.
- */
-export const SHARED_KEYCHAIN_ACCESS_GROUP = "group.com.klect.app";
-const SHARED_OPTS = { accessGroup: SHARED_KEYCHAIN_ACCESS_GROUP } as const;
-
-// Avoid redundant keychain writes when the resolved token hasn't changed (notably the OAuth path,
-// which re-derives the same cookie token on every request — see resolveBearerToken).
-let lastPersistedToken: string | null = null;
-
-/** Persist the token in memory (sync request reads) + the shared keychain (survives restarts, and
- *  is the only copy the Share Extension can see). */
-function persistBearer(token: string) {
-  cachedToken = token;
-  if (token === lastPersistedToken) return;
-  lastPersistedToken = token;
-  SecureStore.setItemAsync(BEARER_KEY, token, SHARED_OPTS).catch(() => {});
-}
-
-/** Read the persisted token from the shared keychain. Used by the tRPC client's cold-start fallback
- *  (before `cachedToken` hydrates) and — since it needs no in-memory/cookie state — by the Share
- *  Extension, whose fresh process only ever has this stored copy to go on. */
-export function readStoredBearerToken(): Promise<string | null> {
-  return SecureStore.getItemAsync(BEARER_KEY, SHARED_OPTS);
-}
-
-// Hydrate the in-memory token on startup (async; the tRPC client falls back to a direct
-// SecureStore read for the cold-start race before this resolves).
-readStoredBearerToken()
-  .then((t) => {
-    if (t) cachedToken = t;
-  })
-  .catch(() => {});
-
-/** Drop the stored bearer token (call on sign-out). */
-export function clearBearerToken() {
-  cachedToken = null;
-  lastPersistedToken = null;
-  SecureStore.deleteItemAsync(BEARER_KEY, SHARED_OPTS).catch(() => {});
-}
 
 /**
  * better-auth client for the native app — same auth server web uses, but with the
@@ -84,6 +40,9 @@ export function clearBearerToken() {
  * notably `displayName`, which the root layout reads as the "onboarded" signal.
  * (Kept as an explicit schema rather than `inferAdditionalFields<typeof auth>()`:
  * the type-only cross-app inference collapses to `{}` here, so we restate the fields.)
+ *
+ * NOTE: constructing this client wires up deep-link / web-browser native APIs that don't exist in
+ * an iOS app-extension process — so this module must never be imported by the Share Extension.
  */
 export const authClient = createAuthClient({
   baseURL: API_URL,
@@ -99,7 +58,7 @@ export const authClient = createAuthClient({
     // production rather than only the cached session blob.
     auth: {
       type: "Bearer",
-      token: () => cachedToken ?? "",
+      token: () => getCachedToken() ?? "",
     },
   },
   plugins: [
@@ -141,7 +100,8 @@ function sessionTokenFromCookie(): string | null {
  * the `set-auth-token` header (email/password) and the stored session cookie (Google OAuth).
  */
 export function resolveBearerToken(): string | null {
-  if (cachedToken) return cachedToken;
+  const cached = getCachedToken();
+  if (cached) return cached;
   const cookieToken = sessionTokenFromCookie();
   // OAuth never populates `cachedToken` (its token arrives only via the stored cookie), so the
   // Share Extension would have nothing in the shared keychain to read. Mirror it there on resolve —
@@ -149,3 +109,9 @@ export function resolveBearerToken(): string | null {
   if (cookieToken) persistBearer(cookieToken);
   return cookieToken;
 }
+
+// Register the live (cookie-aware) token resolver with the tRPC client. `api.ts` deliberately does
+// NOT import this module (so the Share Extension's bundle stays better-auth-free); instead the app —
+// which always loads this module via app/_layout.tsx — pushes the resolver in at startup. Without
+// it, `api.ts` falls back to the stored-keychain read, which is exactly what the extension uses.
+setLiveTokenResolver(resolveBearerToken);

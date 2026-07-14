@@ -197,8 +197,9 @@ icon), delete (owner-only, cascades bookmarks/comments/members/polls), and brows
 or belong to with bookmark + member counts and a role badge.
 **Web.** Home `/` renders `HomeLists`; detail `/lists/[id]`; edit/delete via `ListControls`.
 `lists.mine` / `lists.get` / `lists.create` / `lists.update` / `lists.delete`.
-**Mobile.** `src/app/(tabs)/index.tsx` (home cards), `src/app/lists/[id].tsx` (detail),
-`lists/new.tsx` + `lists/edit.tsx` modals. Same procedures.
+**Mobile.** `src/app/(tabs)/index.tsx` (home cards, with a **Collab / Viewer** pill on lists you
+don't own), `src/app/lists/[id].tsx` (detail), `lists/new.tsx` + `lists/edit.tsx` modals. Same
+procedures.
 
 ### Lists — public/private visibility
 **Description.** Each list is **public or private** — **private by default**. A public list is

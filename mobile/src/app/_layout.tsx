@@ -69,6 +69,12 @@ function AppStack() {
     <StatusBar style={theme.endsWith('DARK') ? 'light' : 'dark'} translucent />
     <Stack
       screenOptions={{
+        // No page ever shows a centered header title — the page name lives in the
+        // scrolling content instead. Setting it here (not just per-screen) guarantees
+        // *every* route — registered, unregistered, or added later — is titleless, so a
+        // raw route segment ("lists/[id]", "lists/edit", a stray "Routes") can never leak
+        // through as the title.
+        headerTitle: () => null,
         // Frosted glass header shared with the tab screens' floating status bar, so a
         // pushed page's top bar matches the home page. Content scrolls under it — each
         // full-screen screen pads its scroll container by the header height.

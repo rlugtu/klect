@@ -26,7 +26,7 @@ import {
 import { close, openHostApp, type InitialProps } from 'expo-share-extension';
 
 import { trpc } from '@/client/api';
-import { readStoredBearerToken } from '@/client/auth';
+import { readStoredBearerToken } from '@/client/bearer-store';
 import BookmarkForm, { EMPTY_BOOKMARK } from '@/components/bookmark-form';
 import { ListPicker } from '@/components/list-picker';
 import { ThemeProvider as AppThemeProvider } from '@/theme/theme-provider';

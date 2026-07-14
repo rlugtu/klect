@@ -22,6 +22,25 @@ type Membership = Memberships[number];
 
 const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? '' : 's'}`;
 
+// Non-owner lists get a small badge so shared lists read differently from your own (parity with
+// web's ListCard). Owned lists show nothing.
+const ROLE_LABEL: Record<Membership['role'], string | null> = {
+  OWNER: null,
+  COLLABORATOR: 'Collab',
+  VIEWER: 'Viewer',
+};
+
+/** A "Collab" / "Viewer" pill; renders nothing for owned lists. */
+function RoleBadge({ role }: { role: Membership['role'] }) {
+  const label = ROLE_LABEL[role];
+  if (!label) return null;
+  return (
+    <View className="rounded-full border-skin border-border bg-panel px-2 py-0.5">
+      <Text className="font-sans-medium text-xs text-muted">{label}</Text>
+    </View>
+  );
+}
+
 /** A list card. When draggable, a long-press anywhere starts the reorder drag. */
 function ListCard({
   item,
@@ -60,9 +79,12 @@ function CardBody({
       delayLongPress={200}
       style={cardShadow}
       className="rounded-skin border-skin border-border bg-panel p-4">
-      <Text className="font-serif text-xl text-ink">
-        {item.list.icon} {item.list.name}
-      </Text>
+      <View className="flex-row items-center gap-2">
+        <Text className="flex-shrink font-serif text-xl text-ink">
+          {item.list.icon} {item.list.name}
+        </Text>
+        <RoleBadge role={item.role} />
+      </View>
       <Text className="mt-0.5 font-sans text-sm text-muted">
         {plural(item.list._count.bookmarks, 'bookmark')} ·{' '}
         {plural(item.list._count.memberships, 'member')}
