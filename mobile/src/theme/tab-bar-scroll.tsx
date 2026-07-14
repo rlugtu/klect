@@ -41,7 +41,15 @@ export function useTabBarShrink() {
  * reaching the top) restores it.
  */
 export function useTabBarScrollHandler() {
-  const { shrink, lastY } = useTabBarScroll();
+  // Read the context directly (don't throw): this handler is also attached by screens
+  // rendered *outside* the tab navigator — e.g. the pushed users/[id] profile via
+  // ProfileView — where there's no bar to shrink. Fall back to local shared values so
+  // it safely no-ops instead of crashing.
+  const ctx = useContext(Ctx);
+  const fallbackShrink = useSharedValue(0);
+  const fallbackLastY = useSharedValue(0);
+  const shrink = ctx?.shrink ?? fallbackShrink;
+  const lastY = ctx?.lastY ?? fallbackLastY;
   return useAnimatedScrollHandler({
     onScroll: (e) => {
       const y = e.contentOffset.y;

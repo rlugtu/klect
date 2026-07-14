@@ -157,6 +157,12 @@ modal with `router.back()` (or `router.dismissAll()` after leaving a list).
   `FlatList` renders the filtered subset instead). Cards carry the `cardShadow`.
 - **List requests** (`requests.tsx`) — all open incoming list-join requests
   (`sharing.incomingRequests`) with approve/reject (`approveRequest`/`rejectRequest`).
+- **Friends** (`(tabs)/friends.tsx`) — add a friend by email (`friends.sendRequest`), the **Pending**
+  + **Requests** pills, and your friends list. Each `FriendCard` is **tap-to-expand** (chevron
+  affordance): pressing the row opens an **actions panel** with a **Remove** (→ `Alert` confirm →
+  `friends.remove`) + **View profile** (→ pushed `users/[id]`) row above an **Add to lists**
+  multiselect (list chips + Viewer/Collaborator role → `friends.addToLists`; chips pre-selected via
+  `friends.friendListIds`).
 - **Friend requests** (`friend-requests.tsx`) — all incoming friend requests (`friends.list().incoming`)
   with accept/decline (`friends.accept`/`friends.decline`). Reached from a compact **Requests** pill
   below the Friends header — the trailing pill in a `justify-between` row.
@@ -164,6 +170,10 @@ modal with `router.back()` (or `router.dismissAll()` after leaving a list).
   still unanswered (`friends.list().outgoing`), each with a **Cancel** action to withdraw
   (`friends.cancel`). Reached from a **Pending** pill on the Friends screen — the **leading** pill,
   pushed to the opposite edge from the Requests pill.
+  *(Header note: `friend-requests`, `pending-requests`, and the pushed `users/[id]` profile use the
+  home-style **fully transparent** navigation header — floating back chevron, no title — and take
+  their gradual blur from the screen's own `FloatingStatusBar` (the `transparentHeader` option in
+  `_layout.tsx`), rather than the pushed-header `HeaderBlurBackground`.)*
 - **List detail** (`lists/[id].tsx`) — bookmark feed (`bookmarks.forList`) as `PhotoCard`s (first
   image, name, description, rating stars, tag pills). The feed always shows a static thumbnail, never
   a player. When the extracted image is missing **or fails to load** (reel `og:image`s are often
