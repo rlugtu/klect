@@ -58,6 +58,87 @@ with a link or a location.
 
 ---
 
+## Use cases — stories to spark ideas
+
+> **Maintainers:** narrative use cases for **beta-tester onboarding and marketing** — safe to copy
+> and adapt. Each leads with a scenario (not a feature list), then names the features it showcases
+> and why it matters. Keep it honest: only dramatize capabilities that actually ship above.
+
+Klect isn't one workflow — it bends to whatever you save. A few pictures of it in real life:
+
+### 1. The foodie's living map
+Maya saves every restaurant worth remembering into one "Eats" list. She tags each by cuisine —
+`ramen`, `tacos`, `date-night`, `cheap-eats` — so when a craving hits she filters down to exactly the
+mood in a tap. Every spot carries her star rating and a "visited" check, so the places she's loved
+stay separate from the ones still on the hit list. Stuck on a random corner downtown, she opens
+**Near me** and Klect surfaces the three saved spots within walking distance.
+**Features in play:** tags & filtering · ratings · visited flag · location + Near me.
+**Why it lands:** turns a graveyard of saved links into a personal, filterable map she actually uses
+in the moment — the difference between "I know I saved something good around here" and *walking there*.
+
+### 2. The trip everyone actually shows up for
+Dev is planning Tokyo with four friends. He spins up a "Tokyo 2026" list and **bulk-invites** the
+whole group as collaborators in one step. Everyone piles in the spots they've been eyeing — pasting a
+link **auto-fills** the name, photo, and neighborhood, so nobody's typing details by hand. They
+**comment** on each entry to sort must-dos from maybes, and when the group deadlocks on which
+neighborhood to base the first night, Dev spins the shortlist into a **poll** and lets everyone vote.
+**Features in play:** collaborators & roles · friends bulk-invite · metadata autofill · comments · polls.
+**Why it lands:** one shared surface to collect, discuss, and *decide* — the whole plan in one place
+instead of scattered across a group chat that scrolls away by morning.
+
+### 3. The recipe box that fills itself in
+Priya keeps a "Weeknight Dinners" list. She pastes a recipe URL and Klect pulls the title, the hero
+photo, and even breaks the **ingredients and steps** out into the description — so she isn't fighting
+a cluttered food blog at 6pm. She adds a note ("kid-approved, halve the chili") and tags it `30-min`
+and `veggie`. Next Tuesday she filters to `30-min` and dinner's decided in seconds.
+**Features in play:** metadata autofill (recipe detail extraction) · notes · tags · photos.
+**Why it lands:** paste-and-go removes the friction that kills most "save it for later" habits — the
+save is instantly useful, not a link she has to re-open and decode later.
+
+### 4. Save it the second you see it
+Jordan's deep in a TikTok scroll when a hole-in-the-wall bakery stops him. Instead of screenshotting
+it into a camera roll he'll never reopen, he taps **Share → Klect** and the save sheet appears
+*right there, without leaving TikTok* — pre-filled with the video and a suggested tag. He drops it in
+"Bakeries to Try" and keeps scrolling. Later, the clip **plays inline** when he opens the bookmark.
+**Features in play:** iOS share extension (save inside the share sheet) · video detection & inline
+player · autofill.
+**Why it lands:** captures inspiration at the exact instant it strikes, with zero context switch —
+plugging the #1 leak where saves quietly get lost.
+
+### 5. A public list that does your recommending for you
+Sam is the friend everyone texts for coffee recommendations. So she flips her "Best Coffee in the
+City" list to **public** — now it lives on her **profile** for anyone to browse, read-only, no sign-up
+gate. She drops the link in her bio; curious strangers browse, friends she invites can comment, and
+the list stays entirely hers to edit.
+**Features in play:** public/private lists · profile as a home for public lists · viewer role + comments.
+**Why it lands:** turns personal taste into a shareable guide without building a blog or a spreadsheet
+— your curation, published in a tap.
+
+### 6. The "what do you want to do tonight" solver
+Alex and Sam keep a shared "Date Night" list — bars, a museum late-night, that pop-up they keep
+missing. It's **collaborative**, so either can add to it any time. On a free Friday they check
+**Near me** for what's close, tick the **visited** box on the wine bar they finally tried (off the
+someday pile it goes), and when they're torn between two options, a quick **poll** breaks the tie.
+**Features in play:** shared list · Near me · visited flag · polls.
+**Why it lands:** kills the recurring decision paralysis of "what should we do tonight" with a
+running shortlist you both feed and prune.
+
+### 7. One place, every device
+Nina saves a portfolio link from her laptop at work and an Instagram couch from her phone on the
+couch — both land in the same synced lists. The couch fits everywhere, so she saves it into **three
+lists at once** ("Living Room," "Gifts for Mom," "Design Inspo"), each with its own tags. On the web
+she's **installed Klect to her home screen** like a native app; on her phone it already is one.
+**Features in play:** multi-list save · web + mobile sync · PWA install.
+**Why it lands:** one system of record that follows you across devices and contexts, so a save is
+never trapped on the wrong screen.
+
+> **The through-line:** every story is the same loop — *see something worth remembering → save it in
+> a couple taps → find it again exactly when it matters.* Klect just makes each step frictionless,
+> solo or together. (And it looks the way you like — six themes across Pixel, Modern, and Journal,
+> each in light and dark.)
+
+---
+
 **Legend:** ✅ full · ⚠️ present but differs / partial · ➖ not present
 
 ## At-a-glance parity matrix

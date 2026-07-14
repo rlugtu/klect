@@ -265,7 +265,7 @@ modal with `router.back()` (or `router.dismissAll()` after leaving a list).
   keeps its local theme).
 - **Share extension** (`expo-share-extension`, **iOS only**) — Klect appears in other apps' native
   share sheets (web URLs / text; activation rules in `app.json`). Instead of opening the app, the
-  extension **renders a React save UI right in the share sheet** (`index.share.tsx` registers the
+  extension **renders a React save UI right in the share sheet** (`index.share.js` registers the
   `shareExtension` root → `src/share-extension.tsx`). It reuses the shared `BookmarkForm` + `ListPicker`
   (full editor, autofill, multi-list create) and saves via `bookmarks.createInLists`, then dismisses
   with `close()`. The extension is a **separate process** with no in-memory token or better-auth

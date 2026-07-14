@@ -57,7 +57,7 @@ so the blur fades out gradually with no hard line), `expo-location`,
 `expo-secure-store`,
 **`expo-share-extension`** (native iOS share extension — reuses `BookmarkForm` to save a shared URL
 as a bookmark *inside the share sheet*, authenticating via a shared-keychain bearer token; entry is
-`index.share.tsx` → `src/share-extension.tsx`; requires the custom dev build noted above),
+`index.share.js` → `src/share-extension.tsx`; requires the custom dev build noted above),
 **`expo-video` + `react-native-webview`** (bookmark
 detail video player — `expo-video` for direct media files, a WebView-hosted iframe for
 YouTube/Vimeo/TikTok/Instagram embeds; both also need the custom dev build).
