@@ -120,22 +120,17 @@ export default function HomeScreen() {
 
   const header = (
     <View className="gap-3 pb-1">
-      <View className="flex-row items-center justify-between">
-        <Text className="font-serif text-3xl text-ink">Klect</Text>
-        <Pressable onPress={() => router.push('/lists/new')}>
-          <Text className="font-sans-semibold text-base text-primary">+ List</Text>
-        </Pressable>
-      </View>
+      <Text className="font-serif text-3xl text-ink">Klect</Text>
 
-      {/* List requests — above the search input. */}
-      <Pressable
-        onPress={() => router.push('/requests')}
-        className="flex-row items-center justify-between rounded-skin border-skin border-border bg-panel px-4 py-3">
-        <View className="flex-row items-center gap-2">
+      {/* Requests inbox + create-list, sharing one slim row above a divider so it
+          reads as a toolbar — not another list card. */}
+      <View className="flex-row items-center justify-between border-b border-border pb-3">
+        <Pressable
+          onPress={() => router.push('/requests')}
+          className="flex-row items-center gap-1.5"
+          hitSlop={8}>
           <Ionicons name="file-tray-outline" size={18} color={muted} />
-          <Text className="font-sans-medium text-ink">List requests</Text>
-        </View>
-        <View className="flex-row items-center gap-2">
+          <Text className="font-sans-medium text-muted">Requests</Text>
           {requestCount > 0 && (
             <View className="rounded-full bg-primary px-2 py-0.5">
               <Text className="font-sans-semibold text-xs text-primary-ink">
@@ -143,18 +138,23 @@ export default function HomeScreen() {
               </Text>
             </View>
           )}
-          <Ionicons name="chevron-forward" size={16} color={muted} />
-        </View>
-      </Pressable>
+        </Pressable>
+        <Pressable onPress={() => router.push('/lists/new')} hitSlop={8}>
+          <Text className="font-sans-semibold text-base text-primary">+ List</Text>
+        </Pressable>
+      </View>
 
-      <TextInput
-        className="rounded-skin border-skin border-border px-4 py-2.5 font-sans text-ink"
-        placeholder="Search lists"
-        placeholderTextColor={muted}
-        autoCapitalize="none"
-        value={query}
-        onChangeText={setQuery}
-      />
+      <View className="flex-row items-center gap-2 rounded-skin border-skin border-border bg-panel px-3">
+        <Ionicons name="search" size={18} color={muted} />
+        <TextInput
+          className="flex-1 py-3 font-sans text-base text-ink"
+          placeholder="Search lists"
+          placeholderTextColor={muted}
+          autoCapitalize="none"
+          value={query}
+          onChangeText={setQuery}
+        />
+      </View>
 
       {loading && <Text className="font-sans text-muted">Loading…</Text>}
       {error && <Text className="font-sans text-danger">{error}</Text>}

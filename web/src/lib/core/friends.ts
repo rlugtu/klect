@@ -73,6 +73,15 @@ export async function declineFriendRequest(userId: string, friendshipId: string)
   await prisma.friendship.delete({ where: { id: friendshipId } });
 }
 
+/** Cancel a pending friend request the current user sent (deletes the row). */
+export async function cancelFriendRequest(userId: string, friendshipId: string) {
+  const req = await prisma.friendship.findUnique({ where: { id: friendshipId } });
+  if (!req || req.requesterId !== userId || req.status !== "PENDING") {
+    throw new Error("Friend request not found.");
+  }
+  await prisma.friendship.delete({ where: { id: friendshipId } });
+}
+
 /** Remove a friend — either party may. No-op if the user isn't part of it. */
 export async function removeFriend(userId: string, friendshipId: string) {
   const req = await prisma.friendship.findUnique({ where: { id: friendshipId } });

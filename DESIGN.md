@@ -470,12 +470,13 @@ release builds don't reliably persist `Secure` cookies. `auth.api.getSession()` 
 | `sharing.revokeInvite` | mutation | `{ inviteId }` | OWNER (in core) | `core.revokeInvite` |
 | `sharing.leave` | mutation | `{ listId }` | non-owner member (in core) | `core.leaveList` |
 | `sharing.accept` | mutation | `{ token }` | any signed-in user w/ link | `core.acceptInvite` |
-| `friends.list` | query | – | self | `getFriends` + `getIncomingFriendRequests` |
+| `friends.list` | query | – | self | `getFriends` + `getIncomingFriendRequests` + `getOutgoingFriendRequests` → `{ friends, incoming, outgoing }` |
 | `friends.friendListIds` | query | `{ friendId, listIds }` | self | `getFriendListIds` |
 | `friends.sendRequest` | mutation | `{ email }` | self | `core/friends.sendFriendRequest` |
 | `friends.requestByUser` | mutation | `{ userId }` | self | `core/friends.sendFriendRequestById` (from a profile page) |
 | `friends.accept` | mutation | `{ id }` | addressee (in core) | `core/friends.acceptFriendRequest` |
 | `friends.decline` | mutation | `{ id }` | addressee (in core) | `core/friends.declineFriendRequest` |
+| `friends.cancel` | mutation | `{ id }` | requester (in core) | `core/friends.cancelFriendRequest` — withdraw a pending request you sent |
 | `friends.remove` | mutation | `{ id }` | either party (in core) | `core/friends.removeFriend` |
 | `friends.addToLists` | mutation | `{ friendId, listIds, role }` | OWNER per list (in core) | `core.addFriendToLists` |
 | `profile.update` | mutation | `ProfileInput` | self | `core.saveProfile` |

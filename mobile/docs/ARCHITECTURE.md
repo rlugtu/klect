@@ -121,7 +121,8 @@ text), and the tint (back chevron) is `primary` — mirroring the header-less ho
   space with a title).
 - **Stack screens**: `lists/[id]` (list detail), `lists/members`, `bookmarks/[id]` (detail),
   `users/[id]` (another user's profile, pushed from friend rows), `requests` (incoming list-join
-  requests), `friend-requests` (incoming friend requests).
+  requests), `friend-requests` (incoming friend requests), `pending-requests` (outgoing friend
+  requests you've sent — cancel to withdraw).
 - **Modal screens**: `lists/new`, `lists/edit`, `bookmarks/new`, `bookmarks/edit`.
 - **`+native-intent.tsx`** — `redirectSystemPath` intercepts the Share Extension's re-open deep link
   (`klect://dataUrl=<key>…`, not a real route) and rewrites it to `/`, so expo-router doesn't render
@@ -133,16 +134,21 @@ modal with `router.back()` (or `router.dismissAll()` after leaving a list).
 ## Screens & features
 
 - **Home / Lists** (`(tabs)/index.tsx`) — the user's lists (`lists.mine`) as cards showing icon,
-  name, and `_count` bookmark/member counts; client-side name search; header actions **＋ List**
-  (→ `lists/new`) and **＋ Bookmark** (→ `bookmarks/new`, the standalone flow). A **List requests**
-  button above the search input (with a pending count) opens the pushed `requests` screen. Cards are
+  name, and `_count` bookmark/member counts; client-side name search (input carries a leading search
+  icon + panel fill). A slim toolbar row under the title pairs a **Requests** inbox link (with a
+  pending count → the pushed `requests` screen) with the **＋ List** action (→ `lists/new`), divided
+  off from the cards below so it doesn't read as another list card. Cards are
   **drag-reorderable** (`react-native-reorderable-list`): long-press a card to drag; `onReorder`
   optimistically reorders then persists `lists.reorder`. Dragging is disabled while searching (a plain
   `FlatList` renders the filtered subset instead). Cards carry the `cardShadow`.
 - **List requests** (`requests.tsx`) — all open incoming list-join requests
   (`sharing.incomingRequests`) with approve/reject (`approveRequest`/`rejectRequest`).
 - **Friend requests** (`friend-requests.tsx`) — all incoming friend requests (`friends.list().incoming`)
-  with accept/decline (`friends.accept`/`friends.decline`).
+  with accept/decline (`friends.accept`/`friends.decline`). Reached from a compact **Requests** pill
+  just below the Friends header.
+- **Pending requests** (`pending-requests.tsx`) — outgoing friend requests you've sent and that are
+  still unanswered (`friends.list().outgoing`), each with a **Cancel** action to withdraw
+  (`friends.cancel`). Reached from a **Pending** pill beside the Requests pill on the Friends screen.
 - **List detail** (`lists/[id].tsx`) — bookmark feed (`bookmarks.forList`) as `PhotoCard`s (first
   image, name, description, rating stars, tag pills). The feed always shows a static thumbnail, never
   a player. When the extracted image is missing **or fails to load** (reel `og:image`s are often

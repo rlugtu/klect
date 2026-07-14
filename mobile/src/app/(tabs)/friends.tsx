@@ -35,7 +35,11 @@ export default function FriendsScreen() {
   const insets = useSafeAreaInsets();
   const onScroll = useTabBarScrollHandler();
 
-  const [data, setData] = useState<FriendsData>({ friends: [], incoming: [] });
+  const [data, setData] = useState<FriendsData>({
+    friends: [],
+    incoming: [],
+    outgoing: [],
+  });
   const [lists, setLists] = useState<Memberships>([]);
   const [email, setEmail] = useState('');
   const [msg, setMsg] = useState<string | null>(null);
@@ -103,6 +107,37 @@ export default function FriendsScreen() {
         }}>
         <Text className="font-serif text-3xl text-ink">Friends</Text>
 
+        {/* Requests, compact and self-sized so they sit just under the header
+            rather than stretching the full width. */}
+        <View className="flex-row gap-3">
+          <Pressable
+            onPress={() => router.push('/friend-requests')}
+            className="flex-row items-center gap-1.5 rounded-skin border-skin border-border bg-panel px-3 py-2">
+            <Ionicons name="file-tray-outline" size={16} color={muted} />
+            <Text className="font-sans-medium text-sm text-ink">Requests</Text>
+            {data.incoming.length > 0 && (
+              <View className="rounded-full bg-primary px-2 py-0.5">
+                <Text className="font-sans-semibold text-xs text-primary-ink">
+                  {data.incoming.length}
+                </Text>
+              </View>
+            )}
+          </Pressable>
+          <Pressable
+            onPress={() => router.push('/pending-requests')}
+            className="flex-row items-center gap-1.5 rounded-skin border-skin border-border bg-panel px-3 py-2">
+            <Ionicons name="paper-plane-outline" size={16} color={muted} />
+            <Text className="font-sans-medium text-sm text-ink">Pending</Text>
+            {data.outgoing.length > 0 && (
+              <View className="rounded-full bg-primary px-2 py-0.5">
+                <Text className="font-sans-semibold text-xs text-primary-ink">
+                  {data.outgoing.length}
+                </Text>
+              </View>
+            )}
+          </Pressable>
+        </View>
+
         <View className="gap-2">
           <Text className="text-sm uppercase text-muted">Add a friend</Text>
           <TextInput
@@ -129,26 +164,6 @@ export default function FriendsScreen() {
           </Pressable>
           {msg && <Text className="font-sans text-muted">{msg}</Text>}
         </View>
-
-        {/* Always-visible entry to the full friend-requests view. */}
-        <Pressable
-          onPress={() => router.push('/friend-requests')}
-          className="flex-row items-center justify-between rounded-skin border-skin border-border bg-panel px-4 py-3">
-          <View className="flex-row items-center gap-2">
-            <Ionicons name="file-tray-outline" size={18} color={muted} />
-            <Text className="font-sans-medium text-ink">Friend requests</Text>
-          </View>
-          <View className="flex-row items-center gap-2">
-            {data.incoming.length > 0 && (
-              <View className="rounded-full bg-primary px-2 py-0.5">
-                <Text className="font-sans-semibold text-xs text-primary-ink">
-                  {data.incoming.length}
-                </Text>
-              </View>
-            )}
-            <Ionicons name="chevron-forward" size={16} color={muted} />
-          </View>
-        </Pressable>
 
         {!loaded && <ActivityIndicator />}
 
