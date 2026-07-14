@@ -15,8 +15,8 @@ Built on **Expo SDK 54** (RN 0.81, React 19, the React Compiler enabled via
 `experiments.reactCompiler`). It **requires a custom dev build** — it is **not** an Expo Go app
 anymore, because three features add native code that Expo Go can't load:
 
-- **`expo-share-intent`** — a native iOS Share Extension + Android intent-filter (share a URL into
-  Klect from any app).
+- **`expo-share-extension`** — a native iOS Share Extension that renders a React save UI *inside*
+  the share sheet (save a shared URL as a bookmark without opening the app; iOS only).
 - **`expo-video`** — the native player for direct media files in the bookmark video player.
 - **`react-native-webview`** — hosts provider iframes (YouTube/Vimeo/TikTok/Instagram) in that same
   player.
@@ -78,6 +78,26 @@ Everything else hot-reloads normally against the dev client.
     `cookie` query param on the `klect://` deep-link redirect — so the resolver falls back to the
     session-token value parsed out of `authClient.getCookie()` (the stored cookie), which the
     `bearer()` plugin accepts (incl. URL-encoded). Both paths must stay covered.
+  - **Shared-keychain token for the share extension.** `klect_bearer` is stored/read with
+    `SecureStore`'s `accessGroup: "group.com.klect.app"` (`SHARED_KEYCHAIN_ACCESS_GROUP` in
+    `client/bearer-store.ts`) — an App Group iOS also treats as a keychain access group — so the share
+    extension's separate process can read it. `resolveBearerToken()` mirrors the OAuth cookie token
+    into that keychain on resolve (de-duped), since OAuth never populates the in-memory token. The
+    extension has no cookie/memory state, so `readStoredBearerToken()` is its only token source.
+  - **Token storage is split out of `auth.ts` — the extension must never load the auth client.**
+    Constructing the `@better-auth/expo` client (`expoClient`) wires up deep-link / web-browser
+    native APIs that **don't exist in an iOS app-extension process**, so importing `client/auth.ts`
+    into the extension crashes its JS bundle before React mounts (symptom: a transparent black
+    overlay covers the share sheet and blocks all touches). The token primitives therefore live in a
+    dependency-light **`src/client/bearer-store.ts`** (imports only `expo-secure-store`):
+    `readStoredBearerToken`, `persistBearer`, `clearBearerToken`, `getCachedToken`, the keychain
+    access group, and `API_URL`. `client/api.ts` imports **only** `bearer-store` (never `auth.ts`)
+    and exposes `setLiveTokenResolver` — the app registers the cookie-aware `resolveBearerToken`
+    from `auth.ts` at startup (via `app/_layout.tsx`), while the extension, which never loads
+    `auth.ts`, cleanly falls back to the shared-keychain read. **Keep `bearer-store.ts` free of any
+    import that reaches the better-auth client.** The extension's host `backgroundColor` (app.json)
+    is opaque (not `alpha: 0`) so a pre-mount frame is a plain surface, never an invisible
+    tap-blocker.
   - **Google OAuth deep-link gotcha.** The social flow only returns to the app if the whole OAuth
     round-trip stays on the origin the app calls. The deployed web app's **`BETTER_AUTH_URL` must
     equal `EXPO_PUBLIC_API_URL`** (`https://klect.vercel.app`), and Google Cloud Console must list
@@ -99,9 +119,10 @@ border** — it's an `expo-blur` `BlurView` masked by a top→bottom alpha gradi
 (`expo-linear-gradient` + `@react-native-masked-view/masked-view`) so the blur **fades out
 gradually** instead of ending on a hard line. The floating status bar uses the same shared surface,
 so home and pushed pages read identically. There's no shadow (`headerShadowVisible: false`), and
-**no centered title** — every screen (pushed *and* modal) sets `headerTitle: () => null` (the shared
-`blankTitle` option in `_layout.tsx`, folded into `opaqueModal` too) so the back chevron + any
-header-right button appear to *float*.
+**no centered title** — `headerTitle: () => null` is set once in the Stack's `screenOptions` in
+`_layout.tsx`, so it's the default for **every** route (pushed, modal, registered, unregistered, or
+added later); a raw route segment (`lists/[id]`, `lists/edit`, a stray `Routes`) can never leak
+through as the title. Only the back chevron + any header-right button appear to *float*.
 The page name instead lives in the **scrolling page body** (a `font-serif text-3xl` heading at the
 top of the content — screens whose name was header-only, like list detail / members / polls / settings
 / the three request views, gained one; bookmark detail, poll detail, and profiles already rendered
@@ -112,8 +133,8 @@ The `(tabs)` group is a **bottom-positioned swipeable pager** (`@react-navigatio
 with `tabBarPosition="bottom"`, `react-native-pager-view` under the hood, wired into expo-router via
 `withLayoutContext`). Editors are presented as **modals** (`presentation: 'modal'`) with a **solid,
 titleless** header — they override `headerTransparent` off (a modal card has no room to scroll under a
-translucent bar) but still set `headerTitle: () => null` like every other screen, so **no page shows a
-centered title anywhere in the app**.
+translucent bar) but inherit the global `headerTitle: () => null` like every other screen, so **no
+page shows a centered title anywhere in the app**.
 
 - **Tabs** (`(tabs)/_layout.tsx`), left→right in the bar: **Nearby**, **Create** (＋), **Lists**
   (`index`), **Friends**, **Profile**. The **swipe pager** holds only the four real pages in swipe
@@ -159,7 +180,9 @@ modal with `router.back()` (or `router.dismissAll()` after leaving a list).
 
 - **Home / Lists** (`(tabs)/index.tsx`) — the user's lists (`lists.mine`) as cards showing icon,
   name, and `_count` bookmark/member counts; client-side name search (input carries a leading search
-  icon + panel fill). A slim toolbar row under the title pairs a **Requests** inbox link (with a
+  icon + panel fill). Lists the user only **collaborates on or views** (non-`OWNER` `role` on the
+  membership) carry a small **Collab / Viewer** pill next to the name (parity with web's `ListCard`),
+  so shared lists read differently from your own; owned lists show no badge. A slim toolbar row under the title pairs a **Requests** inbox link (with a
   pending count → the pushed `requests` screen) with the **＋ List** action (→ `lists/new`), divided
   off from the cards below so it doesn't read as another list card. Cards are
   **drag-reorderable** (`react-native-reorderable-list`): long-press a card to drag; `onReorder`
@@ -257,12 +280,17 @@ modal with `router.back()` (or `router.dismissAll()` after leaving a list).
   themes are local (`secure-store`) and include Journal, but the server `Theme` enum is only
   Pixel/Modern — a Journal pick is `coerceTheme`d to Pixel server-side (affecting web only; mobile
   keeps its local theme).
-- **Share intent** (`expo-share-intent`) — Klect appears in other apps' native share sheets (web
-  URLs; the iOS activation rule is `NSExtensionActivationSupportsWebURLWithMaxCount: 1`). `_layout.tsx`
-  wraps the app in `ShareIntentProvider`; a `ShareIntentRouter` in the **authenticated** subtree
-  routes an incoming URL (`webUrl ?? text`) to the standalone New-bookmark flow (`/bookmarks/new?url=…`),
-  so a share received while signed out waits until after login. Requires the custom dev build; config
-  lives in `app.json` under the `expo-share-intent` plugin (+ `+native-intent.tsx`, above).
+- **Share extension** (`expo-share-extension`, **iOS only**) — Klect appears in other apps' native
+  share sheets (web URLs / text; activation rules in `app.json`). Instead of opening the app, the
+  extension **renders a React save UI right in the share sheet** (`index.share.js` registers the
+  `shareExtension` root → `src/share-extension.tsx`). It reuses the shared `BookmarkForm` + `ListPicker`
+  (full editor, autofill, multi-list create) and saves via `bookmarks.createInLists`, then dismisses
+  with `close()`. The extension is a **separate process** with no in-memory token or better-auth
+  cookie, so it authenticates by reading the bearer token from the **shared keychain** (App Group
+  `group.com.klect.app`, which iOS also treats as a keychain access group — see Auth). If no token is
+  present (e.g. an OAuth session never surfaced to the shared keychain, or signed out) it shows an
+  "Open Klect" prompt (`openHostApp`), since the extension can't run the OAuth deep-link flow. Metro
+  builds the extension as a second bundle via `withShareExtension`; requires the custom dev build.
 
 ### The shared `BookmarkForm` (`components/bookmark-form.tsx`)
 
@@ -333,10 +361,12 @@ differ, screen structure is shared.
 
 ## Layout & providers
 
-Root `_layout.tsx` wraps the tree in `ShareIntentProvider` → `GestureHandlerRootView` → app
-`ThemeProvider` → `@react-navigation/native` theme → `BottomSheetModalProvider`, holds the native
-splash until the Journal fonts load, and gates the tree on the auth session (blank / `LoginScreen` /
-`Stack` + `ShareIntentRouter`).
+Root `_layout.tsx` wraps the tree in `GestureHandlerRootView` → app `ThemeProvider` →
+`@react-navigation/native` theme → `BottomSheetModalProvider`, holds the native splash until the
+Journal fonts load, and gates the tree on the auth session (blank / `LoginScreen` / `Stack`). The
+**share extension** bundle (`src/share-extension.tsx`) replicates the minimum of this tree it needs —
+`SafeAreaProvider` → `GestureHandlerRootView` → app `ThemeProvider` — without expo-router or the
+bottom-sheet provider.
 
 ## Conventions & gotchas
 

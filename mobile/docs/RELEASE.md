@@ -37,11 +37,12 @@ These are wrong/placeholder in the repo today and block a real production build:
 - [ ] **Register identifiers** in the Apple Developer portal (the rename to `com.klect.app` is a
       new app identity — the old `com.saive.app` records don't transfer):
       - `com.klect.app` with the **App Groups** capability + `group.com.klect.app`.
-      - `com.klect.app.share-extension` (the share extension) with the **same** app group.
-        `expo-share-intent` generates + provisions this extension itself — **do not** add a manual
-        `extra.eas.build.experimental.ios.appExtensions` block to `app.json`. A manual entry is a
-        duplicate that crashes `expo config` / every `eas` command; `expo prebuild` / EAS keep
-        re-adding it, so strip it whenever it reappears.
+      - `com.klect.app.ShareExtension` (the share extension) with the **same** app group
+        `group.com.klect.app` (also serves as the shared **keychain access group** the extension
+        reads the bearer token from). `expo-share-extension` generates + provisions this extension
+        itself — **do not** add a manual `extra.eas.build.experimental.ios.appExtensions` block to
+        `app.json`. A manual entry is a duplicate that crashes `expo config` / every `eas` command;
+        `expo prebuild` / EAS keep re-adding it, so strip it whenever it reappears.
 - [x] **App record created** in App Store Connect for **`com.klect.app`** (a *new* app, not the
       old Saive record); its Apple ID (`6789320507`) is in `eas.json` `submit.production.ascAppId`.
 - [x] `eas whoami` logged in; project linked to a fresh EAS project **`@ryanlugtu/klect`**

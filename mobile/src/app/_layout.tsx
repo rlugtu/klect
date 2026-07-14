@@ -1,12 +1,8 @@
 import '@/global.css';
 
 import { useEffect } from 'react';
-import { Stack, useRouter } from 'expo-router';
+import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import {
-  ShareIntentProvider,
-  useShareIntentContext,
-} from 'expo-share-intent';
 import {
   DarkTheme,
   DefaultTheme,
@@ -43,25 +39,6 @@ import { fontFor, THEME_TOKENS } from '@/theme/tokens';
 SplashScreen.preventAutoHideAsync();
 
 /**
- * Routes an incoming share intent (a URL shared into Klect from another app) to the
- * standalone new-bookmark flow, prefilled with the shared URL. Rendered only inside the
- * authenticated subtree, so a share received while logged out waits until after login.
- */
-function ShareIntentRouter() {
-  const router = useRouter();
-  const { hasShareIntent, shareIntent, resetShareIntent } = useShareIntentContext();
-
-  useEffect(() => {
-    if (!hasShareIntent) return;
-    const url = shareIntent.webUrl ?? shareIntent.text ?? undefined;
-    if (url) router.push({ pathname: '/bookmarks/new', params: { url } });
-    resetShareIntent();
-  }, [hasShareIntent, shareIntent, router, resetShareIntent]);
-
-  return null;
-}
-
-/**
  * The authenticated navigation stack. Lives inside <AppThemeProvider> so it can read the active
  * palette and give every pushed screen a seamless "floating" header — the header shares the page
  * background (no black bar, no shadow) like the homepage, with a chevron-only back button.
@@ -92,6 +69,12 @@ function AppStack() {
     <StatusBar style={theme.endsWith('DARK') ? 'light' : 'dark'} translucent />
     <Stack
       screenOptions={{
+        // No page ever shows a centered header title — the page name lives in the
+        // scrolling content instead. Setting it here (not just per-screen) guarantees
+        // *every* route — registered, unregistered, or added later — is titleless, so a
+        // raw route segment ("lists/[id]", "lists/edit", a stray "Routes") can never leak
+        // through as the title.
+        headerTitle: () => null,
         // Frosted glass header shared with the tab screens' floating status bar, so a
         // pushed page's top bar matches the home page. Content scrolls under it — each
         // full-screen screen pads its scroll container by the header height.
@@ -148,8 +131,7 @@ export default function RootLayout() {
   if (!fontsLoaded) return null;
 
   return (
-    <ShareIntentProvider>
-      <GestureHandlerRootView style={{ flex: 1 }}>
+    <GestureHandlerRootView style={{ flex: 1 }}>
       <AppThemeProvider>
         <NavThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
           <BottomSheetModalProvider>
@@ -164,15 +146,11 @@ export default function RootLayout() {
                 onDone={() => refetch()}
               />
             ) : (
-              <>
               <AppStack />
-              <ShareIntentRouter />
-              </>
             )}
           </BottomSheetModalProvider>
         </NavThemeProvider>
       </AppThemeProvider>
     </GestureHandlerRootView>
-    </ShareIntentProvider>
   );
 }

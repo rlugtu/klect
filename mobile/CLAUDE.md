@@ -3,9 +3,10 @@
 # Klect — mobile app
 
 Expo (**SDK 54**) / React Native client. It now requires a **custom dev build** (`npx expo
-prebuild` → `npx expo run:ios` / `run:android`) because the **share intent** feature adds a native
-iOS Share Extension + Android intent-filter (`expo-share-intent`) that **cannot run in Expo Go**.
-Everything else still hot-reloads via `npx expo start` against the dev client. It is a **thin
+prebuild` → `npx expo run:ios` / `run:android`) because the **share extension** feature adds a native
+iOS Share Extension (`expo-share-extension`) — which renders a React save UI inside the share sheet —
+that **cannot run in Expo Go**. Everything else still hot-reloads via `npx expo start` against the
+dev client. It is a **thin
 client** of the web app's tRPC API — it owns
 no database, no auth server, and no business logic. Product, data model, permissions, and the API
 contract are the shared source of truth in `../DESIGN.md` and `../CLAUDE.md`; this file covers
@@ -54,7 +55,9 @@ the floating tab bar **and the status bar** — needs a native build to render; 
 header + status bar mask it with **`expo-linear-gradient` + `@react-native-masked-view/masked-view`**
 so the blur fades out gradually with no hard line), `expo-location`,
 `expo-secure-store`,
-**`expo-share-intent`** (native share extension — share a URL into the app to create a bookmark;
-requires the custom dev build noted above), **`expo-video` + `react-native-webview`** (bookmark
+**`expo-share-extension`** (native iOS share extension — reuses `BookmarkForm` to save a shared URL
+as a bookmark *inside the share sheet*, authenticating via a shared-keychain bearer token; entry is
+`index.share.js` → `src/share-extension.tsx`; requires the custom dev build noted above),
+**`expo-video` + `react-native-webview`** (bookmark
 detail video player — `expo-video` for direct media files, a WebView-hosted iframe for
 YouTube/Vimeo/TikTok/Instagram embeds; both also need the custom dev build).

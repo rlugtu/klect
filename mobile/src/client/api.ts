@@ -1,7 +1,18 @@
 import { createTRPCClient, httpBatchLink } from "@trpc/client";
 import type { AppRouter } from "@web/server/trpc/router";
-import * as SecureStore from "expo-secure-store";
-import { resolveBearerToken, API_URL } from "./auth";
+import { readStoredBearerToken, API_URL } from "./bearer-store";
+
+/**
+ * Live (cookie/session-aware) token resolver, injected by `./auth` at app startup via
+ * `setLiveTokenResolver`. We do NOT import `./auth` here on purpose: constructing its better-auth
+ * Expo client wires up deep-link native APIs that crash the iOS Share Extension's process. The
+ * extension reuses this tRPC client but never loads `./auth`, so `liveResolver` stays the no-op
+ * default and requests fall back to the shared-keychain read — its only token source.
+ */
+let liveResolver: () => string | null = () => null;
+export function setLiveTokenResolver(fn: () => string | null) {
+  liveResolver = fn;
+}
 
 /**
  * Typed tRPC client for web's API. `AppRouter` is a **type-only** import from
@@ -19,10 +30,10 @@ export const trpc = createTRPCClient<AppRouter>({
       url: `${API_URL}/api/trpc`,
       async headers() {
         // Resolve from the captured token or the stored session cookie (covers both the
-        // email/password and Google OAuth sign-in paths); fall back to a direct SecureStore
-        // read for the cold-start race before the in-memory token has hydrated.
-        const token =
-          resolveBearerToken() ?? (await SecureStore.getItemAsync("klect_bearer"));
+        // email/password and Google OAuth sign-in paths); fall back to the shared-keychain read
+        // for the cold-start race before the in-memory token has hydrated. In the Share Extension's
+        // fresh process there is no cache/cookie, so that stored read is the only token source.
+        const token = liveResolver() ?? (await readStoredBearerToken());
         return token ? { Authorization: `Bearer ${token}` } : {};
       },
     }),
