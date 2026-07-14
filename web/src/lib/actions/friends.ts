@@ -48,6 +48,14 @@ export async function removeFriend(id: string) {
   revalidatePath("/friends");
 }
 
+/** Withdraw a pending friend request the current user sent. */
+export async function cancelFriendRequest(id: string) {
+  const user = await requireUser();
+  await core.cancelFriendRequest(user.id, id);
+  revalidatePath("/friends");
+  revalidatePath("/friends/pending");
+}
+
 /** "Add as friend too?" button from the list members panel. */
 export async function offerFriend(email: string): Promise<core.FriendState> {
   const user = await requireUser();

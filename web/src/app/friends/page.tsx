@@ -4,19 +4,21 @@ import { getUserLists } from "@/lib/lists";
 import {
   getFriends,
   getIncomingFriendRequests,
+  getOutgoingFriendRequests,
   getFriendsListIds,
 } from "@/lib/friends";
 import { AddFriendForm } from "@/components/friends/AddFriendForm";
 import { FriendRow } from "@/components/friends/FriendRow";
 import { PixelButton } from "@/components/ui/PixelButton";
 import { PixelBadge } from "@/components/ui/PixelBadge";
-import { ArrowLeft, Inbox } from "lucide-react";
+import { ArrowLeft, Inbox, Clock } from "lucide-react";
 
 export default async function FriendsPage() {
   const user = await requireOnboardedUser();
-  const [friends, incoming, memberships] = await Promise.all([
+  const [friends, incoming, outgoing, memberships] = await Promise.all([
     getFriends(user.id),
     getIncomingFriendRequests(user.id),
+    getOutgoingFriendRequests(user.id),
     getUserLists(user.id),
   ]);
 
@@ -45,6 +47,16 @@ export default async function FriendsPage() {
             {incoming.length > 0 && (
               <PixelBadge tone="accent" className="ml-1 px-1.5 py-0">
                 {incoming.length}
+              </PixelBadge>
+            )}
+          </PixelButton>
+        </Link>
+        <Link href="/friends/pending">
+          <PixelButton variant="secondary" size="sm">
+            <Clock size={14} aria-hidden /> Pending
+            {outgoing.length > 0 && (
+              <PixelBadge tone="accent" className="ml-1 px-1.5 py-0">
+                {outgoing.length}
               </PixelBadge>
             )}
           </PixelButton>

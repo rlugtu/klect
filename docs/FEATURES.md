@@ -242,13 +242,14 @@ friend request. Non-owners can leave a shared list.
 ### Friends
 **Description.** Add another user by **email** to send a **friend request**; they **accept** or
 **decline** it from a **Requests link** (→ a dedicated view). The sender can watch and **withdraw**
-their own unanswered requests from a **Pending** view (mobile). Friends are
+their own unanswered requests from a **Pending** view (both apps). Friends are
 mutual once accepted. Each friend row expands to **Edit** (remove the friend) or **Add** (a
 multiselect of your lists + a Viewer/Collaborator role → sends a list-join request per selected
 list; lists they already belong to are pre-selected). Removing a friend affects both parties.
 **Web.** `/friends` page (`AddFriendForm`, `FriendRow`) with a **Requests** link → `/friends/requests`
-page; `friends.*` procedures (`list`, `sendRequest`, `accept`, `decline`, `cancel`, `remove`,
-`addToLists`, `friendListIds`). `friends.list` returns `{ friends, incoming, outgoing }`.
+(incoming: accept/decline) and a **Pending** link → `/friends/pending` (outgoing: withdraw via
+`cancelFriendRequest`); `friends.*` procedures (`list`, `sendRequest`, `accept`, `decline`, `cancel`,
+`remove`, `addToLists`, `friendListIds`). `friends.list` returns `{ friends, incoming, outgoing }`.
 **Mobile.** `src/app/(tabs)/friends.tsx` (Friends tab) with **Requests** and **Pending** links
 (just under the header) → pushed `src/app/friend-requests.tsx` (incoming: accept/decline) and
 `src/app/pending-requests.tsx` (outgoing: cancel); same `friends.*` procedures; friend rows link to
