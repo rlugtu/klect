@@ -9,7 +9,7 @@ import { THEME_TOKENS } from '@/theme/tokens';
  * A frosted-glass overlay pinned to the top of a tab screen, spanning the status-bar
  * safe area. Mirrors the floating tab bar so screen content scrolls *under* a
  * translucent, blurred status bar instead of a solid bg-colored strip. The native
- * blur needs a device build to render; until then the translucent `panel` fallback
+ * blur needs a device build to render; until then the translucent `bg` fallback
  * keeps it reading as glass. Pair with a `SafeAreaView` that drops its `top` edge and
  * a scroll container padded by the top inset.
  */
@@ -27,11 +27,13 @@ export default function FloatingStatusBar() {
         {
           height: insets.top,
           borderBottomColor: t.border,
-          backgroundColor: t.panel + (isDark ? '99' : 'B3'),
+          // Tint with the app background (not the lighter panel) so the strip reads as
+          // the same color as the content behind it, just frosted.
+          backgroundColor: t.bg + (isDark ? '99' : 'B3'),
         },
       ]}>
       <BlurView
-        intensity={40}
+        intensity={25}
         tint={isDark ? 'dark' : 'light'}
         style={StyleSheet.absoluteFill}
       />

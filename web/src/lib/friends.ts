@@ -53,6 +53,15 @@ export function getIncomingFriendRequests(userId: string) {
   });
 }
 
+/** Pending friend requests the user has sent, awaiting acceptance (newest first). */
+export function getOutgoingFriendRequests(userId: string) {
+  return prisma.friendship.findMany({
+    where: { requesterId: userId, status: "PENDING" },
+    orderBy: { createdAt: "desc" },
+    include: { addressee: { select: friendUserSelect } },
+  });
+}
+
 /** Of the given list ids, which the friend already belongs to (used to pre-select). */
 export async function getFriendListIds(friendId: string, listIds: string[]) {
   if (listIds.length === 0) return [];
