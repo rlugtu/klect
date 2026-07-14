@@ -42,12 +42,15 @@ export function ListControls({
   defaults,
   deleteAction,
   shareChildren,
+  visibilityChildren,
   pollsHref,
 }: {
   editAction: (formData: FormData) => void | Promise<void>;
   defaults: ListDefaults;
   deleteAction?: (formData: FormData) => void | Promise<void>;
   shareChildren?: ReactNode;
+  /** Owner-only public/private control, rendered inside the edit panel. */
+  visibilityChildren?: ReactNode;
   pollsHref?: string;
 }) {
   const [editOpen, setEditOpen] = useState(false);
@@ -92,6 +95,14 @@ export function ListControls({
             defaults={defaults}
             submitLabel="Save"
           />
+          {visibilityChildren && (
+            <div className="border-border flex flex-col gap-2 border-t-2 pt-4">
+              <span className="font-pixel text-muted text-sm uppercase">
+                Visibility
+              </span>
+              {visibilityChildren}
+            </div>
+          )}
           {deleteAction && (
             <div className="border-border flex flex-col gap-2 border-t-2 pt-4">
               <span className="font-pixel text-muted text-sm uppercase">

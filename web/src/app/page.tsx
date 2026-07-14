@@ -2,15 +2,16 @@ import Link from "next/link";
 import { requireOnboardedUser } from "@/lib/session";
 import { getUserLists } from "@/lib/lists";
 import { getBookmarksByTags } from "@/lib/bookmarks";
+import { getIncomingRequests } from "@/lib/sharing";
 import { getUserTags } from "@/lib/tags";
 import type { ListCardData } from "@/lib/types";
 import { CreateListPanel } from "@/components/lists/CreateListPanel";
 import { HomeLists } from "@/components/lists/HomeLists";
 import { SearchBar } from "@/components/search/SearchBar";
 import { BookmarkCard } from "@/components/bookmarks/BookmarkCard";
-import { CollabRequests } from "@/components/sharing/CollabRequests";
 import { PixelButton } from "@/components/ui/PixelButton";
-import { Settings, MapPin, Users, User } from "lucide-react";
+import { PixelBadge } from "@/components/ui/PixelBadge";
+import { Settings, MapPin, Users, User, Inbox } from "lucide-react";
 
 function parseTags(raw: string | undefined): string[] {
   if (!raw) return [];
@@ -32,9 +33,10 @@ export default async function Home({
   const user = await requireOnboardedUser();
   const selectedTags = parseTags((await searchParams).tags);
 
-  const [memberships, userTags] = await Promise.all([
+  const [memberships, userTags, incomingRequests] = await Promise.all([
     getUserLists(user.id),
     getUserTags(user.id),
+    getIncomingRequests(user.email),
   ]);
   const tagOptions = userTags.map((t) => t.name);
   const tagColors = Object.fromEntries(userTags.map((t) => [t.name, t.color]));
@@ -99,6 +101,19 @@ export default async function Home({
         </div>
       </header>
 
+      <div className="flex justify-start">
+        <Link href="/requests">
+          <PixelButton variant="secondary" size="sm">
+            <Inbox size={14} aria-hidden /> List requests
+            {incomingRequests.length > 0 && (
+              <PixelBadge tone="accent" className="ml-1 px-1.5 py-0">
+                {incomingRequests.length}
+              </PixelBadge>
+            )}
+          </PixelButton>
+        </Link>
+      </div>
+
       <SearchBar
         lists={listOptions}
         tags={tagOptions}
@@ -137,7 +152,6 @@ export default async function Home({
         </section>
       ) : (
         <>
-          <CollabRequests email={user.email} />
           <div className="flex flex-wrap items-start justify-between gap-3">
             <CreateListPanel />
             <Link href="/bookmarks/new">

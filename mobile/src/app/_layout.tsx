@@ -2,6 +2,7 @@ import '@/global.css';
 
 import { useEffect } from 'react';
 import { Stack, useRouter } from 'expo-router';
+import { StatusBar } from 'expo-status-bar';
 import {
   ShareIntentProvider,
   useShareIntentContext,
@@ -68,6 +69,9 @@ function AppStack() {
   const theme = useTheme().theme;
   const t = THEME_TOKENS[theme];
   return (
+    <>
+    {/* Translucent status bar so screens render under a frosted top bar. */}
+    <StatusBar style={theme.endsWith('DARK') ? 'light' : 'dark'} translucent />
     <Stack
       screenOptions={{
         headerStyle: { backgroundColor: t.bg },
@@ -104,7 +108,10 @@ function AppStack() {
       />
       <Stack.Screen name="polls/[pollId]" options={{ title: 'Poll' }} />
       <Stack.Screen name="users/[id]" options={{ title: 'Profile' }} />
+      <Stack.Screen name="requests" options={{ title: 'List requests' }} />
+      <Stack.Screen name="friend-requests" options={{ title: 'Friend requests' }} />
     </Stack>
+    </>
   );
 }
 

@@ -1,5 +1,5 @@
 import { useCallback, useMemo, useRef, useState } from 'react';
-import { FlatList, Pressable, Switch, Text, TextInput, View } from 'react-native';
+import { FlatList, Pressable, Text, TextInput, View } from 'react-native';
 import {
   Stack,
   useFocusEffect,
@@ -87,19 +87,8 @@ export default function ListScreen() {
 
   const description = access?.list.description ?? '';
   const isMember = access?.isMember ?? false;
-  const isOwner = isMember && access?.role === 'OWNER';
   const canEdit =
     isMember && (access?.role === 'OWNER' || access?.role === 'COLLABORATOR');
-
-  async function toggleVisibility(next: boolean) {
-    if (!id || !access) return;
-    setAccess({ ...access, list: { ...access.list, isPublic: next } });
-    try {
-      await trpc.lists.setVisibility.mutate({ listId: id, isPublic: next });
-    } catch {
-      setAccess({ ...access, list: { ...access.list, isPublic: !next } });
-    }
-  }
 
   return (
     <View className="flex-1 bg-bg">
@@ -182,25 +171,6 @@ export default function ListScreen() {
               </View>
             )}
 
-            {isOwner && (
-              <View className="flex-row items-center justify-between rounded-skin border-skin border-border px-4 py-3">
-                <View className="flex-1 pr-3">
-                  <Text className="font-sans-medium text-ink">
-                    {access?.list.isPublic ? 'Public list' : 'Private list'}
-                  </Text>
-                  <Text className="font-sans text-xs text-muted">
-                    {access?.list.isPublic
-                      ? 'Anyone can view it and it shows on your profile.'
-                      : 'Only members can view it.'}
-                  </Text>
-                </View>
-                <Switch
-                  value={access?.list.isPublic ?? false}
-                  onValueChange={toggleVisibility}
-                  trackColor={{ true: t.primary }}
-                />
-              </View>
-            )}
 
             <View className="flex-row items-center gap-2">
               <TextInput

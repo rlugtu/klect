@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Pressable, Text, TextInput, View } from 'react-native';
+import { Pressable, Switch, Text, TextInput, View } from 'react-native';
 
 import { trpc } from '@/client/api';
 import { useTheme } from '@/theme/theme-provider';
@@ -17,6 +17,9 @@ type Props = {
   newListNames: string[];
   onAddNewList: (name: string) => void;
   onRemoveNewList: (name: string) => void;
+  /** Visibility applied to lists created inline (only shown when there are any). */
+  newListsPublic: boolean;
+  onToggleNewListsPublic: (value: boolean) => void;
 };
 
 /**
@@ -31,9 +34,12 @@ export function ListPicker({
   newListNames,
   onAddNewList,
   onRemoveNewList,
+  newListsPublic,
+  onToggleNewListsPublic,
 }: Props) {
   const { theme } = useTheme();
-  const muted = THEME_TOKENS[theme].muted;
+  const t = THEME_TOKENS[theme];
+  const muted = t.muted;
   const [draft, setDraft] = useState('');
 
   // Only lists the user can add bookmarks to (COLLABORATOR+). Matches web's role filter.
@@ -73,18 +79,31 @@ export function ListPicker({
       )}
 
       {newListNames.length > 0 && (
-        <View className="flex-row flex-wrap gap-2">
-          {newListNames.map((name) => (
-            <Pressable
-              key={name}
-              onPress={() => onRemoveNewList(name)}
-              className="flex-row items-center gap-1.5 rounded-skin-sm border-skin border-primary bg-primary/20 px-2 py-1">
-              <Text className="text-sm text-ink" numberOfLines={1}>
-                📁 {name} (new)
-              </Text>
-              <Text className="text-sm text-muted">✕</Text>
-            </Pressable>
-          ))}
+        <View className="gap-2">
+          <View className="flex-row flex-wrap gap-2">
+            {newListNames.map((name) => (
+              <Pressable
+                key={name}
+                onPress={() => onRemoveNewList(name)}
+                className="flex-row items-center gap-1.5 rounded-skin-sm border-skin border-primary bg-primary/20 px-2 py-1">
+                <Text className="text-sm text-ink" numberOfLines={1}>
+                  📁 {name} (new)
+                </Text>
+                <Text className="text-sm text-muted">✕</Text>
+              </Pressable>
+            ))}
+          </View>
+          <View className="flex-row items-center justify-between rounded-skin border-skin border-border px-4 py-2.5">
+            <Text className="flex-1 pr-3 text-sm text-muted">
+              Make {newListNames.length === 1 ? 'the new list' : 'new lists'} public
+              (anyone can view). Off = private.
+            </Text>
+            <Switch
+              value={newListsPublic}
+              onValueChange={onToggleNewListsPublic}
+              trackColor={{ true: t.primary }}
+            />
+          </View>
         </View>
       )}
 

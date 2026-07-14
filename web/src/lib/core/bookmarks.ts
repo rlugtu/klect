@@ -169,6 +169,7 @@ export async function createBookmarkInLists(
   existingListIds: string[],
   newListNames: string[],
   input: BookmarkInput,
+  newListsPublic = false,
 ) {
   const fields = normalizeFields(input);
   const tagNames = normalizeTagNames(input.tagNames);
@@ -184,10 +185,11 @@ export async function createBookmarkInLists(
     await assertRole(userId, listId, "COLLABORATOR");
   }
 
-  // Create any new lists (owned by the user), collecting their ids.
+  // Create any new lists (owned by the user), collecting their ids. The
+  // bookmark-create flow's Public/Private toggle sets these new lists' visibility.
   const targetIds = [...existing];
   for (const name of newNames) {
-    const list = await createListRecord(userId, { name });
+    const list = await createListRecord(userId, { name, isPublic: newListsPublic });
     targetIds.push(list.id);
   }
 

@@ -1,8 +1,9 @@
 import { Pressable, Text, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import Animated from 'react-native-reanimated';
 
 import { authClient, clearBearerToken } from '@/client/auth';
+import FloatingStatusBar from '@/components/floating-status-bar';
 import { useTheme } from '@/theme/theme-provider';
 import { THEME_TOKENS, type ThemeName } from '@/theme/tokens';
 import { useTabBarScrollHandler } from '@/theme/tab-bar-scroll';
@@ -19,14 +20,20 @@ const THEME_LABELS: Record<ThemeName, string> = {
 export default function SettingsScreen() {
   const { theme, setTheme } = useTheme();
   const { data: session } = authClient.useSession();
+  const insets = useSafeAreaInsets();
   const onScroll = useTabBarScrollHandler();
 
   return (
-    <SafeAreaView style={{ flex: 1 }} className="bg-bg">
+    <SafeAreaView style={{ flex: 1 }} edges={['left', 'right']} className="bg-bg">
       <Animated.ScrollView
         onScroll={onScroll}
         scrollEventThrottle={16}
-        contentContainerStyle={{ padding: 16, paddingBottom: 120, gap: 20 }}>
+        contentContainerStyle={{
+          padding: 16,
+          paddingTop: insets.top + 16,
+          paddingBottom: 120,
+          gap: 20,
+        }}>
         <Text className="text-2xl font-bold text-ink">Settings</Text>
 
         <View className="gap-2">
@@ -78,6 +85,7 @@ export default function SettingsScreen() {
           <Text className="font-semibold text-danger">Sign out</Text>
         </Pressable>
       </Animated.ScrollView>
+      <FloatingStatusBar />
     </SafeAreaView>
   );
 }

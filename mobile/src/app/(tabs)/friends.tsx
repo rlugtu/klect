@@ -7,11 +7,13 @@ import {
   TextInput,
   View,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import Animated from 'react-native-reanimated';
+import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect, useRouter } from 'expo-router';
 
 import { trpc } from '@/client/api';
+import FloatingStatusBar from '@/components/floating-status-bar';
 import { useTheme } from '@/theme/theme-provider';
 import { THEME_TOKENS } from '@/theme/tokens';
 import { cardShadow } from '@/theme/shadows';
@@ -29,6 +31,8 @@ const displayName = (u: { displayName: string | null; name: string | null; email
 export default function FriendsScreen() {
   const { theme } = useTheme();
   const muted = THEME_TOKENS[theme].muted;
+  const router = useRouter();
+  const insets = useSafeAreaInsets();
   const onScroll = useTabBarScrollHandler();
 
   const [data, setData] = useState<FriendsData>({ friends: [], incoming: [] });
@@ -69,16 +73,6 @@ export default function FriendsScreen() {
     setBusy(false);
   }
 
-  async function accept(id: string) {
-    await trpc.friends.accept.mutate({ id });
-    load();
-  }
-
-  async function decline(id: string) {
-    await trpc.friends.decline.mutate({ id });
-    load();
-  }
-
   function confirmRemove(id: string) {
     Alert.alert('Remove friend?', 'You can add them again later.', [
       { text: 'Cancel', style: 'cancel' },
@@ -96,12 +90,17 @@ export default function FriendsScreen() {
   return (
     <SafeAreaView
       style={{ flex: 1 }}
-      edges={['top', 'left', 'right']}
+      edges={['left', 'right']}
       className="bg-bg">
       <Animated.ScrollView
         onScroll={onScroll}
         scrollEventThrottle={16}
-        contentContainerStyle={{ padding: 16, paddingBottom: 120, gap: 20 }}>
+        contentContainerStyle={{
+          padding: 16,
+          paddingTop: insets.top + 16,
+          paddingBottom: 120,
+          gap: 20,
+        }}>
         <Text className="font-serif text-3xl text-ink">Friends</Text>
 
         <View className="gap-2">
@@ -131,36 +130,27 @@ export default function FriendsScreen() {
           {msg && <Text className="font-sans text-muted">{msg}</Text>}
         </View>
 
-        {!loaded && <ActivityIndicator />}
-
-        {data.incoming.length > 0 && (
-          <View className="gap-2">
-            <Text className="text-sm uppercase text-muted">
-              Friend requests
-            </Text>
-            {data.incoming.map((req) => (
-              <View
-                key={req.id}
-                className="flex-row items-center justify-between rounded-skin border-skin border-border bg-panel p-3">
-                <View className="flex-1 pr-2">
-                  <Text className="font-sans-medium text-base text-ink">
-                    {req.requester.icon ? `${req.requester.icon} ` : ''}
-                    {displayName(req.requester)}
-                  </Text>
-                  <Text className="text-xs text-muted">{req.requester.email}</Text>
-                </View>
-                <View className="flex-row items-center gap-3">
-                  <Pressable onPress={() => decline(req.id)} hitSlop={8}>
-                    <Text className="text-muted">Decline</Text>
-                  </Pressable>
-                  <Pressable onPress={() => accept(req.id)} hitSlop={8}>
-                    <Text className="font-sans-semibold text-primary">Accept</Text>
-                  </Pressable>
-                </View>
-              </View>
-            ))}
+        {/* Always-visible entry to the full friend-requests view. */}
+        <Pressable
+          onPress={() => router.push('/friend-requests')}
+          className="flex-row items-center justify-between rounded-skin border-skin border-border bg-panel px-4 py-3">
+          <View className="flex-row items-center gap-2">
+            <Ionicons name="file-tray-outline" size={18} color={muted} />
+            <Text className="font-sans-medium text-ink">Friend requests</Text>
           </View>
-        )}
+          <View className="flex-row items-center gap-2">
+            {data.incoming.length > 0 && (
+              <View className="rounded-full bg-primary px-2 py-0.5">
+                <Text className="font-sans-semibold text-xs text-primary-ink">
+                  {data.incoming.length}
+                </Text>
+              </View>
+            )}
+            <Ionicons name="chevron-forward" size={16} color={muted} />
+          </View>
+        </Pressable>
+
+        {!loaded && <ActivityIndicator />}
 
         <View className="gap-2">
           <Text className="text-sm uppercase text-muted">Your friends</Text>
@@ -180,6 +170,7 @@ export default function FriendsScreen() {
           ))}
         </View>
       </Animated.ScrollView>
+      <FloatingStatusBar />
     </SafeAreaView>
   );
 }

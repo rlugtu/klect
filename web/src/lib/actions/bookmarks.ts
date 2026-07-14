@@ -50,6 +50,7 @@ export async function createBookmarkInLists(
     existingListIds,
     newListNames,
     bookmarkInputFromFormData(formData),
+    formData.get("newListsPublic") === "on",
   );
 
   revalidatePath("/");

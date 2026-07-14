@@ -40,6 +40,7 @@ export const bookmarksRouter = router({
         existingListIds: z.array(z.string()),
         newListNames: z.array(z.string()),
         data: bookmarkInput,
+        newListsPublic: z.boolean().optional(),
       }),
     )
     .mutation(({ ctx, input }) =>
@@ -48,6 +49,7 @@ export const bookmarksRouter = router({
         input.existingListIds,
         input.newListNames,
         input.data,
+        input.newListsPublic ?? false,
       ),
     ),
 

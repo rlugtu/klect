@@ -42,9 +42,12 @@ only palette/skin/font differ, the screen *structure* is shared. Style with the 
 ## Stack
 Expo SDK 54 (RN 0.81, React 19), expo-router (file-based routes in `src/app`; standard `Tabs`),
 react-native-reanimated 4 + gesture-handler, `expo-image`, **NativeWind**, `@trpc/client`,
-`@better-auth/expo`, **`@gorhom/bottom-sheet`** (tag filter), **expo-font + `@expo-google-fonts/*`**
+`@better-auth/expo`, **`@gorhom/bottom-sheet`** (tag filter),
+**`react-native-reorderable-list`** (drag-to-reorder lists on home; JS-only, builds on reanimated +
+gesture-handler), **expo-font + `@expo-google-fonts/*`**
 (Newsreader, Work Sans), `@expo/vector-icons` (tab icons), **`expo-blur`** (frosted glass behind
-the floating tab bar — needs a native build to render), `expo-location`, `expo-secure-store`,
+the floating tab bar **and the status bar** — needs a native build to render), `expo-location`,
+`expo-secure-store`,
 **`expo-share-intent`** (native share extension — share a URL into the app to create a bookmark;
 requires the custom dev build noted above), **`expo-video` + `react-native-webview`** (bookmark
 detail video player — `expo-video` for direct media files, a WebView-hosted iframe for
