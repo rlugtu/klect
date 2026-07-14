@@ -137,6 +137,8 @@ export default function ListScreen() {
         }}
         ListHeaderComponent={
           <View className="gap-3 pb-1">
+            <Text className="font-serif text-3xl text-ink">{name ?? 'List'}</Text>
+
             {description.trim() !== '' && (
               <Text className="font-sans text-muted">{description}</Text>
             )}

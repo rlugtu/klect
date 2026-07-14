@@ -82,15 +82,20 @@ export default function PollListScreen() {
           />
         }
         ListHeaderComponent={
-          canCreate ? (
-            <Pressable
-              onPress={() =>
-                router.push({ pathname: '/polls/new', params: { listId, listName } })
-              }
-              className="items-center rounded-skin bg-primary py-3">
-              <Text className="font-sans-semibold text-primary-ink">Create poll</Text>
-            </Pressable>
-          ) : null
+          <View className="gap-3">
+            <Text className="font-serif text-3xl text-ink">Polls</Text>
+            {canCreate && (
+              <Pressable
+                onPress={() =>
+                  router.push({ pathname: '/polls/new', params: { listId, listName } })
+                }
+                className="items-center rounded-skin bg-primary py-3">
+                <Text className="font-sans-semibold text-primary-ink">
+                  Create poll
+                </Text>
+              </Pressable>
+            )}
+          </View>
         }
         ListEmptyComponent={
           loading ? null : error ? (

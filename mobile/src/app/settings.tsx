@@ -30,6 +30,8 @@ export default function SettingsScreen() {
           paddingBottom: 32,
           gap: 20,
         }}>
+        <Text className="font-serif text-3xl text-ink">Settings</Text>
+
         <View className="gap-2">
           <Text className="text-sm uppercase text-muted">Account</Text>
           <View className="rounded-skin border-skin border-border bg-panel p-3">

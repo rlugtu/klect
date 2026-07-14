@@ -49,6 +49,8 @@ export default function PendingRequestsScreen() {
           paddingBottom: 40,
           gap: 12,
         }}>
+        <Text className="font-serif text-3xl text-ink">Pending requests</Text>
+
         {!loading && outgoing.length === 0 && (
           <Text className="font-serif-italic text-muted">
             No pending requests. Requests you send appear here until they&apos;re

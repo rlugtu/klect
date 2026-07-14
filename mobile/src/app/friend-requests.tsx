@@ -50,6 +50,8 @@ export default function FriendRequestsScreen() {
           paddingBottom: 40,
           gap: 12,
         }}>
+        <Text className="font-serif text-3xl text-ink">Friend requests</Text>
+
         {!loading && incoming.length === 0 && (
           <Text className="font-serif-italic text-muted">
             No pending friend requests. When someone adds you, it shows up here

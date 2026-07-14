@@ -46,6 +46,8 @@ export default function RequestsScreen() {
           paddingBottom: 40,
           gap: 12,
         }}>
+        <Text className="font-serif text-3xl text-ink">List requests</Text>
+
         {!loading && requests.length === 0 && (
           <Text className="font-serif-italic text-muted">
             No open list requests. When someone invites you to a list, it shows

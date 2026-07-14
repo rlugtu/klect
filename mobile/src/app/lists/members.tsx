@@ -131,6 +131,8 @@ export default function MembersScreen() {
       contentContainerStyle={{ padding: 16, paddingTop: headerHeight + 8, gap: 20 }}>
       <Stack.Screen options={{ title: 'Members' }} />
 
+      <Text className="font-serif text-3xl text-ink">Members</Text>
+
       {!loaded && <ActivityIndicator />}
 
       {isOwner && (

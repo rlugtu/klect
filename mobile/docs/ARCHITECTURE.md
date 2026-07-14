@@ -92,18 +92,24 @@ Everything else hot-reloads normally against the dev client.
 
 **expo-router** (file-based, `src/app/`, `experiments.typedRoutes`). Root `_layout.tsx` renders
 `AppStack` — a `Stack` extracted into a child of the app `ThemeProvider` so its `screenOptions` can
-read the active palette. Full-screen pushed screens use a **frosted glass header** that matches the
-tab screens' floating status bar: `headerTransparent: true` + a `headerBackground` rendering
-`components/header-blur-background.tsx` (the same `expo-blur` `BlurView` + a light `bg` tint —
-~40% in light / ~35% in dark, so the bar leans on the blur and stays see-through — the floating status
-bar uses the same shared surface, so home and pushed pages read identically). There's no
-shadow (`headerShadowVisible: false`), the title is `ink` in Newsreader, the back button is
-chevron-only (`headerBackButtonDisplayMode: 'minimal'` — no route-name text), and the tint (back
-chevron) is `primary`. Because the header is transparent, each full-screen screen **pads its scroll
-container by `useHeaderHeight() + 8`** so content scrolls *under* the frosted bar. The `(tabs)` group
-is a bottom `Tabs` navigator. Editors are presented as **modals** (`presentation: 'modal'`) and keep
-a **solid** header (they override `headerTransparent` back off — a modal card has no room to scroll
-under a translucent bar).
+read the active palette. Full-screen pushed screens use a **fully transparent, gradient-blur header**
+that matches the tab screens' floating status bar: `headerTransparent: true` + a `headerBackground`
+rendering `components/header-blur-background.tsx`. That surface has **no solid tint and no bottom
+border** — it's an `expo-blur` `BlurView` masked by a top→bottom alpha gradient
+(`expo-linear-gradient` + `@react-native-masked-view/masked-view`) so the blur **fades out
+gradually** instead of ending on a hard line. The floating status bar uses the same shared surface,
+so home and pushed pages read identically. There's no shadow (`headerShadowVisible: false`), and
+**no centered title** — every non-modal pushed screen sets `headerTitle: () => null` (the shared
+`blankTitle` option in `_layout.tsx`) so the back chevron + any header-right button appear to *float*.
+The page name instead lives in the **scrolling page body** (a `font-serif text-3xl` heading at the
+top of the content — screens whose name was header-only, like list detail / members / polls / settings
+/ the three request views, gained one; bookmark detail, poll detail, and profiles already rendered
+theirs). The back button is chevron-only (`headerBackButtonDisplayMode: 'minimal'` — no route-name
+text) and the tint (back chevron) is `primary`. Because the header is transparent, each full-screen
+screen **pads its scroll container by `useHeaderHeight() + 8`** so content scrolls *under* the blur.
+The `(tabs)` group is a bottom `Tabs` navigator. Editors are presented as **modals**
+(`presentation: 'modal'`) and keep a **solid, titled** header (they override `headerTransparent` back
+off — a modal card has no room to scroll under a translucent bar).
 
 - **Tabs** (`(tabs)/_layout.tsx`, Ionicons), left→right: **Nearby**, **Create** (＋), **Lists**
   (`index`), **Friends**, **Profile** — order is deliberate so **Lists sits dead-center** of the
@@ -121,11 +127,11 @@ under a translucent bar).
   pads its bottom to clear the pill. (Real blur needs a native build; dev shows the fallback.)
 - **Frosted status bar.** Tab screens drop the `top` safe-area edge, pad their scroll content by the
   top inset, and render `components/floating-status-bar.tsx` — a top-pinned strip whose glass surface
-  is `components/header-blur-background.tsx` (an `expo-blur` `BlurView` + translucent `bg` tint,
-  mirroring the tab bar) so content scrolls **under** a translucent, blurred status bar instead of a
-  solid bg strip. A theme-aware `expo-status-bar` `<StatusBar>` (translucent, light/dark by theme)
-  lives in the root `AppStack`. Full-screen **pushed** screens get the same frosted look via the
-  transparent navigation header described above (same `header-blur-background` surface), so every
+  is `components/header-blur-background.tsx` (an `expo-blur` `BlurView` masked to a top→bottom
+  gradient fade, no tint or border) so content scrolls **under** a blurred status bar that tapers off
+  instead of ending on a hard line. A theme-aware `expo-status-bar` `<StatusBar>` (translucent,
+  light/dark by theme) lives in the root `AppStack`. Full-screen **pushed** screens get the same look
+  via the transparent navigation header described above (same `header-blur-background` surface), so every
   page's top bar is consistent.
 - **Stack screens**: `lists/[id]` (list detail), `lists/members`, `bookmarks/[id]` (detail),
   `users/[id]` (another user's profile, pushed from friend rows), `requests` (incoming list-join

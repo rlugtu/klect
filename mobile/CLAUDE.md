@@ -46,7 +46,9 @@ react-native-reanimated 4 + gesture-handler, `expo-image`, **NativeWind**, `@trp
 **`react-native-reorderable-list`** (drag-to-reorder lists on home; JS-only, builds on reanimated +
 gesture-handler), **expo-font + `@expo-google-fonts/*`**
 (Newsreader, Work Sans), `@expo/vector-icons` (tab icons), **`expo-blur`** (frosted glass behind
-the floating tab bar **and the status bar** — needs a native build to render), `expo-location`,
+the floating tab bar **and the status bar** — needs a native build to render; the pushed-screen
+header + status bar mask it with **`expo-linear-gradient` + `@react-native-masked-view/masked-view`**
+so the blur fades out gradually with no hard line), `expo-location`,
 `expo-secure-store`,
 **`expo-share-intent`** (native share extension — share a URL into the app to create a bookmark;
 requires the custom dev build noted above), **`expo-video` + `react-native-webview`** (bookmark

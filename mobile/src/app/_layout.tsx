@@ -78,6 +78,9 @@ function AppStack() {
     headerBackground: undefined,
     headerStyle: { backgroundColor: t.bg },
   };
+  // Full-screen pushed pages carry no centered title — the buttons float over the
+  // gradient-blur bar and the page name lives in the scrolling content instead.
+  const blankTitle = { headerTitle: () => null };
   return (
     <>
     {/* Translucent status bar so screens render under a frosted top bar. */}
@@ -96,8 +99,8 @@ function AppStack() {
         contentStyle: { backgroundColor: t.bg },
       }}>
       <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-      <Stack.Screen name="lists/[id]" options={{ title: 'List' }} />
-      <Stack.Screen name="lists/members" options={{ title: 'Members' }} />
+      <Stack.Screen name="lists/[id]" options={{ ...blankTitle }} />
+      <Stack.Screen name="lists/members" options={{ ...blankTitle }} />
       <Stack.Screen
         name="lists/new"
         options={{ ...opaqueModal, title: 'New list' }}
@@ -106,7 +109,7 @@ function AppStack() {
         name="lists/edit"
         options={{ ...opaqueModal, title: 'Edit list' }}
       />
-      <Stack.Screen name="bookmarks/[id]" options={{ title: 'Bookmark' }} />
+      <Stack.Screen name="bookmarks/[id]" options={{ ...blankTitle }} />
       <Stack.Screen
         name="bookmarks/new"
         options={{ ...opaqueModal, title: 'New bookmark' }}
@@ -115,16 +118,17 @@ function AppStack() {
         name="bookmarks/edit"
         options={{ ...opaqueModal, title: 'Edit bookmark' }}
       />
-      <Stack.Screen name="polls/index" options={{ title: 'Polls' }} />
+      <Stack.Screen name="polls/index" options={{ ...blankTitle }} />
       <Stack.Screen
         name="polls/new"
         options={{ ...opaqueModal, title: 'New poll' }}
       />
-      <Stack.Screen name="polls/[pollId]" options={{ title: 'Poll' }} />
-      <Stack.Screen name="users/[id]" options={{ title: 'Profile' }} />
-      <Stack.Screen name="settings" options={{ title: 'Settings' }} />
-      <Stack.Screen name="requests" options={{ title: 'List requests' }} />
-      <Stack.Screen name="friend-requests" options={{ title: 'Friend requests' }} />
+      <Stack.Screen name="polls/[pollId]" options={{ ...blankTitle }} />
+      <Stack.Screen name="users/[id]" options={{ ...blankTitle }} />
+      <Stack.Screen name="settings" options={{ ...blankTitle }} />
+      <Stack.Screen name="requests" options={{ ...blankTitle }} />
+      <Stack.Screen name="friend-requests" options={{ ...blankTitle }} />
+      <Stack.Screen name="pending-requests" options={{ ...blankTitle }} />
     </Stack>
     </>
   );
