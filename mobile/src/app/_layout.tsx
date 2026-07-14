@@ -81,6 +81,9 @@ function AppStack() {
   // Full-screen pushed pages carry no centered title — the buttons float over the
   // gradient-blur bar and the page name lives in the scrolling content instead.
   const blankTitle = { headerTitle: () => null };
+  // Home-style header: fully transparent (just the floating back chevron); the gradual
+  // blur is supplied by the screen's own <FloatingStatusBar /> instead of the header.
+  const transparentHeader = { ...blankTitle, headerBackground: () => null };
   return (
     <>
     {/* Translucent status bar so screens render under a frosted top bar. */}
@@ -124,11 +127,11 @@ function AppStack() {
         options={{ ...opaqueModal, title: 'New poll' }}
       />
       <Stack.Screen name="polls/[pollId]" options={{ ...blankTitle }} />
-      <Stack.Screen name="users/[id]" options={{ ...blankTitle }} />
+      <Stack.Screen name="users/[id]" options={{ ...transparentHeader }} />
       <Stack.Screen name="settings" options={{ ...blankTitle }} />
       <Stack.Screen name="requests" options={{ ...blankTitle }} />
-      <Stack.Screen name="friend-requests" options={{ ...blankTitle }} />
-      <Stack.Screen name="pending-requests" options={{ ...blankTitle }} />
+      <Stack.Screen name="friend-requests" options={{ ...transparentHeader }} />
+      <Stack.Screen name="pending-requests" options={{ ...transparentHeader }} />
     </Stack>
     </>
   );

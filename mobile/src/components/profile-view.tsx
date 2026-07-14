@@ -207,7 +207,9 @@ export default function ProfileView({
           />
         </Pressable>
       )}
-      {frostedStatusBar && <FloatingStatusBar />}
+      {/* Both the own-profile tab and the pushed friend profile (transparent header)
+          take their gradual blur from the status component, home-style. */}
+      <FloatingStatusBar />
     </SafeAreaView>
   );
 }

@@ -6,6 +6,7 @@ import { Stack, useFocusEffect } from 'expo-router';
 import { useHeaderHeight } from '@react-navigation/elements';
 
 import { trpc } from '@/client/api';
+import FloatingStatusBar from '@/components/floating-status-bar';
 import { cardShadow } from '@/theme/shadows';
 
 type FriendsData = Awaited<ReturnType<typeof trpc.friends.list.query>>;
@@ -77,6 +78,7 @@ export default function PendingRequestsScreen() {
           </View>
         ))}
       </Animated.ScrollView>
+      <FloatingStatusBar />
     </SafeAreaView>
   );
 }

@@ -202,19 +202,22 @@ function FriendCard({
   onSubmitted: () => void;
 }) {
   const { theme } = useTheme();
+  const t = THEME_TOKENS[theme];
   const router = useRouter();
-  const [panel, setPanel] = useState<null | 'edit' | 'add'>(null);
+  const [open, setOpen] = useState(false);
   const [selected, setSelected] = useState<string[]>([]);
   const [role, setRole] = useState<InviteRole>('COLLABORATOR');
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
 
-  async function openAdd() {
-    if (panel === 'add') {
-      setPanel(null);
+  // Tapping anywhere on the row opens the actions panel; opening it also loads which
+  // lists this friend already belongs to (to pre-select the "add to lists" chips).
+  async function togglePanel() {
+    if (open) {
+      setOpen(false);
       return;
     }
-    setPanel('add');
+    setOpen(true);
     setMsg(null);
     try {
       const ids = await trpc.friends.friendListIds.query({
@@ -225,6 +228,13 @@ function FriendCard({
     } catch {
       setSelected([]);
     }
+  }
+
+  function viewProfile() {
+    router.push({
+      pathname: '/users/[id]',
+      params: { id: friend.friend.id, name: displayName(friend.friend) },
+    });
   }
 
   function toggle(id: string) {
@@ -245,7 +255,7 @@ function FriendCard({
       if (res.error) {
         setMsg(res.error);
       } else {
-        setPanel(null);
+        setOpen(false);
         onSubmitted();
       }
     } catch (e) {
@@ -258,48 +268,42 @@ function FriendCard({
     <View
       style={cardShadow}
       className="rounded-skin border-skin border-border bg-panel p-3">
-      <View className="flex-row items-center justify-between">
-        <Pressable
-          className="flex-1 pr-2"
-          onPress={() =>
-            router.push({
-              pathname: '/users/[id]',
-              params: {
-                id: friend.friend.id,
-                name: displayName(friend.friend),
-              },
-            })
-          }>
+      {/* The whole row is the toggle for the actions panel. */}
+      <Pressable
+        className="flex-row items-center justify-between"
+        onPress={togglePanel}>
+        <View className="flex-1 pr-2">
           <Text className="font-sans-medium text-base text-ink">
             {friend.friend.icon ? `${friend.friend.icon} ` : ''}
             {displayName(friend.friend)}
           </Text>
           <Text className="text-xs text-muted">{friend.friend.email}</Text>
-        </Pressable>
-        <View className="flex-row items-center gap-4">
-          <Pressable
-            onPress={() => setPanel((p) => (p === 'edit' ? null : 'edit'))}
-            hitSlop={8}>
-            <Text className="text-primary">Edit</Text>
-          </Pressable>
-          <Pressable onPress={openAdd} hitSlop={8}>
-            <Text className="text-primary">Add</Text>
-          </Pressable>
         </View>
-      </View>
+        <Ionicons
+          name={open ? 'chevron-up' : 'chevron-down'}
+          size={18}
+          color={t.muted}
+        />
+      </Pressable>
 
-      {panel === 'edit' && (
-        <View className="mt-3 gap-2 border-t border-border pt-3">
-          <Pressable
-            className="items-center rounded-skin border-skin border-border py-2.5"
-            onPress={onRemove}>
-            <Text className="font-sans-semibold text-danger">Remove friend</Text>
-          </Pressable>
-        </View>
-      )}
-
-      {panel === 'add' && (
+      {open && (
         <View className="mt-3 gap-3 border-t border-border pt-3">
+          {/* Remove + View profile, above the add-to-lists section. */}
+          <View className="flex-row gap-2">
+            <Pressable
+              className="flex-1 flex-row items-center justify-center gap-1.5 rounded-skin border-skin border-border py-2.5"
+              onPress={onRemove}>
+              <Ionicons name="person-remove-outline" size={16} color={t.danger} />
+              <Text className="font-sans-semibold text-danger">Remove</Text>
+            </Pressable>
+            <Pressable
+              className="flex-1 flex-row items-center justify-center gap-1.5 rounded-skin border-skin border-border py-2.5"
+              onPress={viewProfile}>
+              <Ionicons name="person-circle-outline" size={16} color={t.primary} />
+              <Text className="font-sans-semibold text-primary">View profile</Text>
+            </Pressable>
+          </View>
+
           <Text className="text-sm text-muted">Add to lists</Text>
           {ownedLists.length === 0 ? (
             <Text className="text-sm text-muted">You don&apos;t own any lists yet.</Text>
