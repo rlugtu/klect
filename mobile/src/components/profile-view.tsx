@@ -2,10 +2,11 @@ import { useCallback, useState } from 'react';
 import { Pressable, Text, View } from 'react-native';
 import { Image } from 'expo-image';
 import Animated from 'react-native-reanimated';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect, useRouter } from 'expo-router';
 
 import { trpc } from '@/client/api';
+import FloatingStatusBar from '@/components/floating-status-bar';
 import { cardShadow } from '@/theme/shadows';
 import { useTabBarScrollHandler } from '@/theme/tab-bar-scroll';
 
@@ -22,11 +23,15 @@ const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? '' : 's'}`;
 export default function ProfileView({
   userId,
   edges = ['left', 'right'],
+  frostedStatusBar = false,
 }: {
   userId?: string;
   edges?: ('top' | 'left' | 'right' | 'bottom')[];
+  /** Own-profile tab: render content under a frosted status bar (no native header). */
+  frostedStatusBar?: boolean;
 }) {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
 
   const [profile, setProfile] = useState<Profile | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -69,7 +74,12 @@ export default function ProfileView({
       <Animated.ScrollView
         onScroll={onScroll}
         scrollEventThrottle={16}
-        contentContainerStyle={{ padding: 16, paddingBottom: 120, gap: 20 }}>
+        contentContainerStyle={{
+          padding: 16,
+          paddingTop: frostedStatusBar ? insets.top + 16 : 16,
+          paddingBottom: 120,
+          gap: 20,
+        }}>
         {loading && !profile && (
           <Text className="font-sans text-muted">Loading…</Text>
         )}
@@ -167,6 +177,7 @@ export default function ProfileView({
           </>
         )}
       </Animated.ScrollView>
+      {frostedStatusBar && <FloatingStatusBar />}
     </SafeAreaView>
   );
 }

@@ -28,6 +28,7 @@ export default function NewBookmarkScreen() {
   const [lists, setLists] = useState<Memberships>([]);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [newListNames, setNewListNames] = useState<string[]>([]);
+  const [newListsPublic, setNewListsPublic] = useState(false);
 
   // Only the standalone flow needs the list picker.
   useFocusEffect(
@@ -74,6 +75,8 @@ export default function NewBookmarkScreen() {
           onRemoveNewList={(name) =>
             setNewListNames((prev) => prev.filter((x) => x !== name))
           }
+          newListsPublic={newListsPublic}
+          onToggleNewListsPublic={setNewListsPublic}
         />
       }
       onSubmit={async (data) => {
@@ -84,6 +87,7 @@ export default function NewBookmarkScreen() {
           existingListIds: selectedIds,
           newListNames,
           data,
+          newListsPublic,
         });
         router.back();
       }}

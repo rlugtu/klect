@@ -1,11 +1,12 @@
 import { useState } from 'react';
 import { ActivityIndicator, Pressable, Text, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import Animated from 'react-native-reanimated';
 import { useRouter } from 'expo-router';
 import * as Location from 'expo-location';
 
 import { trpc } from '@/client/api';
+import FloatingStatusBar from '@/components/floating-status-bar';
 import TagPill from '@/components/tag-pill';
 import { useTabBarScrollHandler } from '@/theme/tab-bar-scroll';
 
@@ -20,6 +21,7 @@ const formatCoords = (lat: number, lon: number) =>
 
 export default function NearbyScreen() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const onScroll = useTabBarScrollHandler();
   const [radius, setRadius] = useState(5);
   const [items, setItems] = useState<NearbyItem[]>([]);
@@ -65,8 +67,10 @@ export default function NearbyScreen() {
   }
 
   return (
-    <SafeAreaView style={{ flex: 1 }} className="bg-bg">
-      <View className="flex-1 gap-3 px-4 pt-4">
+    <SafeAreaView style={{ flex: 1 }} edges={['left', 'right']} className="bg-bg">
+      <View
+        className="flex-1 gap-3 px-4"
+        style={{ paddingTop: insets.top + 16 }}>
         <Text className="text-2xl font-bold text-ink">Near me</Text>
 
         <View className="flex-row gap-2">
@@ -140,6 +144,7 @@ export default function NearbyScreen() {
           )}
         />
       </View>
+      <FloatingStatusBar />
     </SafeAreaView>
   );
 }

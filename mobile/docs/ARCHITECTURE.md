@@ -110,8 +110,15 @@ text), and the tint (back chevron) is `primary` — mirroring the header-less ho
   `theme/tab-bar-scroll.tsx` (`TabBarScrollProvider` wraps the navigator; each tab's
   `Animated.FlatList`/`Animated.ScrollView` feeds `useTabBarScrollHandler`). Each scroll container
   pads its bottom to clear the pill. (Real blur needs a native build; dev shows the fallback.)
+- **Frosted status bar.** Tab screens drop the `top` safe-area edge, pad their scroll content by the
+  top inset, and render `components/floating-status-bar.tsx` — a top-pinned `expo-blur` `BlurView`
+  (mirroring the tab bar) so content scrolls **under** a translucent, blurred status bar instead of a
+  solid bg strip. A theme-aware `expo-status-bar` `<StatusBar>` (translucent, light/dark by theme)
+  lives in the root `AppStack`. Pushed screens keep their native header (they already occupy that
+  space with a title).
 - **Stack screens**: `lists/[id]` (list detail), `lists/members`, `bookmarks/[id]` (detail),
-  `users/[id]` (another user's profile, pushed from friend rows).
+  `users/[id]` (another user's profile, pushed from friend rows), `requests` (incoming list-join
+  requests), `friend-requests` (incoming friend requests).
 - **Modal screens**: `lists/new`, `lists/edit`, `bookmarks/new`, `bookmarks/edit`.
 - **`+native-intent.tsx`** — `redirectSystemPath` intercepts the Share Extension's re-open deep link
   (`klect://dataUrl=<key>…`, not a real route) and rewrites it to `/`, so expo-router doesn't render
@@ -124,8 +131,15 @@ modal with `router.back()` (or `router.dismissAll()` after leaving a list).
 
 - **Home / Lists** (`(tabs)/index.tsx`) — the user's lists (`lists.mine`) as cards showing icon,
   name, and `_count` bookmark/member counts; client-side name search; header actions **＋ List**
-  (→ `lists/new`) and **＋ Bookmark** (→ `bookmarks/new`, the standalone flow). Cards carry the
-  `cardShadow`.
+  (→ `lists/new`) and **＋ Bookmark** (→ `bookmarks/new`, the standalone flow). A **List requests**
+  button above the search input (with a pending count) opens the pushed `requests` screen. Cards are
+  **drag-reorderable** (`react-native-reorderable-list`): long-press a card to drag; `onReorder`
+  optimistically reorders then persists `lists.reorder`. Dragging is disabled while searching (a plain
+  `FlatList` renders the filtered subset instead). Cards carry the `cardShadow`.
+- **List requests** (`requests.tsx`) — all open incoming list-join requests
+  (`sharing.incomingRequests`) with approve/reject (`approveRequest`/`rejectRequest`).
+- **Friend requests** (`friend-requests.tsx`) — all incoming friend requests (`friends.list().incoming`)
+  with accept/decline (`friends.accept`/`friends.decline`).
 - **List detail** (`lists/[id].tsx`) — bookmark feed (`bookmarks.forList`) as `PhotoCard`s (first
   image, name, description, rating stars, tag pills). The feed always shows a static thumbnail, never
   a player. When the extracted image is missing **or fails to load** (reel `og:image`s are often
@@ -141,7 +155,7 @@ modal with `router.back()` (or `router.dismissAll()` after leaving a list).
   search box has text, and clears **both**. Footer is the list `CommentsSection`. Access comes from
   `lists.get` (`{ list, role, isMember }`): **non-members of a public list** get a read-only view —
   the Add button, action row, and comment composer are all hidden and a "Public · view only" note
-  shows; the **owner** gets a public/private **Switch** (`lists.setVisibility`, optimistic).
+  shows. (The owner's public/private control lives on the **edit** screen, not here.)
 - **Bookmark detail** (`bookmarks/[id].tsx`) — `bookmarks.get` (`{ bookmark, role } | null`): hero
   photos (first image large + a horizontal thumbnail strip for the rest), rating, a **Mark visited**
   toggle (optimistic `bookmarks.toggleVisited`), tags, description, tappable source URLs
@@ -153,15 +167,16 @@ modal with `router.back()` (or `router.dismissAll()` after leaving a list).
   - *In-list* (`?listId=`, from a list's **Add**): saves one bookmark via `bookmarks.create`.
   - *Standalone* (no param, from home **＋ Bookmark**): shows the **list picker** (`ListPicker`) —
     multi-select editable lists (owner/collaborator) **and** create new lists inline — then writes an
-    independent bookmark into every target via `bookmarks.createInLists`. Requires ≥1 target (enforced
-    by throwing from `onSubmit`).
+    independent bookmark into every target via `bookmarks.createInLists`. When lists are created
+    inline, the picker shows a **Public** `Switch` (default off) that sets those new lists' visibility
+    (`newListsPublic`). Requires ≥1 target (enforced by throwing from `onSubmit`).
   Both render the shared `BookmarkForm`. Also accepts a `url` param (from the share intent) — it
   seeds the form's URL and sets `autofillOnMount` so metadata is fetched immediately.
 - **Edit bookmark** (`bookmarks/edit.tsx`) — same `BookmarkForm`, `bookmarks.update`.
 - **New / edit list** (`lists/new.tsx`, `lists/edit.tsx`) — `ListForm` (icon, name, description);
-  create also shows a **Public** `Switch` (`showVisibility`, default off); `lists.create` /
-  `lists.update`; edit also offers **Delete list**. (Visibility on existing lists is toggled on the
-  list detail screen, owner-only — not in the edit form.)
+  both create **and edit** show a **Public** `Switch` (`showVisibility`) — on edit it's shown only to
+  the **owner** and persists via `lists.setVisibility` (metadata still goes through `lists.update`,
+  which ignores `isPublic`); `lists.create` / `lists.update`; edit also offers **Delete list**.
 - **Members** (`lists/members.tsx`) — sharing UI. Owner-only invite by email as **Viewer** or
   **Collaborator** (`sharing.invite`), member list with role toggle + remove (`sharing.changeRole` /
   `sharing.removeMember`), pending-invite revoke (`sharing.pendingInvites` / `sharing.revokeInvite`);

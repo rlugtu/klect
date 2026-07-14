@@ -7,10 +7,10 @@ import {
   getFriendsListIds,
 } from "@/lib/friends";
 import { AddFriendForm } from "@/components/friends/AddFriendForm";
-import { FriendRequests } from "@/components/friends/FriendRequests";
 import { FriendRow } from "@/components/friends/FriendRow";
 import { PixelButton } from "@/components/ui/PixelButton";
-import { ArrowLeft } from "lucide-react";
+import { PixelBadge } from "@/components/ui/PixelBadge";
+import { ArrowLeft, Inbox } from "lucide-react";
 
 export default async function FriendsPage() {
   const user = await requireOnboardedUser();
@@ -39,11 +39,19 @@ export default async function FriendsPage() {
           </PixelButton>
         </Link>
         <h1 className="text-primary text-xl font-bold">Friends</h1>
+        <Link href="/friends/requests" className="ml-auto">
+          <PixelButton variant="secondary" size="sm">
+            <Inbox size={14} aria-hidden /> Requests
+            {incoming.length > 0 && (
+              <PixelBadge tone="accent" className="ml-1 px-1.5 py-0">
+                {incoming.length}
+              </PixelBadge>
+            )}
+          </PixelButton>
+        </Link>
       </header>
 
       <AddFriendForm />
-
-      <FriendRequests requests={incoming} />
 
       <section className="flex flex-col gap-3">
         {friends.length === 0 ? (

@@ -68,7 +68,7 @@ with a link or a location.
 | Onboarding (profile setup) | ✅ | ✅ | Name, emoji avatar, theme |
 | Lists — CRUD | ✅ | ✅ | |
 | Lists — public/private visibility | ✅ | ✅ | Owner-only toggle; **private by default**; public = read-only for anyone (`lists.setVisibility`) |
-| Lists — drag-reorder | ✅ | ➖ | Web-only; per-user order (`lists.reorder`) |
+| Lists — drag-reorder | ✅ | ✅ | Per-user order (`lists.reorder`); web: Framer Motion · mobile: long-press drag (`react-native-reorderable-list`) |
 | Home search | ⚠️ | ⚠️ | Web: unified list + cross-list tag filter · Mobile: local name search |
 | Bookmarks — CRUD & fields | ✅ | ✅ | URLs, images, notes, rating, visited, location, tags |
 | Standalone multi-list bookmark create | ✅ | ✅ | One independent copy per selected list |
@@ -136,8 +136,10 @@ mutations stay gated by `assertRole`. Toggling is separate from list edit — `l
 **Description.** Reorder your lists on the home screen; the order is saved per-user.
 **Web.** Framer-Motion `Reorder` in `HomeLists`, debounced `reorderLists` → `lists.reorder`
 (persists `ListMembership.position`).
-**Mobile.** ➖ Not implemented — mobile never calls `lists.reorder`.
-**Differences.** **Web-only.**
+**Mobile.** `react-native-reorderable-list` on the home screen (`(tabs)/index.tsx`): long-press a
+card to drag; `onReorder` optimistically updates then persists `lists.reorder`. Dragging is
+disabled while a search query is active (reordering a filtered subset is ambiguous).
+**Differences.** Same procedure + persistence; different drag implementation per platform.
 
 ### Home search
 **Description.** Find lists and bookmarks from the home screen.
@@ -160,9 +162,13 @@ surface (notes, coords, video, extra URLs).
 
 ### Standalone multi-list bookmark creation
 **Description.** Create one bookmark and drop an **independent copy into several lists at once**
-(separate tags per copy, no shared edits afterward).
-**Web.** `/bookmarks/new` → `CreateBookmarkFlow` (pick/create lists) → `bookmarks.createInLists`.
-**Mobile.** `bookmarks/new.tsx` with no `listId` param → `ListPicker` → `bookmarks.createInLists`.
+(separate tags per copy, no shared edits afterward). When you create lists inline during this flow,
+a **Public/Private toggle** (default private) sets those new lists' visibility — threaded through as
+`newListsPublic` to `createBookmarkInLists` → `createListRecord`.
+**Web.** `/bookmarks/new` → `CreateBookmarkFlow` (pick/create lists + new-list visibility toggle) →
+`bookmarks.createInLists`.
+**Mobile.** `bookmarks/new.tsx` with no `listId` param → `ListPicker` (with the new-list visibility
+toggle) → `bookmarks.createInLists`.
 **Differences.** None — same procedure, same behavior.
 
 ### Link metadata autofill
@@ -222,27 +228,29 @@ filtering on the home screen.
 ### Sharing & permissions
 **Description.** Invite people to a list as **Viewer** (view + comment) or **Collaborator** (edit +
 comment); the **Owner** manages membership. Inviting sends a **join request** — nobody is added
-until the invitee **approves** it (or **rejects** it) from the **collab requests** section on their
-home page. Invites to non-existent emails stay pending and surface as a request when they sign up
-(no auto-join). Inviting a non-friend also offers to send them a friend request. Non-owners can
-leave a shared list.
-**Web.** `MembersPanel` + `CollabRequests` (home) + `/invite/[token]`; `sharing.*` procedures
-(`invite`, `incomingRequests`, `approveRequest`, `rejectRequest`, …); `assertRole` enforced on every
-mutation server-side.
-**Mobile.** `src/app/lists/members.tsx` + a collab-requests section on `(tabs)/index.tsx`, same
-`sharing.*` procedures.
+until the invitee **approves** it (or **rejects** it) from a dedicated **List requests** view
+reached by a button above the home search. Invites to non-existent emails stay pending and surface
+as a request when they sign up (no auto-join). Inviting a non-friend also offers to send them a
+friend request. Non-owners can leave a shared list.
+**Web.** `MembersPanel` + `/requests` page (linked from a home button) + `/invite/[token]`;
+`sharing.*` procedures (`invite`, `incomingRequests`, `approveRequest`, `rejectRequest`, …);
+`assertRole` enforced on every mutation server-side.
+**Mobile.** `src/app/lists/members.tsx` + a pushed `src/app/requests.tsx` screen (reached from a
+**List requests** button above the home search), same `sharing.*` procedures.
 **Differences.** None — permission logic is server-side and shared.
 
 ### Friends
 **Description.** Add another user by **email** to send a **friend request**; they **accept** or
-**decline** it. Friends are mutual once accepted. Each friend row expands to **Edit** (remove the
-friend) or **Add** (a multiselect of your lists + a Viewer/Collaborator role → sends a list-join
-request per selected list; lists they already belong to are pre-selected). Removing a friend affects
-both parties.
-**Web.** `/friends` page (`AddFriendForm`, `FriendRequests`, `FriendRow`); `friends.*` procedures
-(`list`, `sendRequest`, `accept`, `decline`, `remove`, `addToLists`, `friendListIds`).
-**Mobile.** `src/app/(tabs)/friends.tsx` (Friends tab), same `friends.*` procedures; friend rows
-link to the tapped user's profile.
+**decline** it from an **always-visible Friend requests link** (→ a dedicated view). Friends are
+mutual once accepted. Each friend row expands to **Edit** (remove the friend) or **Add** (a
+multiselect of your lists + a Viewer/Collaborator role → sends a list-join request per selected
+list; lists they already belong to are pre-selected). Removing a friend affects both parties.
+**Web.** `/friends` page (`AddFriendForm`, `FriendRow`) with a **Requests** link → `/friends/requests`
+page; `friends.*` procedures (`list`, `sendRequest`, `accept`, `decline`, `remove`, `addToLists`,
+`friendListIds`).
+**Mobile.** `src/app/(tabs)/friends.tsx` (Friends tab) with a **Friend requests** link → pushed
+`src/app/friend-requests.tsx`; same `friends.*` procedures; friend rows link to the tapped user's
+profile.
 **Differences.** None — logic is server-side and shared.
 
 ### User profiles

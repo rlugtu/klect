@@ -138,11 +138,12 @@ export default async function ListPage({
               <MembersPanel listId={id} currentUserId={user.id} />
             ) : undefined
           }
+          visibilityChildren={
+            canDelete ? (
+              <ListVisibilityToggle listId={id} isPublic={list.isPublic} />
+            ) : undefined
+          }
         />
-      )}
-
-      {canDelete && (
-        <ListVisibilityToggle listId={id} isPublic={list.isPublic} />
       )}
 
       {isMember && role !== "OWNER" && (

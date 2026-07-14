@@ -27,6 +27,7 @@ export function CreateBookmarkFlow({
   const [selectedListIds, setSelectedListIds] = useState<string[]>([]);
   const [newListNames, setNewListNames] = useState<string[]>([]);
   const [draftList, setDraftList] = useState("");
+  const [newListsPublic, setNewListsPublic] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const targetCount = selectedListIds.length + newListNames.length;
@@ -59,6 +60,8 @@ export function CreateBookmarkFlow({
       setError("Pick at least one list for the bookmark.");
       return;
     }
+    // Only new lists carry visibility; existing lists keep theirs.
+    formData.set("newListsPublic", newListsPublic ? "on" : "");
     await createBookmarkInLists(selectedListIds, newListNames, formData);
     router.push("/");
   }
@@ -94,12 +97,26 @@ export function CreateBookmarkFlow({
 
         {/* New lists created on the fly */}
         {newListNames.length > 0 && (
-          <div className="flex flex-wrap gap-2">
-            {newListNames.map((name) => (
-              <PixelBadge key={name} tone="primary" onRemove={() => removeNewList(name)}>
-                📁 {name} (new)
-              </PixelBadge>
-            ))}
+          <div className="flex flex-col gap-2">
+            <div className="flex flex-wrap gap-2">
+              {newListNames.map((name) => (
+                <PixelBadge key={name} tone="primary" onRemove={() => removeNewList(name)}>
+                  📁 {name} (new)
+                </PixelBadge>
+              ))}
+            </div>
+            <label className="flex items-start gap-2.5 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={newListsPublic}
+                onChange={(e) => setNewListsPublic(e.target.checked)}
+                className="mt-0.5 size-4 shrink-0 accent-[var(--color-primary)]"
+              />
+              <span className="text-muted text-xs">
+                Make {newListNames.length === 1 ? "the new list" : "new lists"}{" "}
+                <strong>public</strong> (anyone can view, read-only). Off = private.
+              </span>
+            </label>
           </div>
         )}
 

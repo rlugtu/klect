@@ -10,6 +10,7 @@ export default function EditListScreen() {
   const router = useRouter();
   const { id } = useLocalSearchParams<{ id: string }>();
   const [initial, setInitial] = useState<ListValues | null>(null);
+  const [isOwner, setIsOwner] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -21,6 +22,7 @@ export default function EditListScreen() {
           setError('List not found');
           return;
         }
+        setIsOwner(m.role === 'OWNER');
         setInitial({
           name: m.list.name,
           description: m.list.description ?? '',
@@ -68,12 +70,18 @@ export default function EditListScreen() {
       initial={initial}
       submitLabel="Save changes"
       onDelete={confirmDelete}
+      // Visibility is owner-only, so only owners see the toggle. It persists via
+      // the dedicated setVisibility procedure (lists.update ignores isPublic).
+      showVisibility={isOwner}
       onSubmit={async (v) => {
         if (!id) return;
         await trpc.lists.update.mutate({
           listId: id,
           data: { name: v.name, description: v.description, icon: v.icon },
         });
+        if (isOwner && v.isPublic !== initial.isPublic) {
+          await trpc.lists.setVisibility.mutate({ listId: id, isPublic: v.isPublic });
+        }
         router.back();
       }}
     />

@@ -198,8 +198,10 @@ helper — never rely on UI gating alone. Read-only public access uses `assertCa
 |---|---|
 | `/login` | Google + email/password (better-auth) |
 | `/onboarding` | First login only: displayName, birthday (optional), icon, theme |
-| `/` | **Home**: all lists you own or belong to; reorderable (Framer Motion drag) + unified search bar; **collab requests** section (approve/reject incoming list-join requests) |
-| `/friends` | **Friends**: add friends by email; incoming friend requests (accept/decline); friends list — each row expands to **Edit** (remove friend) or **Add** (multiselect of your lists + role → send join requests) |
+| `/` | **Home**: all lists you own or belong to; reorderable (web: Framer Motion drag · mobile: long-press drag) + unified search bar; a **List requests** button above the search opens `/requests` |
+| `/requests` | **List requests**: all open incoming list-join (collab) requests, approve/reject (empty state when none) |
+| `/friends` | **Friends**: add friends by email; an always-visible **Requests** link → `/friends/requests`; friends list — each row expands to **Edit** (remove friend) or **Add** (multiselect of your lists + role → send join requests) |
+| `/friends/requests` | **Friend requests**: all incoming friend requests, accept/decline (empty state when none) |
 | `/nearby` | **Near me**: find geocoded bookmarks within a chosen radius of your current location, closest→farthest |
 | `/bookmarks/new` | **New bookmark**: standalone create flow; pick/create one or more target lists and add the bookmark independently to each |
 | `/lists/[id]` | Bookmarks in a list; filter/search within; list-level comments; invite UI (owner) |
@@ -442,7 +444,7 @@ release builds don't reliably persist `Secure` cookies. `auth.api.getSession()` 
 | `bookmarks.get` | query | `{ bookmarkId }` | member or public list (or null) | `getBookmarkForUser` |
 | `bookmarks.byTags` | query | `{ tagNames }` | user-scoped | `getBookmarksByTags` |
 | `bookmarks.create` | mutation | `{ listId, data: BookmarkInput }` | COLLABORATOR (in core) | `core.createBookmark` |
-| `bookmarks.createInLists` | mutation | `{ existingListIds, newListNames, data }` | COLLABORATOR per list (in core) | `core.createBookmarkInLists` |
+| `bookmarks.createInLists` | mutation | `{ existingListIds, newListNames, data, newListsPublic? }` | COLLABORATOR per existing list (in core) | `core.createBookmarkInLists` — `newListsPublic` sets the visibility of any lists created inline (default private) |
 | `bookmarks.update` | mutation | `{ bookmarkId, data: BookmarkInput }` | COLLABORATOR (in core) | `core.updateBookmark` |
 | `bookmarks.delete` | mutation | `{ bookmarkId }` | COLLABORATOR (in core) | `core.deleteBookmark` |
 | `bookmarks.toggleVisited` | mutation | `{ bookmarkId }` | COLLABORATOR (in core) | `core.toggleVisited` |
