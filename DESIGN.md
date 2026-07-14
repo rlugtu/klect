@@ -200,8 +200,9 @@ helper — never rely on UI gating alone. Read-only public access uses `assertCa
 | `/onboarding` | First login only: displayName, birthday (optional), icon, theme |
 | `/` | **Home**: all lists you own or belong to; reorderable (web: Framer Motion drag · mobile: long-press drag) + unified search bar; a **List requests** button above the search opens `/requests` |
 | `/requests` | **List requests**: all open incoming list-join (collab) requests, approve/reject (empty state when none) |
-| `/friends` | **Friends**: add friends by email; an always-visible **Requests** link → `/friends/requests`; friends list — each row expands to **Edit** (remove friend) or **Add** (multiselect of your lists + role → send join requests) |
+| `/friends` | **Friends**: add friends by email; always-visible **Requests** link → `/friends/requests` and **Pending** link → `/friends/pending`; friends list — each row expands to **Edit** (remove friend) or **Add** (multiselect of your lists + role → send join requests) |
 | `/friends/requests` | **Friend requests**: all incoming friend requests, accept/decline (empty state when none) |
+| `/friends/pending` | **Pending requests**: outgoing friend requests you've sent, withdraw each (empty state when none) |
 | `/nearby` | **Near me**: find geocoded bookmarks within a chosen radius of your current location, closest→farthest |
 | `/bookmarks/new` | **New bookmark**: standalone create flow; pick/create one or more target lists and add the bookmark independently to each. Reached from a **＋ Bookmark** item in the primary nav (web home header · mobile tab bar) |
 | `/lists/[id]` | Bookmarks in a list; filter/search within; list-level comments; invite UI (owner) |
