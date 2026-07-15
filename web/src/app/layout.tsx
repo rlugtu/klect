@@ -56,7 +56,7 @@ export const metadata: Metadata = {
     statusBarStyle: "black-translucent",
   },
   icons: {
-    icon: "/icon-192.png",
+    // Tab favicon comes from the app/icon.png convention file.
     apple: "/apple-icon.png",
   },
 };

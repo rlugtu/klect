@@ -18,3 +18,5 @@ APP_STORE_READINESS.md
 .env
 .env.*
 !.env.example
+
+.marketing
