@@ -9,7 +9,7 @@ export default function UserProfileScreen() {
   const headerHeight = useHeaderHeight();
   return (
     <>
-      <Stack.Screen options={{ headerTitle: () => null }} />
+      <Stack.Screen options={{ headerTitle: '' }} />
       <ProfileView userId={id} contentTopInset={headerHeight + 8} />
     </>
   );

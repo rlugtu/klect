@@ -48,7 +48,7 @@ function AppStack() {
   const t = THEME_TOKENS[theme];
   // No page shows a centered header title — the page name lives in the scrolling
   // content instead. This blank title applies everywhere (pushed pages AND modals).
-  const blankTitle = { headerTitle: () => null };
+  const blankTitle = { headerTitle: '' };
   // Modal sheets keep a solid header (for the floating back/close chevron) — only the
   // full-screen pushed pages get the frosted, content-scrolls-under treatment (they
   // pad their content by the header height; a modal card has no room to scroll under a
@@ -74,7 +74,7 @@ function AppStack() {
         // *every* route — registered, unregistered, or added later — is titleless, so a
         // raw route segment ("lists/[id]", "lists/edit", a stray "Routes") can never leak
         // through as the title.
-        headerTitle: () => null,
+        headerTitle: '',
         // Frosted glass header shared with the tab screens' floating status bar, so a
         // pushed page's top bar matches the home page. Content scrolls under it — each
         // full-screen screen pads its scroll container by the header height.
@@ -132,7 +132,7 @@ export default function RootLayout() {
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
-      <AppThemeProvider>
+      <AppThemeProvider mirrorToShared>
         <NavThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
           <BottomSheetModalProvider>
             {isPending ? (

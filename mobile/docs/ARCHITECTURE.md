@@ -119,10 +119,14 @@ border** — it's an `expo-blur` `BlurView` masked by a top→bottom alpha gradi
 (`expo-linear-gradient` + `@react-native-masked-view/masked-view`) so the blur **fades out
 gradually** instead of ending on a hard line. The floating status bar uses the same shared surface,
 so home and pushed pages read identically. There's no shadow (`headerShadowVisible: false`), and
-**no centered title** — `headerTitle: () => null` is set once in the Stack's `screenOptions` in
-`_layout.tsx`, so it's the default for **every** route (pushed, modal, registered, unregistered, or
-added later); a raw route segment (`lists/[id]`, `lists/edit`, a stray `Routes`) can never leak
-through as the title. Only the back chevron + any header-right button appear to *float*.
+**no centered title** — `headerTitle: ''` (an **empty string**, not a function) is set once in the
+Stack's `screenOptions` in `_layout.tsx`, so it's the default for **every** route (pushed, modal,
+registered, unregistered, or added later). It *must* be a string: native-stack derives the native
+title bar text via `getHeaderTitle({ title, headerTitle }, route.name)`, which only uses `headerTitle`
+when it's a string — a **function** value (e.g. `() => null`) is ignored and it falls back to
+`route.name`, so the raw segment (`lists/[id]`, `lists/members`, …) leaks through as the title. An
+empty string resolves to a blank native title. Only the back chevron + any header-right button appear
+to *float*.
 The page name instead lives in the **scrolling page body** (a `font-serif text-3xl` heading at the
 top of the content — screens whose name was header-only, like list detail / members / polls / settings
 / the three request views, gained one; bookmark detail, poll detail, and profiles already rendered
@@ -133,8 +137,8 @@ The `(tabs)` group is a **bottom-positioned swipeable pager** (`@react-navigatio
 with `tabBarPosition="bottom"`, `react-native-pager-view` under the hood, wired into expo-router via
 `withLayoutContext`). Editors are presented as **modals** (`presentation: 'modal'`) with a **solid,
 titleless** header — they override `headerTransparent` off (a modal card has no room to scroll under a
-translucent bar) but inherit the global `headerTitle: () => null` like every other screen, so **no
-page shows a centered title anywhere in the app**.
+translucent bar) but inherit the global `headerTitle: ''` like every other screen, so **no page shows
+a centered title anywhere in the app**.
 
 - **Tabs** (`(tabs)/_layout.tsx`), left→right in the bar: **Nearby**, **Create** (＋), **Lists**
   (`index`), **Friends**, **Profile**. The **swipe pager** holds only the four real pages in swipe
@@ -345,8 +349,13 @@ differ, screen structure is shared.
   corner radii: Pixel 2px/4px/2px, Modern 1px/16px/8px, Journal 1px/20px/12px). `themeVars(name)`
   produces the CSS-variable map (colors + `--border-w` / `--radius` / `--radius-sm`).
 - **`theme-provider.tsx`** — applies `themeVars` via NativeWind `vars()` on a root wrapper (web's
-  `data-theme` swap, ported). Defaults to **Journal** following system light/dark; an explicit pick is
-  persisted to secure-store (`klect.theme`). `useTheme()` exposes `{ theme, setTheme }`.
+  `data-theme` swap, ported). Defaults to **Modern** following system light/dark; an explicit pick is
+  persisted to secure-store (`klect.theme`). `useTheme()` exposes `{ theme, setTheme }`. The app root
+  passes `mirrorToShared`, which write-mirrors the active theme into the **shared keychain group**
+  (`klect.theme.shared`, `SHARED_THEME_KEY` — same App Group the bearer token uses) so the Share
+  Extension's separate process can render in the user's real theme. The extension reads that mirror
+  and passes it as `initialTheme`; if it's absent/unreadable (e.g. the app hasn't run since the
+  feature shipped, or a brand-new user), the provider falls back to system light/dark → **Modern**.
 - **`tailwind.config.js`** — maps the semantic classes to the CSS vars and registers the skin
   utilities + per-weight font families.
 - **Styling** — semantic NativeWind classes only: `bg-bg` / `bg-panel` / `text-ink` / `text-muted` /

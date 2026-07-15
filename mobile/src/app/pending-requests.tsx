@@ -42,7 +42,7 @@ export default function PendingRequestsScreen() {
 
   return (
     <SafeAreaView style={{ flex: 1 }} edges={['left', 'right']} className="bg-bg">
-      <Stack.Screen options={{ headerTitle: () => null }} />
+      <Stack.Screen options={{ headerTitle: '' }} />
       <Animated.ScrollView
         contentContainerStyle={{
           padding: 16,

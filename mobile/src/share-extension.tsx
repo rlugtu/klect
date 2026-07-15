@@ -23,13 +23,20 @@ import {
   Geist_500Medium_Italic,
   Geist_600SemiBold,
 } from '@expo-google-fonts/geist';
+import * as SecureStore from 'expo-secure-store';
 import { close, openHostApp, type InitialProps } from 'expo-share-extension';
 
 import { trpc } from '@/client/api';
 import { readStoredBearerToken } from '@/client/bearer-store';
 import BookmarkForm, { EMPTY_BOOKMARK } from '@/components/bookmark-form';
 import { ListPicker } from '@/components/list-picker';
-import { ThemeProvider as AppThemeProvider } from '@/theme/theme-provider';
+import {
+  ThemeProvider as AppThemeProvider,
+  SHARED_THEME_KEY,
+  SHARED_THEME_OPTS,
+  isThemeName,
+} from '@/theme/theme-provider';
+import type { ThemeName } from '@/theme/tokens';
 
 // Inferred straight from web's tRPC procedure — no hand-written DTOs.
 type Memberships = Awaited<ReturnType<typeof trpc.lists.mine.query>>;
@@ -39,9 +46,9 @@ function TopBar({ title }: { title: string }) {
   const insets = useSafeAreaInsets();
   return (
     <View
-      className="flex-row items-center justify-between border-b border-border bg-bg px-4 pb-3"
-      style={{ paddingTop: insets.top + 8 }}>
-      <Text className="text-lg font-semibold text-ink">{title}</Text>
+      className="flex-row items-center justify-between border-b border-border bg-bg px-5 pb-4"
+      style={{ paddingTop: insets.top + 12 }}>
+      <Text className="text-xl font-semibold text-ink">{title}</Text>
       <Pressable hitSlop={8} onPress={() => close()}>
         <Text className="text-primary">Cancel</Text>
       </Pressable>
@@ -173,15 +180,34 @@ export default function ShareExtension(props: InitialProps) {
     Geist_600SemiBold,
   });
 
+  // Match the extension to the user's *actual* app theme, which the app write-mirrors into the
+  // shared keychain group (only place this separate process can read it). `undefined` = still
+  // reading; `null` = nothing stored → the provider falls back to system light/dark → Modern.
+  const [initialTheme, setInitialTheme] = useState<ThemeName | null | undefined>(
+    undefined,
+  );
+  useEffect(() => {
+    SecureStore.getItemAsync(SHARED_THEME_KEY, SHARED_THEME_OPTS)
+      .then((v) => setInitialTheme(isThemeName(v) ? v : null))
+      .catch(() => setInitialTheme(null));
+  }, []);
+
+  // Gate the theme provider until the seed resolves — `initialTheme` only seeds on mount, so the
+  // provider must not mount before we know it. Opaque plain surface meanwhile (matches the
+  // extension's opaque host background), never a black void.
+  if (!fontsLoaded || initialTheme === undefined) {
+    return (
+      <SafeAreaProvider>
+        <View style={{ flex: 1, backgroundColor: '#fff' }} />
+      </SafeAreaProvider>
+    );
+  }
+
   return (
     <SafeAreaProvider>
       <GestureHandlerRootView style={{ flex: 1 }}>
-        <AppThemeProvider>
-          {fontsLoaded ? (
-            <SaveScreen {...props} />
-          ) : (
-            <View className="flex-1 bg-bg" />
-          )}
+        <AppThemeProvider initialTheme={initialTheme ?? undefined}>
+          <SaveScreen {...props} />
         </AppThemeProvider>
       </GestureHandlerRootView>
     </SafeAreaProvider>

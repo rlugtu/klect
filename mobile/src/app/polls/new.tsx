@@ -144,7 +144,7 @@ export default function NewPollScreen() {
 
   return (
     <View className="flex-1 bg-bg">
-      <Stack.Screen options={{ headerTitle: () => null }} />
+      <Stack.Screen options={{ headerTitle: '' }} />
 
       <ScrollView contentContainerStyle={{ padding: 16, gap: 16, paddingBottom: 40 }}>
         <View className="gap-2">
