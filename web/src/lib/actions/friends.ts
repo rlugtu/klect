@@ -23,8 +23,7 @@ export async function sendFriendRequest(
   const user = await requireUser();
   const result = await core.sendFriendRequest(
     user.id,
-    user.email,
-    String(formData.get("email") ?? ""),
+    String(formData.get("handle") ?? ""),
   );
   revalidatePath("/friends");
   return result;
@@ -57,9 +56,9 @@ export async function cancelFriendRequest(id: string) {
 }
 
 /** "Add as friend too?" button from the list members panel. */
-export async function offerFriend(email: string): Promise<core.FriendState> {
+export async function offerFriend(handle: string): Promise<core.FriendState> {
   const user = await requireUser();
-  return core.sendFriendRequest(user.id, user.email, email);
+  return core.sendFriendRequest(user.id, handle);
 }
 
 /** Send a friend request straight to a user by id (from their profile page). */

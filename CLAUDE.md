@@ -12,9 +12,12 @@ comment) or **collaborators** (edit + comment); the **owner** manages membership
 viewable by anyone and appears on the owner's profile, while writes always require membership.
 Invites are
 **request-based** — the invitee approves/rejects a join request from their home page (nobody is
-auto-added). Users can also add each other as **friends** (`/friends`, request + accept) and
-bulk-invite a friend to their lists. Every user has a **profile** (`/users/[id]`) showing their
-identity, stats, and public lists, with an add-friend action; reachable from a Profile nav button.
+auto-added). Every user has a required, unique **@handle** (lowercase; the `@` is display-only) —
+their public identity, shown everywhere a user is mentioned (comments, members, friends, search,
+polls, profiles) in place of any name/email; users are invited and friended **by handle**. Users can
+add each other as **friends** (`/friends`, request + accept) and bulk-invite a friend to their lists.
+Every user has a **profile** (`/users/[handle]`, also resolvable by id) showing their identity, stats,
+and public lists, with an add-friend action; reachable from a Profile nav button.
 Lists and bookmarks both support **comments**. Pasting a link auto-fills a bookmark from page metadata (and
 detects a playable video). Bookmarks are created inside a list, or via a standalone flow
 (`/bookmarks/new`) that adds an **independent copy to each of several lists** at once. A **Near me**

@@ -3,7 +3,7 @@ import { prisma } from "@/lib/db";
 
 const authorSelect = {
   author: {
-    select: { id: true, displayName: true, name: true, icon: true },
+    select: { id: true, handle: true, icon: true },
   },
 } as const;
 

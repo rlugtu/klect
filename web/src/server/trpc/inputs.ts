@@ -42,9 +42,9 @@ export const pollInput = z.object({
 });
 
 export const profileInput = z.object({
+  handle: z.string(),
   firstName: z.string().nullable(),
   lastName: z.string().nullable(),
-  displayName: z.string(),
   birthday: z.coerce.date().nullable(),
   icon: z.string().nullable(),
   theme: z.string().transform(coerceTheme),

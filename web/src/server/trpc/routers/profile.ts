@@ -9,8 +9,9 @@ export const profileRouter = router({
     .input(profileInput)
     .mutation(({ ctx, input }) => saveProfile(ctx.user.id, input)),
 
-  /** A user's public profile (identity + public lists + friend state). */
+  /** A user's public profile (identity + public lists + friend state).
+   *  Resolved by @handle or user id. */
   get: protectedProcedure
-    .input(z.object({ userId: z.string() }))
-    .query(({ ctx, input }) => getPublicProfile(ctx.user.id, input.userId)),
+    .input(z.object({ handleOrId: z.string() }))
+    .query(({ ctx, input }) => getPublicProfile(ctx.user.id, input.handleOrId)),
 });

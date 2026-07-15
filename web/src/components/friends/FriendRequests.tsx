@@ -4,12 +4,11 @@ import {
 } from "@/lib/actions/friends";
 import { PixelCard } from "@/components/ui/PixelCard";
 import { SubmitButton } from "@/components/ui/SubmitButton";
+import { atHandle } from "@/lib/handle";
 
 type Requester = {
   id: string;
-  displayName: string | null;
-  name: string | null;
-  email: string;
+  handle: string | null;
   icon: string | null;
 };
 
@@ -36,13 +35,8 @@ export function FriendRequests({
               <span aria-hidden className="text-lg">
                 {r.requester.icon ?? "🔖"}
               </span>
-              <span className="flex min-w-0 flex-col">
-                <span className="truncate text-sm font-semibold">
-                  {r.requester.displayName ?? r.requester.name ?? r.requester.email}
-                </span>
-                <span className="text-muted truncate text-sm">
-                  {r.requester.email}
-                </span>
+              <span className="truncate text-sm font-semibold">
+                {atHandle(r.requester.handle)}
               </span>
             </span>
             <span className="flex shrink-0 items-center gap-2">

@@ -52,7 +52,7 @@ export function getUserLists(userId: string) {
 }
 
 const listDetailInclude = {
-  owner: { select: { id: true, displayName: true, name: true, icon: true } },
+  owner: { select: { id: true, handle: true, icon: true } },
   _count: { select: { bookmarks: true, memberships: true } },
 } as const;
 

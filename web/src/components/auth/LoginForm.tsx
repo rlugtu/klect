@@ -32,7 +32,7 @@ export function LoginForm({ next = "/" }: { next?: string }) {
       setError(error.message ?? "Something went wrong.");
       return;
     }
-    // New users have no displayName yet → home guard sends them to onboarding.
+    // New users have no handle yet → home guard sends them to onboarding.
     router.push(next);
     router.refresh();
   }

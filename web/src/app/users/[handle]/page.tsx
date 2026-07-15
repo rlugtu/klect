@@ -11,17 +11,16 @@ import { ArrowLeft, Globe, Settings } from "lucide-react";
 export default async function UserProfilePage({
   params,
 }: {
-  params: Promise<{ id: string }>;
+  params: Promise<{ handle: string }>;
 }) {
-  const { id } = await params;
+  const { handle } = await params;
   const viewer = await requireOnboardedUser();
 
-  const profile = await getPublicProfile(viewer.id, id);
+  const profile = await getPublicProfile(viewer.id, handle);
   if (!profile) notFound();
 
   const { user, publicLists, friendCount, friendship } = profile;
-  const name = user.displayName ?? user.name ?? "Someone";
-  const realName = [user.firstName, user.lastName].filter(Boolean).join(" ");
+  const name = user.handle ? `@${user.handle}` : "Someone";
   const memberSince = new Date(user.createdAt).getFullYear();
 
   return (
@@ -60,9 +59,6 @@ export default async function UserProfilePage({
         </span>
         <div className="flex flex-col gap-1">
           <h1 className="text-2xl text-primary break-words">{name}</h1>
-          {realName && realName !== name && (
-            <p className="text-muted text-sm">{realName}</p>
-          )}
           <p className="text-muted text-xs">Member since {memberSince}</p>
         </div>
 

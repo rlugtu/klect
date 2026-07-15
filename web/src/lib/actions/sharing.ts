@@ -17,8 +17,8 @@ export async function inviteToList(
   formData: FormData,
 ): Promise<core.InviteState> {
   const user = await requireUser();
-  const result = await core.inviteToList(user.id, user.email, listId, {
-    email: String(formData.get("email") ?? ""),
+  const result = await core.inviteToList(user.id, listId, {
+    handle: String(formData.get("handle") ?? ""),
     role: parseInviteRole(formData.get("role")),
   });
 

@@ -1,6 +1,7 @@
 import { deleteComment } from "@/lib/actions/comments";
 import { ConfirmDeleteButton } from "@/components/ui/ConfirmDeleteButton";
 import { timeAgo } from "@/lib/utils";
+import { atHandle } from "@/lib/handle";
 
 export type CommentItem = {
   id: string;
@@ -8,8 +9,7 @@ export type CommentItem = {
   createdAt: Date;
   author: {
     id: string;
-    displayName: string | null;
-    name: string | null;
+    handle: string | null;
     icon: string | null;
   };
 };
@@ -34,7 +34,7 @@ export function CommentList({
               <span className="flex min-w-0 items-center gap-2">
                 <span aria-hidden>{c.author.icon ?? "🔖"}</span>
                 <span className="truncate text-sm">
-                  {c.author.displayName ?? c.author.name ?? "Someone"}
+                  {atHandle(c.author.handle)}
                 </span>
                 <span className="text-muted text-sm">{timeAgo(c.createdAt)}</span>
               </span>

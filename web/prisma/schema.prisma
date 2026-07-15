@@ -44,9 +44,9 @@ model User {
   emailVerified Boolean   @default(false)
   name          String?
   image         String?
+  handle        String?   @unique // public @handle; required via onboarding gate
   firstName     String?
   lastName      String?
-  displayName   String?
   birthday      DateTime?
   icon          String? // emoji
   theme         Theme     @default(MODERN_LIGHT)

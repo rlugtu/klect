@@ -8,7 +8,7 @@ import { PixelCard } from "@/components/ui/PixelCard";
 import { SubmitButton } from "@/components/ui/SubmitButton";
 import { UserPlus, X } from "lucide-react";
 
-/** Right-aligned "Add friends" trigger that expands an email → friend-request form. */
+/** Right-aligned "Add friends" trigger that expands a @handle → friend-request form. */
 export function AddFriendForm() {
   const [open, setOpen] = useState(false);
   const [state, formAction] = useActionState<FriendState, FormData>(
@@ -33,9 +33,11 @@ export function AddFriendForm() {
           <form action={formAction} className="flex flex-col gap-2">
             <div className="flex flex-wrap items-stretch gap-2">
               <PixelInput
-                name="email"
-                type="email"
-                placeholder="friend@example.com"
+                name="handle"
+                placeholder="@handle"
+                autoCapitalize="none"
+                autoCorrect="off"
+                spellCheck={false}
                 required
                 className="min-w-48 flex-1"
               />

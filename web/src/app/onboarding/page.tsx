@@ -13,7 +13,7 @@ function toDateInput(value: Date | string | null | undefined): string | null {
 export default async function OnboardingPage() {
   const user = await requireUser();
   // Already onboarded → skip.
-  if (user.displayName) redirect("/");
+  if (user.handle) redirect("/");
 
   return (
     <main className="mx-auto w-full max-w-lg px-6 py-12">
@@ -28,7 +28,7 @@ export default async function OnboardingPage() {
           defaults={{
             firstName: user.firstName ?? null,
             lastName: user.lastName ?? null,
-            displayName: user.displayName ?? user.name ?? "",
+            handle: user.handle ?? null,
             birthday: toDateInput(user.birthday),
             icon: user.icon ?? null,
             theme: coerceTheme(user.theme),

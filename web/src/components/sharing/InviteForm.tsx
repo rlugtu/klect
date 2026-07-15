@@ -12,20 +12,22 @@ export function InviteForm({ listId }: { listId: string }) {
     inviteToList.bind(null, listId),
     {},
   );
-  const [friended, setFriended] = useState<{ email: string; msg: string } | null>(
+  const [friended, setFriended] = useState<{ handle: string; msg: string } | null>(
     null,
   );
   const [pending, startTransition] = useTransition();
 
-  const offerEmail = state.offerFriend?.email;
+  const offerHandle = state.offerFriend?.handle;
 
   return (
     <form action={formAction} className="flex flex-col gap-2">
       <div className="flex flex-wrap items-stretch gap-2">
         <PixelInput
-          name="email"
-          type="email"
-          placeholder="friend@example.com"
+          name="handle"
+          placeholder="@handle"
+          autoCapitalize="none"
+          autoCorrect="off"
+          spellCheck={false}
           required
           className="min-w-48 flex-1"
         />
@@ -43,10 +45,10 @@ export function InviteForm({ listId }: { listId: string }) {
       </div>
       {state.error && <p className="text-danger text-sm">{state.error}</p>}
       {state.success && <p className="text-success text-sm">{state.success}</p>}
-      {offerEmail && friended?.email !== offerEmail && (
+      {offerHandle && friended?.handle !== offerHandle && (
         <div className="flex flex-wrap items-center gap-2">
           <span className="text-muted text-sm">
-            {offerEmail} isn&apos;t your friend yet.
+            @{offerHandle} isn&apos;t your friend yet.
           </span>
           <PixelButton
             type="button"
@@ -55,9 +57,9 @@ export function InviteForm({ listId }: { listId: string }) {
             disabled={pending}
             onClick={() =>
               startTransition(async () => {
-                const res = await offerFriend(offerEmail);
+                const res = await offerFriend(offerHandle);
                 setFriended({
-                  email: offerEmail,
+                  handle: offerHandle,
                   msg: res.success ?? res.error ?? "",
                 });
               })
@@ -67,7 +69,7 @@ export function InviteForm({ listId }: { listId: string }) {
           </PixelButton>
         </div>
       )}
-      {friended && friended.email === offerEmail && (
+      {friended && friended.handle === offerHandle && (
         <p className="text-success text-sm">{friended.msg}</p>
       )}
     </form>

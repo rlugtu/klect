@@ -3,9 +3,7 @@ import { prisma } from "@/lib/db";
 
 const friendUserSelect = {
   id: true,
-  displayName: true,
-  name: true,
-  email: true,
+  handle: true,
   icon: true,
 } as const;
 

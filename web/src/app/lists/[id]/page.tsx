@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { requireOnboardedUser } from "@/lib/session";
 import { getListForViewer } from "@/lib/lists";
+import { atHandle } from "@/lib/handle";
 import { getBookmarksForList } from "@/lib/bookmarks";
 import { getUserTags } from "@/lib/tags";
 import { getListComments } from "@/lib/comments";
@@ -35,7 +36,7 @@ export default async function ListPage({
   const { list, role, isMember } = access;
   const canEdit = isMember && roleAtLeast(role, "COLLABORATOR");
   const canDelete = isMember && role === "OWNER";
-  const ownerName = list.owner.displayName ?? list.owner.name ?? "Someone";
+  const ownerName = atHandle(list.owner.handle);
 
   const [bookmarkRows, userTags, comments] = await Promise.all([
     getBookmarksForList(id),
@@ -111,7 +112,7 @@ export default async function ListPage({
             {list._count.bookmarks} bookmark
             {list._count.bookmarks === 1 ? "" : "s"} · owned by{" "}
             <Link
-              href={`/users/${list.owner.id}`}
+              href={`/users/${list.owner.handle ?? list.owner.id}`}
               className="underline underline-offset-2 hover:text-primary"
             >
               {ownerName}

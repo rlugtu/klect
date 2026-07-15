@@ -41,8 +41,8 @@ with a link or a location.
   opting in. You stay in control as the owner.
 - **Make a list public.** Flip any list to **public** (they start private) so anyone can view it
   read-only and it shows up on your profile — editing still needs an invite.
-- **Add friends.** Add people by email and, once they accept, bulk-invite a friend to any of your
-  lists in one step.
+- **Add friends.** Add people by their **@handle** and, once they accept, bulk-invite a friend to any
+  of your lists in one step.
 - **Show off a profile.** Everyone has a profile page with their photo/icon, stats, and public
   lists — visit a friend's or a list owner's profile and add them as a friend right there.
 - **Comment together.** Leave comments on lists and individual bookmarks to plan and discuss.
@@ -159,8 +159,8 @@ never trapped on the wrong screen.
 | Tags (user-scoped, auto-colored, OR filter) | ✅ | ✅ | Per-list filter: web dropdown · mobile bottom sheet |
 | Ratings / Visited / Notes | ✅ | ✅ | |
 | Sharing & permissions | ✅ | ✅ | Owner / Collaborator / Viewer; **request-based** invites (invitee approves/rejects) |
-| Friends | ✅ | ✅ | Add by email (request + accept); bulk-add a friend to your lists |
-| User profiles | ✅ | ✅ | `/users/[id]` (web) · Profile tab + `users/[id]` (mobile); identity + stats + public lists + add-friend (`profile.get`) |
+| Friends | ✅ | ✅ | Add by **@handle** (request + accept); bulk-add a friend to your lists |
+| User profiles | ✅ | ✅ | `/users/[handle]` (web) · Profile tab + `users/[handle]` (mobile), resolvable by @handle or id; identity + stats + public lists + add-friend (`profile.get`) |
 | Comments (lists & bookmarks) | ✅ | ✅ | |
 | Polls | ✅ | ✅ | Create / vote / edit / delete |
 | Nearby / geolocation | ⚠️ | ⚠️ | Web browser geo + list (0.5–10 mi) · Mobile native GPS + Mapbox map & drawer (1–25 mi) |
@@ -183,10 +183,11 @@ session cookies; `?next=` redirect is same-origin-guarded.
 `expo-secure-store`. Dual-mode sign-in/sign-up toggle.
 
 ### Onboarding
-**Description.** First-run profile setup for a new user: display name (required), optional
-first/last name and birthday, an emoji avatar, and a starting theme.
+**Description.** First-run profile setup for a new user: a unique **@handle** (required — the
+public identity used everywhere a user is mentioned), optional first/last name and birthday, an
+emoji avatar, and a starting theme. Handles are lowercase `a–z 0–9 _`, 3–20 chars, and unique.
 **Web.** `/onboarding` → `ProfileForm`; `completeOnboarding` action. Gated by whether the user has a
-`displayName`.
+`handle`.
 **Mobile.** `src/components/onboarding-screen.tsx`, gated by the root layout; saves via
 `trpc.profile.update`.
 **Differences.** None functionally — same fields, same procedure.
@@ -325,7 +326,7 @@ friend request. Non-owners can leave a shared list.
 **Differences.** None — permission logic is server-side and shared.
 
 ### Friends
-**Description.** Add another user by **email** to send a **friend request**; they **accept** or
+**Description.** Add another user by their **@handle** to send a **friend request**; they **accept** or
 **decline** it from a **Requests link** (→ a dedicated view). The sender can watch and **withdraw**
 their own unanswered requests from a **Pending** view (both apps). Friends are
 mutual once accepted. Each friend row can **remove** the friend, open the friend's **profile**, and
@@ -346,15 +347,16 @@ actions panel; web keeps separate row controls. Logic is server-side and shared.
 
 ### User profiles
 **Description.** Every user has a public **profile** — avatar (uploaded image, else emoji icon),
-display name, real name, "Member since {year}", a stats row (**public lists · friends**), and their
+their **@handle**, "Member since {year}", a stats row (**public lists · friends**), and their
 **public lists** (tap to open, read-only if you're not a member). On **another** user's profile an
 **Add friend** button sends a request; your own profile omits it. Data comes from `profile.get`
 (identity + public lists + friend count + viewer↔target friendship state); the add-friend action is
 `friends.requestByUser`.
-**Web.** `/users/[id]` page; linked from a **Profile** item in the home-header nav, from a list's
-"owned by {owner}", and from friend rows. On your own profile a **settings gear** opens `/settings`.
+**Web.** `/users/[handle]` page (resolvable by @handle or id); linked from a **Profile** item in the
+home-header nav, from a list's "owned by {owner}", and from friend rows. On your own profile a
+**settings gear** opens `/settings`.
 **Mobile.** A **Profile** tab (own profile, `src/app/(tabs)/profile.tsx`) plus a pushed
-`src/app/users/[id].tsx` for others — both render the shared `components/profile-view.tsx`. Reached
+`src/app/users/[handle].tsx` for others — both render the shared `components/profile-view.tsx`. Reached
 from the tab and from friend rows. On your own profile a **settings gear** (top-right) opens the
 Settings screen.
 **Differences.** None functionally; layout follows each app's theme.

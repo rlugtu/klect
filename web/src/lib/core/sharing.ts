@@ -8,9 +8,9 @@ export type InviteRole = "VIEWER" | "COLLABORATOR";
 export type InviteState = {
   error?: string;
   success?: string;
-  // Set when the invitee is an existing user who isn't a friend yet, so the UI can
-  // offer to send them a friend request too (see the "Add as friend?" prompt).
-  offerFriend?: { email: string };
+  // Set when the invitee isn't a friend yet, so the UI can offer to send them a
+  // friend request too (see the "Add as friend?" prompt).
+  offerFriend?: { handle: string };
 };
 
 /** Give a member the next position at the end of their personal ordering. */
@@ -45,50 +45,48 @@ async function requestListJoin(
 }
 
 /**
- * Owner sends someone a list-join **request** by email. Nobody is added until the
- * invitee approves it on their home page (see `approveRequest`); non-users get a
- * pending invite that surfaces as a request once they sign up. `actorEmail` powers
- * the self-invite guard. When `alsoFriend` is set and the invitee is an existing
- * non-friend, a friend request is sent too; otherwise `offerFriend` lets the UI ask.
+ * Owner sends someone a list-join **request** by @handle. Nobody is added until the
+ * invitee approves it on their home page (see `approveRequest`). The invitee must be
+ * an existing Klect user (handles are required for all users). When `alsoFriend` is
+ * set and they aren't a friend yet, a friend request is sent too; otherwise
+ * `offerFriend` lets the UI ask.
  */
 export async function inviteToList(
   userId: string,
-  actorEmail: string,
   listId: string,
-  input: { email: string; role: InviteRole; alsoFriend?: boolean },
+  input: { handle: string; role: InviteRole; alsoFriend?: boolean },
 ): Promise<InviteState> {
   await assertRole(userId, listId, "OWNER");
 
-  const email = input.email.trim().toLowerCase();
-  if (!email) return { error: "Email is required." };
-  if (email === actorEmail.toLowerCase()) {
-    return { error: "You already own this list." };
-  }
+  const handle = input.handle.trim().toLowerCase().replace(/^@/, "");
+  if (!handle) return { error: "Handle is required." };
 
-  const { invitee, status } = await requestListJoin(
+  const invitee = await prisma.user.findUnique({ where: { handle } });
+  if (!invitee) return { error: "No Klect user with that handle." };
+  if (invitee.id === userId) return { error: "You already own this list." };
+
+  const { status } = await requestListJoin(
     listId,
-    email,
+    invitee.email.toLowerCase(),
     input.role,
     userId,
   );
   if (status === "member") {
-    return { success: `${email} is already a member.` };
+    return { success: `@${handle} is already a member.` };
   }
 
-  const isFriend = invitee ? await areFriends(userId, invitee.id) : false;
+  const isFriend = await areFriends(userId, invitee.id);
 
   let friended = false;
-  if (invitee && input.alsoFriend && !isFriend) {
+  if (input.alsoFriend && !isFriend) {
     friended = await sendFriendRequestById(userId, invitee.id);
   }
 
-  const base = invitee
-    ? `Request sent to ${email}.`
-    : `Invite sent to ${email}. They'll join on signup.`;
+  const base = `Request sent to @${handle}.`;
 
   return {
     success: friended ? `${base} Friend request sent too.` : base,
-    offerFriend: invitee && !isFriend && !friended ? { email } : undefined,
+    offerFriend: !isFriend && !friended ? { handle } : undefined,
   };
 }
 

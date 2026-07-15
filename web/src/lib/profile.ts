@@ -7,17 +7,15 @@ export type FriendshipState = "self" | "none" | "pending" | "friends";
  * A user's public profile: identity fields, their PUBLIC lists (owned + public),
  * a friend count, and the viewer↔target relationship (drives the Add-friend
  * button on other people's profiles). Read-only; safe to expose to any signed-in
- * user. Returns null if the target user doesn't exist.
+ * user. Resolved by `@handle` OR user id, so both handle- and id-based profile
+ * links work. Returns null if no such user.
  */
-export async function getPublicProfile(viewerId: string, targetUserId: string) {
-  const user = await prisma.user.findUnique({
-    where: { id: targetUserId },
+export async function getPublicProfile(viewerId: string, handleOrId: string) {
+  const user = await prisma.user.findFirst({
+    where: { OR: [{ handle: handleOrId }, { id: handleOrId }] },
     select: {
       id: true,
-      displayName: true,
-      name: true,
-      firstName: true,
-      lastName: true,
+      handle: true,
       icon: true,
       image: true,
       createdAt: true,
@@ -25,6 +23,7 @@ export async function getPublicProfile(viewerId: string, targetUserId: string) {
   });
   if (!user) return null;
 
+  const targetUserId = user.id;
   const [publicLists, friendCount, friendship] = await Promise.all([
     prisma.list.findMany({
       where: { ownerId: targetUserId, isPublic: true },

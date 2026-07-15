@@ -11,13 +11,12 @@ import { PixelButton } from "@/components/ui/PixelButton";
 import { PixelCard } from "@/components/ui/PixelCard";
 import { SubmitButton } from "@/components/ui/SubmitButton";
 import { ConfirmDeleteButton } from "@/components/ui/ConfirmDeleteButton";
+import { atHandle } from "@/lib/handle";
 import { Pencil, Plus, X } from "lucide-react";
 
 type Friend = {
   id: string;
-  displayName: string | null;
-  name: string | null;
-  email: string;
+  handle: string | null;
   icon: string | null;
 };
 type ListOption = { id: string; name: string; icon: string };
@@ -44,7 +43,7 @@ export function FriendRow({
     {},
   );
 
-  const name = friend.displayName ?? friend.name ?? friend.email;
+  const name = atHandle(friend.handle);
   const toggle = (p: "edit" | "add") =>
     setPanel((cur) => (cur === p ? null : p));
 
@@ -52,16 +51,13 @@ export function FriendRow({
     <PixelCard className="flex flex-col gap-3">
       <div className="flex items-center justify-between gap-3">
         <Link
-          href={`/users/${friend.id}`}
+          href={`/users/${friend.handle ?? friend.id}`}
           className="flex min-w-0 items-center gap-2 hover:text-primary"
         >
           <span aria-hidden className="text-lg">
             {friend.icon ?? "🔖"}
           </span>
-          <span className="flex min-w-0 flex-col">
-            <span className="truncate text-sm font-semibold">{name}</span>
-            <span className="text-muted truncate text-sm">{friend.email}</span>
-          </span>
+          <span className="truncate text-sm font-semibold">{name}</span>
         </Link>
         <span className="flex shrink-0 items-center gap-2">
           <PixelButton

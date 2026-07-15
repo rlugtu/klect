@@ -6,7 +6,7 @@ export default function ProfileScreen() {
   const { data: session } = authClient.useSession();
   return (
     <ProfileView
-      userId={session?.user?.id}
+      handleOrId={session?.user?.handle ?? session?.user?.id}
       edges={['left', 'right']}
       frostedStatusBar
     />
