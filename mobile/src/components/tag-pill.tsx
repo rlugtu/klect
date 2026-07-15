@@ -1,14 +1,15 @@
-import { Text, View } from 'react-native';
+import { Text } from 'react-native';
 
-type Props = { name: string; color: string };
+// `color` is accepted (and ignored) so existing call sites — which pass each tag's stored
+// color — keep working without churn. Tags now render as uniform #hashtags, not colored pills.
+type Props = { name: string; color?: string };
 
-/** Per-tag colored pill — fully rounded, lowercase label, no border (Journal). */
-export default function TagPill({ name, color }: Props) {
+/**
+ * A tag rendered as a #hashtag — plain accent-colored text, no pill background, no per-tag
+ * color. The leading "#" is display-only; tags are stored lowercase and without it.
+ */
+export default function TagPill({ name }: Props) {
   return (
-    <View
-      style={{ backgroundColor: color }}
-      className="rounded-skin-sm px-2.5 py-0.5">
-      <Text className="font-sans text-xs text-ink">{name.toLowerCase()}</Text>
-    </View>
+    <Text className="font-sans text-sm text-accent">#{name.toLowerCase()}</Text>
   );
 }

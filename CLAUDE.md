@@ -2,8 +2,10 @@
 
 Bookmarking app where bookmarks live inside shareable **lists**. A bookmark has a name,
 description, multiple URLs (`urls[0]` = original source), extracted **photos** (`images[]`),
-notes, location, 0–5 rating, visited flag, and user-scoped **tags** (each auto-assigned a color at
-creation, rendered on the tag pills). Lists are drag-reorderable
+notes, location, 0–5 rating, visited flag, and user-scoped **tags** (stored lowercase — casing
+variants are normalized on save so they can't duplicate — each auto-assigned a color at creation;
+web renders them as colored pills, mobile as uniform `#hashtags` where the `#` is display-only and
+never stored). Lists are drag-reorderable
 (per-user), searchable (name + OR tag filter), and shareable by inviting **viewers** (view +
 comment) or **collaborators** (edit + comment); the **owner** manages membership. Each list is
 **public or private** (owner-only toggle; **private by default**) — a public list is read-only

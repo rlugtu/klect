@@ -206,10 +206,9 @@ export default function ListScreen() {
                   <Pressable
                     key={tag.id}
                     onPress={() => toggleTag(tag.id)}
-                    style={{ backgroundColor: tag.color }}
-                    className="rounded-skin-sm px-2.5 py-0.5">
-                    <Text className="font-sans text-xs text-ink">
-                      {tag.name.toLowerCase()} ✕
+                    className="px-1 py-0.5">
+                    <Text className="font-sans text-sm text-accent">
+                      #{tag.name.toLowerCase()} ✕
                     </Text>
                   </Pressable>
                 ))}
@@ -299,13 +298,9 @@ export default function ListScreen() {
                 key={tag.id}
                 onPress={() => toggleTag(tag.id)}
                 className="flex-row items-center justify-between border-b border-border py-3">
-                <View className="flex-row items-center gap-2">
-                  <View
-                    style={{ backgroundColor: tag.color }}
-                    className="h-4 w-4 rounded-full"
-                  />
-                  <Text className="font-sans text-ink">{tag.name.toLowerCase()}</Text>
-                </View>
+                <Text className={`font-sans ${on ? 'text-accent' : 'text-ink'}`}>
+                  #{tag.name.toLowerCase()}
+                </Text>
                 {on && <Text className="text-base text-primary">✓</Text>}
               </Pressable>
             );

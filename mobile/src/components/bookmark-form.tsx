@@ -2,9 +2,7 @@ import { type ReactNode, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Keyboard,
-  KeyboardAvoidingView,
   Modal,
-  Platform,
   Pressable,
   ScrollView,
   Text,
@@ -219,15 +217,18 @@ export default function BookmarkForm({
   }
 
   return (
-    <KeyboardAvoidingView
-      style={{ flex: 1 }}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+    <View style={{ flex: 1 }}>
       <ScrollView
         className="flex-1 bg-bg"
         // Add the bottom safe-area inset so the Save button clears the home
         // indicator (notably in the share-extension flow, which has no tab bar).
         contentContainerStyle={{ padding: 16, paddingBottom: 16 + insets.bottom, gap: 12 }}
-        keyboardShouldPersistTaps="handled">
+        keyboardShouldPersistTaps="handled"
+        // Inset the scroll view by the keyboard (instead of shrinking the frame with a
+        // KeyboardAvoidingView) so the focused field always scrolls into view above the
+        // keyboard. Critical inside the fixed-height iOS share sheet, where a padding-based
+        // avoider pushed the whole form off-screen and left it blank while typing.
+        automaticallyAdjustKeyboardInsets>
         {header ? (
           <>
             {header}
@@ -289,14 +290,21 @@ export default function BookmarkForm({
           value={description}
           onChangeText={setDescription}
         />
-        <TextInput
-          className="rounded-skin border-skin border-border px-4 py-3 text-ink"
-          placeholder="Tags (comma separated)"
-          placeholderTextColor={muted}
-          autoCapitalize="none"
-          value={tagsText}
-          onChangeText={setTagsText}
-        />
+        <View className="gap-1">
+          <TextInput
+            className="rounded-skin border-skin border-border px-4 py-3 text-ink"
+            placeholder="Tags (comma separated)"
+            placeholderTextColor={muted}
+            autoCapitalize="none"
+            value={tagsText}
+            // Tags render as #hashtags in the UI, but the "#" is display-only and never
+            // stored — strip any the user types so it can't leak into the saved name.
+            onChangeText={(text) => setTagsText(text.replace(/#/g, ''))}
+          />
+          <Text className="text-sm text-muted">
+            No need for a #, it&apos;s added automatically. Tags are saved in lowercase.
+          </Text>
+        </View>
 
         <View className="flex-row items-center gap-2">
           <Text className="text-muted">Rating</Text>
@@ -339,6 +347,6 @@ export default function BookmarkForm({
           </View>
         </View>
       </Modal>
-    </KeyboardAvoidingView>
+    </View>
   );
 }

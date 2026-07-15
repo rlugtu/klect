@@ -252,6 +252,10 @@ export default function NearbyScreen() {
         ref={sheetRef}
         index={0}
         snapPoints={snapPoints}
+        // Stack the drawer above the floating distance chips so that when it's dragged up to
+        // full height it covers them; at the resting 45% snap they don't overlap (chips are
+        // pinned to the top, the drawer to the bottom), so both stay tappable.
+        containerStyle={{ zIndex: 10 }}
         backgroundStyle={{ backgroundColor: t.panel }}
         handleIndicatorStyle={{ backgroundColor: t.muted }}>
         <View style={styles.sheetHeader}>
@@ -342,7 +346,9 @@ const styles = StyleSheet.create({
     position: 'absolute',
     left: 12,
     right: 12,
-    zIndex: 5,
+    // Above the map, but below the results drawer (zIndex 10) so a fully-expanded drawer
+    // covers the chips rather than the chips floating over it.
+    zIndex: 1,
   },
   chips: {
     flexDirection: 'row',

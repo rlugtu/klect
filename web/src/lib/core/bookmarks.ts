@@ -65,7 +65,14 @@ function normalizeFields(input: BookmarkInput) {
 }
 
 function normalizeTagNames(names: string[]): string[] {
-  return [...new Set(names.map((t) => t.trim()).filter(Boolean))];
+  // Lowercase + trim so casing variants ("Coffee" / "coffee") never create duplicate
+  // user-scoped tags. The leading "#" is a UI-only affordance (see mobile TagPill) and is
+  // stripped here defensively in case a client sends it — tags are never stored with a "#".
+  return [
+    ...new Set(
+      names.map((t) => t.trim().replace(/^#+/, "").trim().toLowerCase()).filter(Boolean),
+    ),
+  ];
 }
 
 /**
