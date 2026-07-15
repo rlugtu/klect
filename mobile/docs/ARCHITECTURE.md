@@ -254,15 +254,20 @@ modal with `router.back()` (or `router.dismissAll()` after leaving a list).
   `sharing.removeMember`), pending-invite revoke (`sharing.pendingInvites` / `sharing.revokeInvite`);
   non-owners see a **Leave list** action (`sharing.leave`). Pending-invite/owner-only queries swallow
   the 403 for non-owners.
-- **Nearby** (`(tabs)/nearby.tsx`) — reads device GPS (`expo-location`, foreground permission), then
-  in parallel calls `nearby.find` (haversine-filters the user's coordinate-bearing bookmarks within a
-  chosen radius — full-width, evenly-spaced chips 1/5/10/25 mi) and `places.reverseGeocode` (a
-  readable "Your location" label, falling back to a raw coordinate readout). On load **no chip is
-  selected** (`radius` starts `null`) and a placeholder — "Tap a distance to find nearby bookmarks."
-  — prompts the user; it clears the moment a search runs. Results are compact
-  rows with an emphasized distance and up to 3 tag pills (`TagPill`, from `card.tags`) under the
-  list label; a "N skipped (no coordinates)" note covers bookmarks without coordinates. Only
-  bookmarks given coordinates via location search have them.
+- **Nearby** (`(tabs)/nearby.tsx`) — a **full-screen Mapbox map** (`@rnmapbox/maps`, `MapView` +
+  `Camera`; style follows light/dark theme, tiles need `EXPO_PUBLIC_MAPBOX_TOKEN`). On open it
+  **auto-locates** (`expo-location` foreground permission → `getCurrentPositionAsync`), centers the
+  camera on the user, and resolves a "Your location" label via `places.reverseGeocode` (falling back
+  to a raw coordinate readout). A **floating radius selector** (glass pill, chips 1/5/10/25 mi) sits
+  over the top of the map; tapping a chip runs `nearby.find` (haversine-filters the user's
+  coordinate-bearing bookmarks) and `fitBounds` frames the user + all results. Each result is a
+  **numbered pin** (`MarkerView`); tapping one expands the drawer and scrolls to its row (briefly
+  ringed). A persistent **bottom drawer** (`@gorhom/bottom-sheet` non-modal `BottomSheet` +
+  `BottomSheetFlatList`, snap points 45% / 90%) holds the result list — compact rows with an
+  emphasized distance and up to 3 tag pills (`TagPill`), the location label, and a
+  "N skipped (no coordinates)" note. Tapping a row opens the bookmark. Only bookmarks given
+  coordinates via location search appear. (`app.config.js` injects the Mapbox **download** token
+  from `MAPBOX_DOWNLOAD_TOKEN` at build time; see `.env.example`.)
 - **Profile** (`(tabs)/profile.tsx` own · `users/[id].tsx` others, both render
   `components/profile-view.tsx`) — a user's avatar/icon, name, "Member since", stats (public lists ·
   friends), and their public lists (`profile.get`). Others' profiles show an **Add friend** button

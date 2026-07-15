@@ -11,6 +11,10 @@ export type NearbyBookmark = {
   listId: string;
   listLabel: { icon: string; name: string };
   distanceMiles: number;
+  /** The bookmark's geocoded position — always present (only coordinate-bearing
+   * bookmarks reach this list). Consumed by the mobile map to drop a pin. */
+  lat: number;
+  lon: number;
 };
 
 export type NearbyResult =
@@ -63,6 +67,8 @@ export async function findNearbyBookmarks(
             listId: b.list.id,
             listLabel: { icon: b.list.icon, name: b.list.name },
             distanceMiles,
+            lat: b.latitude,
+            lon: b.longitude,
           },
         ];
       })

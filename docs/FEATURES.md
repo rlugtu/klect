@@ -163,7 +163,7 @@ never trapped on the wrong screen.
 | User profiles | ✅ | ✅ | `/users/[id]` (web) · Profile tab + `users/[id]` (mobile); identity + stats + public lists + add-friend (`profile.get`) |
 | Comments (lists & bookmarks) | ✅ | ✅ | |
 | Polls | ✅ | ✅ | Create / vote / edit / delete |
-| Nearby / geolocation | ⚠️ | ⚠️ | Web browser geo (0.5–10 mi) · Mobile native GPS (1–25 mi) |
+| Nearby / geolocation | ⚠️ | ⚠️ | Web browser geo + list (0.5–10 mi) · Mobile native GPS + Mapbox map & drawer (1–25 mi) |
 | Profile & settings | ✅ | ✅ | Theme picker (all 6 themes) |
 | Themes | ✅ | ✅ | All 6 both; **default differs** (web Modern Light · mobile Journal Light) |
 | Native share extension | ➖ | ✅ | Mobile-only, iOS (save a bookmark inside the OS share sheet) |
@@ -378,10 +378,14 @@ date picker); same procedures.
 bookmarks with a typed (non-geocoded) location are skipped and counted.
 **Web.** `/nearby` → `NearbyFinder` (browser Geolocation API), radius **0.5 / 1 / 2 / 5 / 10 mi**,
 per-list toggles; `nearby.find` (haversine).
-**Mobile.** `src/app/(tabs)/nearby.tsx` (native `expo-location` GPS), radius **1 / 5 / 10 / 25 mi**
-(full-width, evenly-spaced chips), reverse-geocoded location label; `nearby.find`. Result rows show
-an emphasized distance and up to 3 tag pills under the list label.
-**Differences.** Radius options differ; web offers per-list toggles, mobile searches all.
+**Mobile.** `src/app/(tabs)/nearby.tsx` — a **full-screen Mapbox map** (`@rnmapbox/maps`) that
+auto-locates on open, with a **floating** radius selector (**1 / 5 / 10 / 25 mi**) over the map, a
+numbered **pin** per result, and a **bottom drawer** (`@gorhom/bottom-sheet`) listing results
+(distance + up to 3 tag pills); tapping a pin scrolls the drawer to that row, tapping a row opens the
+bookmark. Uses native `expo-location` GPS + reverse-geocoded label; `nearby.find` (results carry
+`lat`/`lon`).
+**Differences.** Radius options differ; web offers per-list toggles, mobile searches all. Web renders
+a list; mobile renders an interactive map + drawer.
 
 ### Profile & settings
 **Description.** Edit your profile (names, birthday, emoji icon), pick a theme, sign out.

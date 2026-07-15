@@ -223,7 +223,7 @@ modules begin with.
 src/app/_layout.tsx           root Stack + auth gate (login when signed out); registers routes
   (tabs)/_layout.tsx          Tabs (swipeable pager) — Nearby / Create(＋) / Lists / Friends / Profile
   (tabs)/index.tsx            Home: lists + search + drag-reorder → push /lists/[id]
-  (tabs)/nearby.tsx           radius search (expo-location → trpc.nearby.find)
+  (tabs)/nearby.tsx           Mapbox map + drawer (expo-location → trpc.nearby.find)
   (tabs)/create.tsx           action-only tab: press intercepted → push /bookmarks/new (renders null)
   (tabs)/friends.tsx          friends + add-by-email; → friend-requests / pending-requests
   (tabs)/profile.tsx          own profile; settings gear → push /settings

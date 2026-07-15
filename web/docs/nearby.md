@@ -31,7 +31,11 @@ work happens in a server action (server-first, no separate HTTP API):
 3. **`src/lib/actions/nearby.ts`** — `findNearbyBookmarks({ lat, lon, radiusMiles, listIds })`:
    `requireUser()`, fetch candidate bookmarks, haversine-filter to the radius, sort ascending, and
    return `{ ok, data: NearbyBookmark[], skipped }`. `NearbyBookmark` carries the card data, list
-   id/label, and `distanceMiles`.
+   id/label, `distanceMiles`, and the bookmark's `lat`/`lon` (used by the mobile map to drop pins;
+   the web list ignores them).
+
+> **Mobile** consumes the same logic via the `nearby.find` tRPC procedure but renders a full-screen
+> Mapbox map with a bottom drawer instead of a plain list — see `mobile/docs/ARCHITECTURE.md`.
 
 ## Supporting pieces
 - **`src/lib/geo.ts`** — `haversineMiles(lat1, lon1, lat2, lon2)`, `NEARBY_RANGES_MI`

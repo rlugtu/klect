@@ -46,7 +46,7 @@ bottom-positioned **swipeable** `@react-navigation/material-top-tabs` pager on
 **`react-native-pager-view`**, wired via `withLayoutContext`),
 react-native-reanimated 4 + gesture-handler, **`expo-haptics`** (tab-press feedback), `expo-image`,
 **NativeWind**, `@trpc/client`,
-`@better-auth/expo`, **`@gorhom/bottom-sheet`** (tag filter),
+`@better-auth/expo`, **`@gorhom/bottom-sheet`** (tag filter + Near me results drawer),
 **`react-native-reorderable-list`** (drag-to-reorder lists on home; JS-only, builds on reanimated +
 gesture-handler), **expo-font + `@expo-google-fonts/*`**
 (Newsreader, Work Sans), `@expo/vector-icons` (tab icons — outline/filled pairs crossfaded by swipe
@@ -54,6 +54,9 @@ position in the custom tab bar), **`expo-blur`** (frosted glass behind
 the floating tab bar **and the status bar** — needs a native build to render; the pushed-screen
 header + status bar mask it with **`expo-linear-gradient` + `@react-native-masked-view/masked-view`**
 so the blur fades out gradually with no hard line), `expo-location`,
+**`@rnmapbox/maps`** (the Near me screen's full-screen Mapbox map + numbered pins; needs a public
+`EXPO_PUBLIC_MAPBOX_TOKEN` at runtime and a secret `MAPBOX_DOWNLOAD_TOKEN` injected by `app.config.js`
+at build time — both in `.env`, see `.env.example`; requires the custom dev build),
 `expo-secure-store`,
 **`expo-share-extension`** (native iOS share extension — reuses `BookmarkForm` to save a shared URL
 as a bookmark *inside the share sheet*, authenticating via a shared-keychain bearer token; entry is

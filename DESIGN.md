@@ -233,6 +233,10 @@ helper — never rely on UI gating alone. Read-only public access uses `assertCa
   bookmarks and returns them closest→farthest, each with its list tag and distance ("2.3 mi away").
 - Only bookmarks with stored `latitude`/`longitude` (picked from location autocomplete) can match;
   ones with a typed location but no coordinates are excluded and surfaced as an "N skipped" note.
+- **Web** renders results as a list. **Mobile** renders a full-screen **Mapbox** map: it
+  auto-locates on open, drops a numbered pin per result, and floats the radius selector over the
+  map; a **bottom drawer** holds the same result list, and tapping a pin expands the drawer and
+  scrolls to that row. Both clients call the same `nearby.find` (results now carry `lat`/`lon`).
 
 ---
 
@@ -446,7 +450,7 @@ release builds don't reliably persist `Secure` cookies. `auth.api.getSession()` 
 | `profile.update` | mutation | `ProfileInput` | self | `core.saveProfile` |
 | `profile.get` | query | `{ userId }` | signed-in (public data only) | `getPublicProfile` — identity + public lists + friend count + viewer↔target friendship state |
 | `tags.mine` | query | – | user-scoped | `getUserTags` |
-| `nearby.find` | query | `{ lat, lon, radiusMiles, listIds }` | user-scoped | `core.findNearbyBookmarks` |
+| `nearby.find` | query | `{ lat, lon, radiusMiles, listIds }` | user-scoped | `core.findNearbyBookmarks` — each result carries `lat`/`lon` (for map pins) alongside `distanceMiles` |
 | `places.search` | query | `{ text, sessionToken }` | signed-in | `core/places.searchPlaces` |
 | `places.retrieve` | query | `{ id, sessionToken }` | signed-in | `core/places.retrievePlace` |
 | `places.reverseGeocode` | query | `{ lat, lon }` | signed-in | `core/places.reverseGeocode` |
