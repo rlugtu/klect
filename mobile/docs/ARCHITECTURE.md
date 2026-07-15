@@ -190,8 +190,11 @@ modal with `router.back()` (or `router.dismissAll()` after leaving a list).
   pending count → the pushed `requests` screen) with the **＋ List** action (→ `lists/new`), divided
   off from the cards below so it doesn't read as another list card. Cards are
   **drag-reorderable** (`react-native-reorderable-list`): long-press a card to drag; `onReorder`
-  optimistically reorders then persists `lists.reorder`. Dragging is disabled while searching (a plain
-  `FlatList` renders the filtered subset instead). Cards carry the `cardShadow`.
+  optimistically reorders then persists `lists.reorder`. Dragging is disabled while searching (the same
+  `ReorderableList` renders the filtered subset with `draggable={false}`, and `onReorder` guards against
+  the filtered indices). It is deliberately the **same** list component whether or not a search is
+  active — swapping component types on the first keystroke would unmount the search `TextInput` (which
+  lives in the list header) and drop keyboard focus. Cards carry the `cardShadow`.
 - **List requests** (`requests.tsx`) — all open incoming list-join requests
   (`sharing.incomingRequests`) with approve/reject (`approveRequest`/`rejectRequest`).
 - **Friends** (`(tabs)/friends.tsx`) — add a friend by email (`friends.sendRequest`), the **Pending**
@@ -212,7 +215,7 @@ modal with `router.back()` (or `router.dismissAll()` after leaving a list).
   their gradual blur from the screen's own `FloatingStatusBar` (the `transparentHeader` option in
   `_layout.tsx`), rather than the pushed-header `HeaderBlurBackground`.)*
 - **List detail** (`lists/[id].tsx`) — bookmark feed (`bookmarks.forList`) as `PhotoCard`s (first
-  image, name, description, rating stars, tag pills). The feed always shows a static thumbnail, never
+  image, name, description, rating stars, `#hashtag` tags). The feed always shows a static thumbnail, never
   a player. When the extracted image is missing **or fails to load** (reel `og:image`s are often
   hotlink-blocked/expiring social-CDN URLs), `PhotoCard` walks a fallback chain on error — a derived
   YouTube poster (`videoPosterUrl`) then a no-key page screenshot (`screenshotThumbUrl`, WordPress
@@ -222,7 +225,7 @@ modal with `router.back()` (or `router.dismissAll()` after leaving a list).
   substring) that fills the remaining width, with a **Tags ▾** button on its right (only when the
   list has tags) that opens a `@gorhom/bottom-sheet` tag filter (multi-select **OR**, distinct tags
   across the list). Name search and the tag filter combine with **AND**. Selected tags render below
-  as a removable pills row; a **Clear all** control appears whenever a tag is selected **or** the
+  as a removable `#hashtag` row (tap to remove); a **Clear all** control appears whenever a tag is selected **or** the
   search box has text, and clears **both**. Footer is the list `CommentsSection`. Access comes from
   `lists.get` (`{ list, role, isMember }`): **non-members of a public list** get a read-only view —
   the Add button, action row, and comment composer are all hidden and a "Public · view only" note
@@ -259,12 +262,13 @@ modal with `router.back()` (or `router.dismissAll()` after leaving a list).
   **auto-locates** (`expo-location` foreground permission → `getCurrentPositionAsync`), centers the
   camera on the user, and resolves a "Your location" label via `places.reverseGeocode` (falling back
   to a raw coordinate readout). A **floating radius selector** (glass pill, chips 1/5/10/25 mi) sits
-  over the top of the map; tapping a chip runs `nearby.find` (haversine-filters the user's
+  over the top of the map (`zIndex` below the drawer, so dragging the drawer to full height covers
+  the chips rather than letting them float over it); tapping a chip runs `nearby.find` (haversine-filters the user's
   coordinate-bearing bookmarks) and `fitBounds` frames the user + all results. Each result is a
   **numbered pin** (`MarkerView`); tapping one expands the drawer and scrolls to its row (briefly
   ringed). A persistent **bottom drawer** (`@gorhom/bottom-sheet` non-modal `BottomSheet` +
   `BottomSheetFlatList`, snap points 45% / 90%) holds the result list — compact rows with an
-  emphasized distance and up to 3 tag pills (`TagPill`), the location label, and a
+  emphasized distance and up to 3 `#hashtag` tags (`TagPill`), the location label, and a
   "N skipped (no coordinates)" note. Tapping a row opens the bookmark. Only bookmarks given
   coordinates via location search appear. (`app.config.js` injects the Mapbox **download** token
   from `MAPBOX_DOWNLOAD_TOKEN` at build time; see `.env.example`.)
@@ -312,7 +316,12 @@ is the create baseline. An optional `header` slot renders above the form — the
 `<ListPicker>` into it so the picker shares the form's keyboard-aware scroll and single submit button.
 `onSubmit(data)` is provided by each screen; throwing from it surfaces the message inline (used to
 enforce "pick at least one list"). `autofillOnMount` (guarded to run once) fetches metadata when the
-form opens with a shared URL.
+form opens with a shared URL. Tags are entered comma-separated; a leading `#` is stripped on input
+(the `#` is display-only) and web's core lowercases + dedupes on save, so casing variants never
+create duplicate tags. The scroll view uses `automaticallyAdjustKeyboardInsets` (not a
+`KeyboardAvoidingView`) so the focused field always sits above the keyboard — this is what keeps the
+form visible inside the fixed-height iOS share sheet, where the old padding-based avoider pushed it
+off-screen.
 
 - **`LocationInput`** (`components/location-input.tsx`) — Mapbox Search Box autocomplete via web's
   `places.search` / `places.retrieve` procedures (token stays server-side). Debounced suggest
@@ -339,7 +348,7 @@ the `@/*` fallback) is re-checked before mounting the WebView.
 ### Shared components
 
 `photo-card.tsx` (photo-forward card + `theme/shadows.ts` drop shadow, with the image → fallback →
-emoji-placeholder error walk), `tag-pill.tsx` (per-tag colored pill, lowercase, no border),
+emoji-placeholder error walk), `tag-pill.tsx` (a `#hashtag` in uniform accent text — no pill/color),
 `comments-section.tsx` (add/delete/list with relative timestamps, newest first), `list-form.tsx`,
 `login-screen.tsx`.
 

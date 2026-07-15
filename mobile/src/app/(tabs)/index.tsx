@@ -1,7 +1,6 @@
 import { useCallback, useMemo, useState } from 'react';
 import { Pressable, Text, TextInput, View } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
-import Animated from 'react-native-reanimated';
 import ReorderableList, {
   reorderItems,
   useReorderableDrag,
@@ -197,35 +196,30 @@ export default function HomeScreen() {
 
   return (
     <SafeAreaView style={{ flex: 1 }} edges={['left', 'right']} className="bg-bg">
-      {filtering ? (
-        <Animated.FlatList
-          data={shown}
-          keyExtractor={(m) => m.list.id}
-          onScroll={onScroll}
-          scrollEventThrottle={16}
-          contentContainerStyle={contentContainerStyle}
-          ListHeaderComponent={header}
-          renderItem={({ item }) => (
-            <ListCard item={item} draggable={false} onOpen={() => openList(item)} />
-          )}
-        />
-      ) : (
-        <ReorderableList
-          data={lists}
-          keyExtractor={(m) => m.list.id}
-          onScroll={onScroll}
-          contentContainerStyle={contentContainerStyle}
-          ListHeaderComponent={header}
-          onReorder={({ from, to }) => {
-            const next = reorderItems(lists, from, to);
-            setLists(next);
-            persistOrder(next);
-          }}
-          renderItem={({ item }) => (
-            <ListCard item={item} draggable onOpen={() => openList(item)} />
-          )}
-        />
-      )}
+      {/* One list, always mounted — the search TextInput lives in its header, so swapping
+          list components while filtering would unmount it and drop keyboard focus after the
+          first keystroke. Instead we drive the same ReorderableList off `shown` and just
+          disable dragging while filtering (a filtered view can't be meaningfully reordered). */}
+      <ReorderableList
+        data={shown}
+        keyExtractor={(m) => m.list.id}
+        onScroll={onScroll}
+        contentContainerStyle={contentContainerStyle}
+        ListHeaderComponent={header}
+        onReorder={({ from, to }) => {
+          if (filtering) return; // guard: indices are only valid against the full list
+          const next = reorderItems(lists, from, to);
+          setLists(next);
+          persistOrder(next);
+        }}
+        renderItem={({ item }) => (
+          <ListCard
+            item={item}
+            draggable={!filtering}
+            onOpen={() => openList(item)}
+          />
+        )}
+      />
       <FloatingStatusBar />
     </SafeAreaView>
   );

@@ -34,7 +34,7 @@ with a link or a location.
   TikTok, Instagram, and more).
 - **Organize with lists.** Group bookmarks into lists (e.g. "Tokyo trip," "Date night spots") and
   reorder them however you like.
-- **Tag and filter.** Add colorful tags to bookmarks and filter to exactly what you're looking for.
+- **Tag and filter.** Add tags to bookmarks (shown as `#hashtags` on mobile) and filter to exactly what you're looking for.
 - **Search everything.** Find any list or bookmark fast.
 - **Share and collaborate.** Invite people to a list as a **viewer** (can look and comment) or a
   **collaborator** (can add and edit) — they get a **request** to accept, so nobody's added without
@@ -292,12 +292,15 @@ before mount.
 **Differences.** Same detection logic; player tech differs (web iframe vs mobile native + WebView).
 
 ### Tags
-**Description.** User-scoped tags (shared across all your lists), each auto-assigned a color at
-creation, rendered as colored pills. Filtering is OR-based (a bookmark matches if it has any selected
-tag).
+**Description.** User-scoped tags (shared across all your lists), stored **lowercase** (web's core
+lowercases, trims, strips any leading `#`, and dedupes on save, so casing variants like `Coffee` /
+`coffee` never create duplicates), each auto-assigned a color at creation. Web renders them as colored
+pills; mobile renders them as uniform `#hashtags` (the `#` is display-only and never stored).
+Filtering is OR-based (a bookmark matches if it has any selected tag).
 **Web.** `TagInput` (suggestions + quick-add chips), per-list filter dropdown in `ListBookmarks`,
 color via `randomTagColor`. `tags.mine`, `bookmarks.byTags`.
-**Mobile.** `TagPill` component; per-list tag filter via a `@gorhom/bottom-sheet` multi-select.
+**Mobile.** `TagPill` component (`#hashtag` text); per-list tag filter via a `@gorhom/bottom-sheet`
+multi-select. The bookmark form strips a typed `#` and notes tags are saved lowercase.
 **Differences.** Per-list filter UX differs (dropdown vs bottom sheet); web additionally exposes tag
 filtering on the home screen.
 
