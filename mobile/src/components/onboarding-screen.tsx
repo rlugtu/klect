@@ -33,9 +33,12 @@ const THEME_LABELS: Record<ThemeName, string> = {
 // yyyy-mm-dd — matches web's date input format; anything else is treated as unset.
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 
+// Public @handle format — mirrors web core's HANDLE_RE (lowercase a–z 0–9 _, 3–20).
+const HANDLE_RE = /^[a-z0-9_]{3,20}$/;
+
 /**
  * First-run profile setup — the mobile analogue of web's onboarding (`/onboarding`
- * → ProfileForm). Shown by the root layout when a signed-in user has no displayName
+ * → ProfileForm). Shown by the root layout when a signed-in user has no handle
  * yet (the "onboarded" signal). Saves via the shared `profile.update` tRPC procedure,
  * then calls `onDone` so the layout refetches the session and advances into the app.
  *
@@ -43,17 +46,11 @@ const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
  * a best-effort value; the server `Theme` enum only knows Pixel/Modern, so a Journal
  * pick is coerced to Pixel there (affects web only — mobile keeps the local theme).
  */
-export default function OnboardingScreen({
-  defaultName,
-  onDone,
-}: {
-  defaultName?: string;
-  onDone: () => void;
-}) {
+export default function OnboardingScreen({ onDone }: { onDone: () => void }) {
   const { theme, setTheme } = useTheme();
   const muted = THEME_TOKENS[theme].muted;
 
-  const [displayName, setDisplayName] = useState(defaultName ?? '');
+  const [handle, setHandle] = useState('');
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const [birthday, setBirthday] = useState('');
@@ -62,8 +59,11 @@ export default function OnboardingScreen({
   const [error, setError] = useState<string | null>(null);
 
   async function submit() {
-    if (!displayName.trim()) {
-      setError('Display name is required.');
+    const normalizedHandle = handle.trim().toLowerCase().replace(/^@/, '');
+    if (!HANDLE_RE.test(normalizedHandle)) {
+      setError(
+        'Handle must be 3–20 characters: lowercase letters, numbers, or underscores.',
+      );
       return;
     }
     if (birthday.trim() && !DATE_RE.test(birthday.trim())) {
@@ -73,9 +73,9 @@ export default function OnboardingScreen({
     setBusy(true);
     setError(null);
     const input: ProfileInput = {
+      handle: normalizedHandle,
       firstName: firstName.trim() || null,
       lastName: lastName.trim() || null,
-      displayName: displayName.trim(),
       birthday: birthday.trim() ? new Date(birthday.trim()) : null,
       icon,
       theme,
@@ -102,14 +102,22 @@ export default function OnboardingScreen({
         </View>
 
         <View className="gap-1.5">
-          <Text className="font-sans-medium text-sm text-muted">Display name *</Text>
-          <TextInput
-            className="rounded-skin border-skin border-border px-4 py-3 font-sans text-ink"
-            placeholder="Player One"
-            placeholderTextColor={muted}
-            value={displayName}
-            onChangeText={setDisplayName}
-          />
+          <Text className="font-sans-medium text-sm text-muted">Handle *</Text>
+          <View className="flex-row items-center rounded-skin border-skin border-border px-4">
+            <Text className="font-sans text-muted">@</Text>
+            <TextInput
+              className="flex-1 py-3 pl-1 font-sans text-ink"
+              placeholder="player_one"
+              placeholderTextColor={muted}
+              autoCapitalize="none"
+              autoCorrect={false}
+              value={handle}
+              onChangeText={setHandle}
+            />
+          </View>
+          <Text className="font-sans text-xs text-muted">
+            Lowercase letters, numbers, or underscores. 3–20 characters.
+          </Text>
         </View>
 
         <View className="flex-row gap-2">

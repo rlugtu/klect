@@ -8,7 +8,7 @@ export async function getListMembers(listId: string) {
     orderBy: { createdAt: "asc" },
     include: {
       user: {
-        select: { id: true, displayName: true, name: true, email: true, icon: true },
+        select: { id: true, handle: true, icon: true },
       },
     },
   });
@@ -18,12 +18,23 @@ export async function getListMembers(listId: string) {
   );
 }
 
-/** Pending (not-yet-decided) join requests for a list. */
-export function getPendingInvites(listId: string) {
-  return prisma.listInvite.findMany({
+/** Pending (not-yet-decided) join requests for a list, each with the invited
+ *  user's @handle (invites target existing users, keyed internally by email). */
+export async function getPendingInvites(listId: string) {
+  const invites = await prisma.listInvite.findMany({
     where: { listId, status: "PENDING" },
     orderBy: { createdAt: "asc" },
   });
+  if (invites.length === 0) return [];
+  const users = await prisma.user.findMany({
+    where: { email: { in: invites.map((i) => i.email) } },
+    select: { email: true, handle: true },
+  });
+  const handleByEmail = new Map(users.map((u) => [u.email, u.handle]));
+  return invites.map((inv) => ({
+    ...inv,
+    handle: handleByEmail.get(inv.email) ?? null,
+  }));
 }
 
 /**
@@ -36,7 +47,7 @@ export function getIncomingRequests(email: string) {
     orderBy: { createdAt: "desc" },
     include: {
       list: { select: { id: true, name: true, description: true, icon: true } },
-      invitedBy: { select: { displayName: true, name: true } },
+      invitedBy: { select: { handle: true } },
     },
   });
 }
@@ -47,7 +58,7 @@ export function getInviteByToken(token: string) {
     where: { token },
     include: {
       list: { select: { id: true, name: true, icon: true, description: true } },
-      invitedBy: { select: { displayName: true, name: true } },
+      invitedBy: { select: { handle: true } },
     },
   });
 }

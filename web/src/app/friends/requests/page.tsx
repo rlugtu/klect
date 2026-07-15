@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { requireOnboardedUser } from "@/lib/session";
 import { getIncomingFriendRequests } from "@/lib/friends";
+import { atHandle } from "@/lib/handle";
 import {
   acceptFriendRequest,
   declineFriendRequest,
@@ -44,15 +45,8 @@ export default async function FriendRequestsPage() {
                 <span aria-hidden className="text-lg">
                   {r.requester.icon ?? "🔖"}
                 </span>
-                <span className="flex min-w-0 flex-col">
-                  <span className="truncate text-sm font-semibold">
-                    {r.requester.displayName ??
-                      r.requester.name ??
-                      r.requester.email}
-                  </span>
-                  <span className="text-muted truncate text-sm">
-                    {r.requester.email}
-                  </span>
+                <span className="truncate text-sm font-semibold">
+                  {atHandle(r.requester.handle)}
                 </span>
               </span>
               <span className="flex shrink-0 items-center gap-2">

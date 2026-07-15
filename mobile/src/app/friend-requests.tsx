@@ -6,17 +6,12 @@ import { Stack, useFocusEffect } from 'expo-router';
 import { useHeaderHeight } from '@react-navigation/elements';
 
 import { trpc } from '@/client/api';
+import { atHandle } from '@/lib/handle';
 import FloatingStatusBar from '@/components/floating-status-bar';
 import { cardShadow } from '@/theme/shadows';
 
 type FriendsData = Awaited<ReturnType<typeof trpc.friends.list.query>>;
 type Incoming = FriendsData['incoming'];
-
-const displayName = (u: {
-  displayName: string | null;
-  name: string | null;
-  email: string;
-}) => u.displayName ?? u.name ?? u.email;
 
 /** All incoming friend requests: accept or decline. Pushed from the Friends tab. */
 export default function FriendRequestsScreen() {
@@ -68,9 +63,8 @@ export default function FriendRequestsScreen() {
             <View className="flex-1 pr-2">
               <Text className="font-sans-medium text-base text-ink">
                 {req.requester.icon ? `${req.requester.icon} ` : ''}
-                {displayName(req.requester)}
+                {atHandle(req.requester.handle)}
               </Text>
-              <Text className="text-xs text-muted">{req.requester.email}</Text>
             </View>
             <View className="flex-row items-center gap-4">
               <Pressable onPress={() => decide(req.id, 'decline')} hitSlop={8}>

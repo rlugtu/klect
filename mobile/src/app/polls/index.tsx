@@ -4,6 +4,7 @@ import { Stack, useFocusEffect, useLocalSearchParams, useRouter } from 'expo-rou
 import { useHeaderHeight } from '@react-navigation/elements';
 
 import { trpc } from '@/client/api';
+import { atHandle } from '@/lib/handle';
 import { useTheme } from '@/theme/theme-provider';
 import { THEME_TOKENS } from '@/theme/tokens';
 
@@ -107,7 +108,7 @@ export default function PollListScreen() {
           )
         }
         renderItem={({ item }) => {
-          const creator = item.creator.displayName ?? item.creator.name ?? 'Someone';
+          const creator = atHandle(item.creator.handle);
           return (
             <Pressable
               onPress={() =>

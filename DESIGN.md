@@ -94,8 +94,14 @@ better-auth manages its own `user` / `session` / `account` / `verification` tabl
 fields extend the user record; app entities below.
 
 ```
-User            id, email, firstName, lastName, displayName,
-                birthday?, icon (emoji), theme (Theme enum), createdAt
+User            id, email, handle (unique, lowercase; the public @handle),
+                firstName, lastName, birthday?, icon (emoji),
+                theme (Theme enum), createdAt
+                — handle is the sole public identity, shown as @handle everywhere a
+                  user is mentioned (comments, members, friends, search, polls,
+                  profiles). Nullable in the DB but required via the onboarding gate
+                  (like the old displayName). firstName/lastName are collected but
+                  never displayed.
 
 List            id, name, description, icon, isPublic (bool), ownerId, createdAt
                 — isPublic defaults **false** (private); public = read-only viewable by
@@ -149,8 +155,8 @@ PollVote        id, pollId, optionId, userId — unique per (optionId, userId); 
 - **List sharing is request-based**: `inviteToList` creates a PENDING `ListInvite`; the invitee
   approves it (→ `ListMembership` with the invite's role) or rejects it (→ REJECTED) from the
   home-page "collab requests" section. Inviting a non-friend also offers to send a friend request.
-- **Friends** (`Friendship`) are added by email as a PENDING request the addressee accepts. Friends
-  can be bulk-added to lists (which sends per-list join requests) from the Friends page.
+- **Friends** (`Friendship`) are added by **@handle** as a PENDING request the addressee accepts.
+  Friends can be bulk-added to lists (which sends per-list join requests) from the Friends page.
 - Deleting a user cascades their friendships (both sides).
 - Tags are user-scoped and shared across all of a user's lists (OR-matching in filters).
 - Deleting a list cascades its bookmarks, comments, memberships, invites, **and polls**.
@@ -201,10 +207,10 @@ helper — never rely on UI gating alone. Read-only public access uses `assertCa
 | Route | Purpose |
 |---|---|
 | `/login` | Google + email/password (better-auth) |
-| `/onboarding` | First login only: displayName, birthday (optional), icon, theme |
+| `/onboarding` | First login only: handle (required, unique @handle), first/last name (optional), birthday (optional), icon, theme |
 | `/` | **Home**: all lists you own or belong to; reorderable (web: Framer Motion drag · mobile: long-press drag) + unified search bar; a **List requests** button above the search opens `/requests` |
 | `/requests` | **List requests**: all open incoming list-join (collab) requests, approve/reject (empty state when none) |
-| `/friends` | **Friends**: add friends by email; always-visible **Requests** link → `/friends/requests` and **Pending** link → `/friends/pending`; friends list — each row can **remove** the friend, open their **profile**, and **add** them to a multiselect of your lists + role → send join requests (mobile packs these into one tap-to-expand actions panel; web uses row controls) |
+| `/friends` | **Friends**: add friends by **@handle**; always-visible **Requests** link → `/friends/requests` and **Pending** link → `/friends/pending`; friends list — each row can **remove** the friend, open their **profile**, and **add** them to a multiselect of your lists + role → send join requests (mobile packs these into one tap-to-expand actions panel; web uses row controls) |
 | `/friends/requests` | **Friend requests**: all incoming friend requests, accept/decline (empty state when none) |
 | `/friends/pending` | **Pending requests**: outgoing friend requests you've sent, withdraw each (empty state when none) |
 | `/nearby` | **Near me**: find geocoded bookmarks within a chosen radius of your current location, closest→farthest |
@@ -215,7 +221,7 @@ helper — never rely on UI gating alone. Read-only public access uses `assertCa
 | `/lists/[id]/polls/new` | Create a poll: fields + a searchable/tag-filterable bookmark option picker (≥2) |
 | `/lists/[id]/polls/[pollId]` | Poll detail: **Vote**/**Results** toggle; edit/delete for the creator or list owner |
 | `/lists/[id]/polls/[pollId]/edit` | Edit a poll (creator or list owner); reconciles options |
-| `/users/[id]` | **Profile**: a user's identity (avatar/icon, name, member-since), stats (public lists · friends), their **public lists**, and an Add-friend action on others' profiles. Your own profile is linked from a **Profile** item in the primary nav; on your own profile a **settings gear** opens `/settings`. |
+| `/users/[handle]` | **Profile** (reachable by @handle or id): a user's identity (avatar/icon, @handle, member-since), stats (public lists · friends), their **public lists**, and an Add-friend action on others' profiles. Your own profile is linked from a **Profile** item in the primary nav; on your own profile a **settings gear** opens `/settings`. |
 | `/settings` | Edit profile/theme/icon; manage/leave shared lists; pending requests. Reached via the **gear icon on your own profile** (no longer a primary-nav item). |
 | `/invite/[token]` | Accept an invite |
 
@@ -274,15 +280,16 @@ The capabilities the app ships today. Product-level coverage (and web/mobile par
   selector/creator; `createBookmarkInLists` writes **one independent bookmark row per target list**
   (own tag links), so editing or deleting one copy never touches the others. New lists created inline
   take a public/private toggle (`newListsPublic`).
-- **Sharing** — invite by email as VIEWER or COLLABORATOR; every invite is a **request-based** PENDING
-  `ListInvite` the invitee approves/rejects from a **List requests** view (no auto-join). Inviting a
-  non-friend can also send a friend request. Owners manage membership (role change, remove, revoke);
-  non-owners can leave.
-- **Friends** — email-based friend requests the addressee accepts (mutual once accepted), with
+- **Sharing** — invite by **@handle** as VIEWER or COLLABORATOR; every invite is a **request-based**
+  PENDING `ListInvite` the invitee approves/rejects from a **List requests** view (no auto-join).
+  Inviting a non-friend can also send a friend request. Owners manage membership (role change,
+  remove, revoke); non-owners can leave.
+- **Friends** — **@handle**-based friend requests the addressee accepts (mutual once accepted), with
   incoming/outgoing (withdrawable) request views. A friend row can remove the friend, open their
   profile, and bulk-add them to a multiselect of your lists + role (per-list join requests).
-- **Profiles** (`/users/[id]`) — identity, "member since", stats (public lists · friends), and the
-  user's public lists, with an add-friend action on others' profiles.
+- **Profiles** (`/users/[handle]`, also resolvable by id) — identity (@handle, avatar/icon, "member
+  since"), stats (public lists · friends), and the user's public lists, with an add-friend action on
+  others' profiles.
 - **Comments** — on both lists and bookmarks, newest-first; any member (viewer+) can post; author or
   list owner can delete (a DB check constraint enforces exactly one target).
 - **Polls** — pick 2+ bookmarks in a list as options; set start/end, max votes, revote rule, and (at
@@ -429,7 +436,7 @@ release builds don't reliably persist `Secure` cookies. `auth.api.getSession()` 
 | `polls.submitVotes` | mutation | `{ pollId, optionIds }` | VIEWER (in core) | `core.submitVotes` |
 | `sharing.members` | query | `{ listId }` | `assertRole` VIEWER | `getListMembers` |
 | `sharing.pendingInvites` | query | `{ listId }` | `assertRole` OWNER | `getPendingInvites` |
-| `sharing.invite` | mutation | `{ listId, email, role, alsoFriend? }` | OWNER (in core) | `core.inviteToList` — sends a PENDING join request; may also send a friend request |
+| `sharing.invite` | mutation | `{ listId, handle, role, alsoFriend? }` | OWNER (in core) | `core.inviteToList` — resolves the @handle to a user, sends a PENDING join request; may also send a friend request |
 | `sharing.incomingRequests` | query | – | self (by email) | `getIncomingRequests` |
 | `sharing.approveRequest` | mutation | `{ inviteId }` | invitee (email match, in core) | `core.approveRequest` |
 | `sharing.rejectRequest` | mutation | `{ inviteId }` | invitee (email match, in core) | `core.rejectRequest` |
@@ -440,7 +447,7 @@ release builds don't reliably persist `Secure` cookies. `auth.api.getSession()` 
 | `sharing.accept` | mutation | `{ token }` | any signed-in user w/ link | `core.acceptInvite` |
 | `friends.list` | query | – | self | `getFriends` + `getIncomingFriendRequests` + `getOutgoingFriendRequests` → `{ friends, incoming, outgoing }` |
 | `friends.friendListIds` | query | `{ friendId, listIds }` | self | `getFriendListIds` |
-| `friends.sendRequest` | mutation | `{ email }` | self | `core/friends.sendFriendRequest` |
+| `friends.sendRequest` | mutation | `{ handle }` | self | `core/friends.sendFriendRequest` — resolves the @handle to a user |
 | `friends.requestByUser` | mutation | `{ userId }` | self | `core/friends.sendFriendRequestById` (from a profile page) |
 | `friends.accept` | mutation | `{ id }` | addressee (in core) | `core/friends.acceptFriendRequest` |
 | `friends.decline` | mutation | `{ id }` | addressee (in core) | `core/friends.declineFriendRequest` |
@@ -448,7 +455,7 @@ release builds don't reliably persist `Secure` cookies. `auth.api.getSession()` 
 | `friends.remove` | mutation | `{ id }` | either party (in core) | `core/friends.removeFriend` |
 | `friends.addToLists` | mutation | `{ friendId, listIds, role }` | OWNER per list (in core) | `core.addFriendToLists` |
 | `profile.update` | mutation | `ProfileInput` | self | `core.saveProfile` |
-| `profile.get` | query | `{ userId }` | signed-in (public data only) | `getPublicProfile` — identity + public lists + friend count + viewer↔target friendship state |
+| `profile.get` | query | `{ handleOrId }` | signed-in (public data only) | `getPublicProfile` — resolves by @handle or id; identity + public lists + friend count + viewer↔target friendship state |
 | `tags.mine` | query | – | user-scoped | `getUserTags` |
 | `nearby.find` | query | `{ lat, lon, radiusMiles, listIds }` | user-scoped | `core.findNearbyBookmarks` — each result carries `lat`/`lon` (for map pins) alongside `distanceMiles` |
 | `places.search` | query | `{ text, sessionToken }` | signed-in | `core/places.searchPlaces` |

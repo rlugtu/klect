@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { ActivityIndicator, Pressable, Text, TextInput, View } from 'react-native';
 
 import { trpc } from '@/client/api';
+import { atHandle } from '@/lib/handle';
 import { useTheme } from '@/theme/theme-provider';
 import { THEME_TOKENS } from '@/theme/tokens';
 
@@ -90,7 +91,7 @@ export default function CommentsSection({
           <View className="flex-1 pr-2">
             <Text className="font-sans-semibold text-sm text-ink">
               {c.author.icon ? `${c.author.icon} ` : ''}
-              {c.author.displayName ?? c.author.name}
+              {atHandle(c.author.handle)}
               <Text className="font-sans text-muted"> · {timeAgo(c.createdAt)}</Text>
             </Text>
             <Text className="font-sans text-sm text-ink">{c.value}</Text>

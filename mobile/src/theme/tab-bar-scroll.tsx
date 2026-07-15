@@ -42,7 +42,7 @@ export function useTabBarShrink() {
  */
 export function useTabBarScrollHandler() {
   // Read the context directly (don't throw): this handler is also attached by screens
-  // rendered *outside* the tab navigator — e.g. the pushed users/[id] profile via
+  // rendered *outside* the tab navigator — e.g. the pushed users/[handle] profile via
   // ProfileView — where there's no bar to shrink. Fall back to local shared values so
   // it safely no-ops instead of crashing.
   const ctx = useContext(Ctx);

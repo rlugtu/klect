@@ -18,7 +18,7 @@ type Mode = 'signin' | 'signup';
  * Sign-in / sign-up against web's better-auth server. Email/password works out of the
  * box (sign-up mirrors web's `LoginForm`: name + email + password ≥ 8); Google uses the
  * social flow (needs a native OAuth client id configured — see DESIGN.md / mobile setup
- * notes). New accounts have no displayName yet, so the root layout routes them to
+ * notes). New accounts have no handle yet, so the root layout routes them to
  * onboarding. Styled with the shared Klect tokens.
  */
 export default function LoginScreen() {

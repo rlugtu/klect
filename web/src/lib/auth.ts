@@ -25,9 +25,9 @@ export const auth = betterAuth({
   // App profile fields collected at onboarding (see DESIGN.md §3).
   user: {
     additionalFields: {
+      handle: { type: "string", required: false, input: true },
       firstName: { type: "string", required: false, input: true },
       lastName: { type: "string", required: false, input: true },
-      displayName: { type: "string", required: false, input: true },
       birthday: { type: "date", required: false, input: true },
       icon: { type: "string", required: false, input: true },
       theme: {

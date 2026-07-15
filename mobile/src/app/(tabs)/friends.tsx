@@ -13,6 +13,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect, useRouter } from 'expo-router';
 
 import { trpc } from '@/client/api';
+import { atHandle } from '@/lib/handle';
 import FloatingStatusBar from '@/components/floating-status-bar';
 import { useTheme } from '@/theme/theme-provider';
 import { THEME_TOKENS } from '@/theme/tokens';
@@ -24,9 +25,6 @@ type FriendsData = Awaited<ReturnType<typeof trpc.friends.list.query>>;
 type Memberships = Awaited<ReturnType<typeof trpc.lists.mine.query>>;
 type Friend = FriendsData['friends'][number];
 type InviteRole = 'VIEWER' | 'COLLABORATOR';
-
-const displayName = (u: { displayName: string | null; name: string | null; email: string }) =>
-  u.displayName ?? u.name ?? u.email;
 
 export default function FriendsScreen() {
   const { theme } = useTheme();
@@ -41,7 +39,7 @@ export default function FriendsScreen() {
     outgoing: [],
   });
   const [lists, setLists] = useState<Memberships>([]);
-  const [email, setEmail] = useState('');
+  const [handle, setHandle] = useState('');
   const [msg, setMsg] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [loaded, setLoaded] = useState(false);
@@ -63,13 +61,13 @@ export default function FriendsScreen() {
   useFocusEffect(useCallback(() => load(), [load]));
 
   async function addFriend() {
-    if (!email.trim()) return;
+    if (!handle.trim()) return;
     setBusy(true);
     setMsg(null);
     try {
-      const res = await trpc.friends.sendRequest.mutate({ email: email.trim() });
+      const res = await trpc.friends.sendRequest.mutate({ handle: handle.trim() });
       setMsg(res.success ?? res.error ?? null);
-      setEmail('');
+      setHandle('');
       load();
     } catch (e) {
       setMsg(e instanceof Error ? e.message : 'Request failed');
@@ -142,13 +140,12 @@ export default function FriendsScreen() {
           <Text className="text-sm uppercase text-muted">Add a friend</Text>
           <TextInput
             className="rounded-skin border-skin border-border px-4 py-3 font-sans text-ink"
-            placeholder="Email"
+            placeholder="@handle"
             placeholderTextColor={muted}
             autoCapitalize="none"
             autoCorrect={false}
-            keyboardType="email-address"
-            value={email}
-            onChangeText={setEmail}
+            value={handle}
+            onChangeText={setHandle}
           />
           <Pressable
             className="items-center rounded-skin bg-primary py-3"
@@ -171,7 +168,7 @@ export default function FriendsScreen() {
           <Text className="text-sm uppercase text-muted">Your friends</Text>
           {loaded && data.friends.length === 0 && (
             <Text className="font-serif-italic text-muted">
-              No friends yet — add someone by email above.
+              No friends yet — add someone by @handle above.
             </Text>
           )}
           {data.friends.map((f) => (
@@ -232,8 +229,11 @@ function FriendCard({
 
   function viewProfile() {
     router.push({
-      pathname: '/users/[id]',
-      params: { id: friend.friend.id, name: displayName(friend.friend) },
+      pathname: '/users/[handle]',
+      params: {
+        handle: friend.friend.handle ?? friend.friend.id,
+        name: atHandle(friend.friend.handle),
+      },
     });
   }
 
@@ -275,9 +275,8 @@ function FriendCard({
         <View className="flex-1 pr-2">
           <Text className="font-sans-medium text-base text-ink">
             {friend.friend.icon ? `${friend.friend.icon} ` : ''}
-            {displayName(friend.friend)}
+            {atHandle(friend.friend.handle)}
           </Text>
-          <Text className="text-xs text-muted">{friend.friend.email}</Text>
         </View>
         <Ionicons
           name={open ? 'chevron-up' : 'chevron-down'}

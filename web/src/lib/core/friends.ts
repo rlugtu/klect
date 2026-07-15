@@ -30,26 +30,23 @@ export async function sendFriendRequestById(
   return true;
 }
 
-/** Send a friend request by email (Friends page "add friend" form). */
+/** Send a friend request by @handle (Friends page "add friend" form). */
 export async function sendFriendRequest(
   userId: string,
-  actorEmail: string,
-  emailInput: string,
+  handleInput: string,
 ): Promise<FriendState> {
-  const email = emailInput.trim().toLowerCase();
-  if (!email) return { error: "Email is required." };
-  if (email === actorEmail.toLowerCase()) {
-    return { error: "You can't add yourself." };
-  }
-  const target = await prisma.user.findUnique({ where: { email } });
-  if (!target) return { error: "No Klect user with that email." };
+  const handle = handleInput.trim().toLowerCase().replace(/^@/, "");
+  if (!handle) return { error: "Handle is required." };
+  const target = await prisma.user.findUnique({ where: { handle } });
+  if (!target) return { error: "No Klect user with that handle." };
+  if (target.id === userId) return { error: "You can't add yourself." };
   if (await areFriends(userId, target.id)) {
-    return { success: `You're already friends with ${email}.` };
+    return { success: `You're already friends with @${handle}.` };
   }
   const created = await sendFriendRequestById(userId, target.id);
   return created
-    ? { success: `Friend request sent to ${email}.` }
-    : { success: `A request with ${email} is already pending.` };
+    ? { success: `Friend request sent to @${handle}.` }
+    : { success: `A request with @${handle} is already pending.` };
 }
 
 /** Accept a friend request addressed to the current user. */

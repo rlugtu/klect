@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { getSession } from "@/lib/session";
 import { getInviteByToken } from "@/lib/sharing";
+import { atHandle } from "@/lib/handle";
 import { getMembership } from "@/lib/permissions";
 import { acceptInvite } from "@/lib/actions/sharing";
 import { PixelCard } from "@/components/ui/PixelCard";
@@ -37,7 +38,7 @@ export default async function InvitePage({
   }
 
   const roleLabel = invite.role === "COLLABORATOR" ? "Collaborator" : "Viewer";
-  const inviter = invite.invitedBy.displayName ?? invite.invitedBy.name ?? "Someone";
+  const inviter = atHandle(invite.invitedBy.handle);
   const session = await getSession();
 
   const details = (

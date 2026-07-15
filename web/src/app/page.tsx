@@ -72,7 +72,7 @@ export default async function Home({
           <div className="min-w-0">
             <h1 className="text-xl text-primary font-bold">KLECT</h1>
             <p className="text-muted text-sm truncate">
-              Hi, {user.displayName ?? user.name}
+              Hi, @{user.handle}
             </p>
           </div>
         </div>
@@ -92,7 +92,7 @@ export default async function Home({
               <Users size={14} aria-hidden /> Friends
             </PixelButton>
           </Link>
-          <Link href={`/users/${user.id}`}>
+          <Link href={`/users/${user.handle ?? user.id}`}>
             <PixelButton variant="secondary" size="sm">
               <User size={14} aria-hidden /> Profile
             </PixelButton>

@@ -4,6 +4,7 @@ import { requireOnboardedUser } from "@/lib/session";
 import { getPollForUser } from "@/lib/polls";
 import { submitVotes, deletePoll } from "@/lib/actions/polls";
 import { pollStatusLabel } from "@/lib/poll-status";
+import { atHandle } from "@/lib/handle";
 import { PollVote } from "@/components/polls/PollVote";
 import { PixelButton } from "@/components/ui/PixelButton";
 import { PixelBadge } from "@/components/ui/PixelBadge";
@@ -21,7 +22,7 @@ export default async function PollPage({
   if (!poll || poll.listId !== id) notFound();
 
   const canManage = poll.role === "OWNER" || poll.creatorId === user.id;
-  const creator = poll.creator.displayName ?? poll.creator.name ?? "Someone";
+  const creator = atHandle(poll.creator.handle);
 
   const options = poll.options.map((o) => ({
     id: o.id,
@@ -30,7 +31,7 @@ export default async function PollPage({
     votes: o.votes.map((v) => ({
       userId: v.userId,
       icon: v.user.icon,
-      name: v.user.displayName ?? v.user.name ?? "Someone",
+      name: atHandle(v.user.handle),
     })),
   }));
 

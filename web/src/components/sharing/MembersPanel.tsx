@@ -4,6 +4,7 @@ import { InviteForm } from "./InviteForm";
 import { RoleSelect } from "./RoleSelect";
 import { ConfirmDeleteButton } from "@/components/ui/ConfirmDeleteButton";
 import { PixelBadge } from "@/components/ui/PixelBadge";
+import { atHandle } from "@/lib/handle";
 
 /** Owner-only sharing controls: invite, list members, manage roles, pending invites. */
 export async function MembersPanel({
@@ -31,9 +32,7 @@ export async function MembersPanel({
           >
             <span className="flex min-w-0 items-center gap-2 text-sm">
               <span aria-hidden>{m.user.icon ?? "🔖"}</span>
-              <span className="truncate">
-                {m.user.displayName ?? m.user.name ?? m.user.email}
-              </span>
+              <span className="truncate">{atHandle(m.user.handle)}</span>
               {m.userId === currentUserId && (
                 <span className="text-muted text-sm">(you)</span>
               )}
@@ -69,7 +68,7 @@ export async function MembersPanel({
               className="flex items-center justify-between gap-2"
             >
               <span className="truncate text-sm">
-                {inv.email} ·{" "}
+                {atHandle(inv.handle)} ·{" "}
                 {inv.role === "COLLABORATOR" ? "Collaborator" : "Viewer"}
               </span>
               <ConfirmDeleteButton

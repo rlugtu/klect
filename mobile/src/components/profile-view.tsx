@@ -7,6 +7,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect, useRouter } from 'expo-router';
 
 import { trpc } from '@/client/api';
+import { atHandle } from '@/lib/handle';
 import FloatingStatusBar from '@/components/floating-status-bar';
 import { cardShadow } from '@/theme/shadows';
 import { useTabBarScrollHandler } from '@/theme/tab-bar-scroll';
@@ -19,17 +20,18 @@ const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? '' : 's'}`;
 
 /**
  * Renders a user's public profile — identity, stats, and their public lists.
- * Shared by the Profile tab (own) and the pushed users/[id] route (others).
+ * Shared by the Profile tab (own) and the pushed users/[handle] route (others).
  * `edges` lets the tab version claim the top safe-area while the pushed version
  * (which has a native header) doesn't.
  */
 export default function ProfileView({
-  userId,
+  handleOrId,
   edges = ['left', 'right'],
   frostedStatusBar = false,
   contentTopInset,
 }: {
-  userId?: string;
+  /** A user's @handle or their id — the profile resolves either. */
+  handleOrId?: string;
   edges?: ('top' | 'left' | 'right' | 'bottom')[];
   /** Own-profile tab: render content under a frosted status bar (no native header). */
   frostedStatusBar?: boolean;
@@ -48,31 +50,29 @@ export default function ProfileView({
   const onScroll = useTabBarScrollHandler();
 
   const load = useCallback(() => {
-    if (!userId) return;
+    if (!handleOrId) return;
     setLoading(true);
     trpc.profile.get
-      .query({ userId })
+      .query({ handleOrId })
       .then(setProfile)
       .catch((e) => setError(e instanceof Error ? e.message : 'Request failed'))
       .finally(() => setLoading(false));
-  }, [userId]);
+  }, [handleOrId]);
 
   useFocusEffect(useCallback(() => load(), [load]));
 
   async function addFriend() {
-    if (!userId) return;
+    const targetId = profile?.user.id;
+    if (!targetId) return;
     setRequested(true);
     try {
-      await trpc.friends.requestByUser.mutate({ userId });
+      await trpc.friends.requestByUser.mutate({ userId: targetId });
     } catch {
       setRequested(false);
     }
   }
 
-  const name = profile?.user.displayName ?? profile?.user.name ?? 'Someone';
-  const realName = [profile?.user.firstName, profile?.user.lastName]
-    .filter(Boolean)
-    .join(' ');
+  const name = atHandle(profile?.user.handle);
   const memberSince = profile
     ? new Date(profile.user.createdAt).getFullYear()
     : '';
@@ -114,9 +114,6 @@ export default function ProfileView({
                 )}
               </View>
               <Text className="font-serif text-2xl text-ink">{name}</Text>
-              {realName && realName !== name ? (
-                <Text className="font-sans text-sm text-muted">{realName}</Text>
-              ) : null}
               <Text className="font-sans text-xs text-muted">
                 Member since {memberSince}
               </Text>

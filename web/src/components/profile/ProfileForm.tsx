@@ -14,7 +14,7 @@ const ICON_CHOICES = ["🔖", "📚", "🎮", "🍜", "✈️", "🎬", "🎵", 
 export type ProfileDefaults = {
   firstName: string | null;
   lastName: string | null;
-  displayName: string | null;
+  handle: string | null;
   birthday: string | null; // yyyy-mm-dd
   icon: string | null;
   theme: Theme;
@@ -53,13 +53,27 @@ export function ProfileForm({
       <input type="hidden" name="theme" value={theme} />
 
       <label className="flex flex-col gap-1.5">
-        <FieldLabel>Display name *</FieldLabel>
-        <PixelInput
-          name="displayName"
-          defaultValue={defaults.displayName ?? ""}
-          placeholder="Player One"
-          required
-        />
+        <FieldLabel>Handle *</FieldLabel>
+        <div className="flex items-center gap-2">
+          <span className="text-muted text-lg" aria-hidden>
+            @
+          </span>
+          <PixelInput
+            name="handle"
+            defaultValue={defaults.handle ?? ""}
+            placeholder="player_one"
+            autoCapitalize="none"
+            autoCorrect="off"
+            spellCheck={false}
+            pattern="[A-Za-z0-9_]{3,20}"
+            title="3–20 characters: letters, numbers, or underscores"
+            required
+            className="flex-1"
+          />
+        </div>
+        <span className="text-muted text-xs">
+          Lowercase letters, numbers, or underscores. 3–20 characters.
+        </span>
       </label>
 
       <div className="grid grid-cols-2 gap-4">

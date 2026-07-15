@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { requireOnboardedUser } from "@/lib/session";
 import { getListForUser } from "@/lib/lists";
 import { getListPolls } from "@/lib/polls";
+import { atHandle } from "@/lib/handle";
 import { roleAtLeast } from "@/lib/permissions";
 import { pollStatusLabel } from "@/lib/poll-status";
 import { PixelButton } from "@/components/ui/PixelButton";
@@ -54,8 +55,7 @@ export default async function PollsPage({
       ) : (
         <ul className="flex flex-col gap-3">
           {polls.map((poll) => {
-            const creator =
-              poll.creator.displayName ?? poll.creator.name ?? "Someone";
+            const creator = atHandle(poll.creator.handle);
             return (
               <li key={poll.id}>
                 <Link

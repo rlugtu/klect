@@ -3,7 +3,7 @@ import { prisma } from "@/lib/db";
 import { getMembership } from "@/lib/permissions";
 
 const creatorSelect = {
-  creator: { select: { id: true, displayName: true, name: true, icon: true } },
+  creator: { select: { id: true, handle: true, icon: true } },
 } as const;
 
 /** Polls in a list, newest first, with creator + option/vote counts. */
@@ -44,7 +44,7 @@ export async function getPollForUser(userId: string, pollId: string) {
           },
           votes: {
             include: {
-              user: { select: { id: true, displayName: true, name: true, icon: true } },
+              user: { select: { id: true, handle: true, icon: true } },
             },
           },
         },
@@ -70,7 +70,7 @@ export async function getPollForUser(userId: string, pollId: string) {
       o.votes = o.votes.map((v) => ({
         ...v,
         userId: "",
-        user: { id: "", displayName: null, name: null, icon: null },
+        user: { id: "", handle: null, icon: null },
       }));
     }
   }

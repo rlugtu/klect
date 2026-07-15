@@ -6,17 +6,12 @@ import { Stack, useFocusEffect } from 'expo-router';
 import { useHeaderHeight } from '@react-navigation/elements';
 
 import { trpc } from '@/client/api';
+import { atHandle } from '@/lib/handle';
 import FloatingStatusBar from '@/components/floating-status-bar';
 import { cardShadow } from '@/theme/shadows';
 
 type FriendsData = Awaited<ReturnType<typeof trpc.friends.list.query>>;
 type Outgoing = FriendsData['outgoing'];
-
-const displayName = (u: {
-  displayName: string | null;
-  name: string | null;
-  email: string;
-}) => u.displayName ?? u.name ?? u.email;
 
 /** Friend requests the user has sent, awaiting acceptance. Withdraw with Cancel. */
 export default function PendingRequestsScreen() {
@@ -67,9 +62,8 @@ export default function PendingRequestsScreen() {
             <View className="flex-1 pr-2">
               <Text className="font-sans-medium text-base text-ink">
                 {req.addressee.icon ? `${req.addressee.icon} ` : ''}
-                {displayName(req.addressee)}
+                {atHandle(req.addressee.handle)}
               </Text>
-              <Text className="text-xs text-muted">{req.addressee.email}</Text>
               <Text className="mt-1 text-xs text-muted">Pending</Text>
             </View>
             <Pressable onPress={() => cancel(req.id)} hitSlop={8}>

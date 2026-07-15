@@ -153,8 +153,8 @@ required rank. See `DESIGN.md §4`.
 
 better-auth backs both apps against **one** server (in `web/src/lib/auth.ts`): Google +
 email/password, with a `databaseHooks.user.create.after` hook that auto-attaches any pending
-list invites when a user signs up, and profile `additionalFields` (firstName, lastName,
-displayName, birthday, icon, theme).
+list invites when a user signs up, and profile `additionalFields` (handle, firstName, lastName,
+birthday, icon, theme). The unique `handle` is the public identity and the onboarding gate.
 
 - **Web** uses `better-auth/react` (`auth-client.ts`) and server guards in `session.ts`
   (`requireUser`, `requireOnboardedUser`) plus the `nextCookies()` plugin.

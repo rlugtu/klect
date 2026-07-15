@@ -28,14 +28,14 @@ export const sharingRouter = router({
     .input(
       z.object({
         listId: z.string(),
-        email: z.string(),
+        handle: z.string(),
         role: inviteRole,
         alsoFriend: z.boolean().optional(),
       }),
     )
     .mutation(({ ctx, input }) =>
-      core.inviteToList(ctx.user.id, ctx.user.email, input.listId, {
-        email: input.email,
+      core.inviteToList(ctx.user.id, input.listId, {
+        handle: input.handle,
         role: input.role,
         alsoFriend: input.alsoFriend,
       }),

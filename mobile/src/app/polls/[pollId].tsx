@@ -6,6 +6,7 @@ import { useHeaderHeight } from '@react-navigation/elements';
 import Animated, { LinearTransition } from 'react-native-reanimated';
 
 import { trpc } from '@/client/api';
+import { atHandle } from '@/lib/handle';
 import { authClient } from '@/client/auth';
 import Skeleton from '@/components/skeleton';
 import { useTheme } from '@/theme/theme-provider';
@@ -110,7 +111,7 @@ export default function PollDetailScreen() {
 
   const results = [...poll.options].sort((a, b) => b.votes.length - a.votes.length);
   const maxCount = Math.max(1, ...poll.options.map((o) => o.votes.length));
-  const creator = poll.creator.displayName ?? poll.creator.name ?? 'Someone';
+  const creator = atHandle(poll.creator.handle);
 
   function togglePick(optionId: string) {
     if (votingLocked) return;

@@ -97,7 +97,7 @@ function AppStack() {
       <Stack.Screen name="polls/index" options={{ ...blankTitle }} />
       <Stack.Screen name="polls/new" options={{ ...opaqueModal }} />
       <Stack.Screen name="polls/[pollId]" options={{ ...blankTitle }} />
-      <Stack.Screen name="users/[id]" options={{ ...transparentHeader }} />
+      <Stack.Screen name="users/[handle]" options={{ ...transparentHeader }} />
       <Stack.Screen name="settings" options={{ ...blankTitle }} />
       <Stack.Screen name="requests" options={{ ...blankTitle }} />
       <Stack.Screen name="friend-requests" options={{ ...transparentHeader }} />
@@ -139,12 +139,9 @@ export default function RootLayout() {
               <View style={{ flex: 1 }} />
             ) : !session ? (
               <LoginScreen />
-            ) : !session.user.displayName ? (
-              // Signed in but no profile yet — mirror web's onboarding gate.
-              <OnboardingScreen
-                defaultName={session.user.name}
-                onDone={() => refetch()}
-              />
+            ) : !session.user.handle ? (
+              // Signed in but no handle yet — mirror web's onboarding gate.
+              <OnboardingScreen onDone={() => refetch()} />
             ) : (
               <AppStack />
             )}

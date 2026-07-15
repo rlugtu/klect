@@ -34,7 +34,7 @@ export default async function SettingsPage() {
           defaults={{
             firstName: user.firstName ?? null,
             lastName: user.lastName ?? null,
-            displayName: user.displayName ?? user.name ?? "",
+            handle: user.handle ?? null,
             birthday: toDateInput(user.birthday),
             icon: user.icon ?? null,
             theme: coerceTheme(user.theme),
@@ -44,9 +44,10 @@ export default async function SettingsPage() {
 
       <PixelCard>
         <h2 className="text-sm mb-4">Account</h2>
-        <p className="text-muted mb-4">
-          Signed in as <span className="text-ink">{user.email}</span>
+        <p className="text-muted mb-1">
+          Signed in as <span className="text-ink">@{user.handle}</span>
         </p>
+        <p className="text-muted mb-4 text-sm">{user.email}</p>
         <SignOutButton />
       </PixelCard>
     </main>

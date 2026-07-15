@@ -2,6 +2,7 @@ import Link from "next/link";
 import { requireOnboardedUser } from "@/lib/session";
 import { getOutgoingFriendRequests } from "@/lib/friends";
 import { cancelFriendRequest } from "@/lib/actions/friends";
+import { atHandle } from "@/lib/handle";
 import { PixelButton } from "@/components/ui/PixelButton";
 import { PixelCard } from "@/components/ui/PixelCard";
 import { SubmitButton } from "@/components/ui/SubmitButton";
@@ -41,15 +42,8 @@ export default async function PendingFriendRequestsPage() {
                 <span aria-hidden className="text-lg">
                   {r.addressee.icon ?? "🔖"}
                 </span>
-                <span className="flex min-w-0 flex-col">
-                  <span className="truncate text-sm font-semibold">
-                    {r.addressee.displayName ??
-                      r.addressee.name ??
-                      r.addressee.email}
-                  </span>
-                  <span className="text-muted truncate text-sm">
-                    {r.addressee.email}
-                  </span>
+                <span className="truncate text-sm font-semibold">
+                  {atHandle(r.addressee.handle)}
                 </span>
               </span>
               <span className="flex shrink-0 items-center gap-2">

@@ -14,9 +14,9 @@ function profileInputFromFormData(formData: FormData): ProfileInput {
   const birthdayRaw = str("birthday");
 
   return {
+    handle: str("handle") ?? "",
     firstName: str("firstName"),
     lastName: str("lastName"),
-    displayName: str("displayName") ?? "",
     birthday: birthdayRaw ? new Date(birthdayRaw) : null,
     icon: str("icon"),
     theme: coerceTheme(str("theme")),

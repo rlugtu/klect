@@ -37,7 +37,7 @@ export { API_URL, clearBearerToken } from "./bearer-store";
  *
  * `inferAdditionalFields` mirrors the `user.additionalFields` web declares in
  * `web/src/lib/auth.ts`, so the session user is typed with the profile fields —
- * notably `displayName`, which the root layout reads as the "onboarded" signal.
+ * notably `handle`, which the root layout reads as the "onboarded" signal.
  * (Kept as an explicit schema rather than `inferAdditionalFields<typeof auth>()`:
  * the type-only cross-app inference collapses to `{}` here, so we restate the fields.)
  *
@@ -64,9 +64,9 @@ export const authClient = createAuthClient({
   plugins: [
     inferAdditionalFields({
       user: {
+        handle: { type: "string", required: false },
         firstName: { type: "string", required: false },
         lastName: { type: "string", required: false },
-        displayName: { type: "string", required: false },
         birthday: { type: "date", required: false },
         icon: { type: "string", required: false },
         theme: { type: "string", required: false },

@@ -17,10 +17,10 @@ export async function requireUser() {
 
 /**
  * Like requireUser, but also enforces that the profile has been completed.
- * We treat a set displayName as the "onboarded" signal.
+ * We treat a set handle as the "onboarded" signal.
  */
 export async function requireOnboardedUser() {
   const user = await requireUser();
-  if (!user.displayName) redirect("/onboarding");
+  if (!user.handle) redirect("/onboarding");
   return user;
 }

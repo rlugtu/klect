@@ -36,7 +36,7 @@ export default function SettingsScreen() {
           <Text className="text-sm uppercase text-muted">Account</Text>
           <View className="rounded-skin border-skin border-border bg-panel p-3">
             <Text className="text-base text-ink">
-              {session?.user?.name ?? 'Signed in'}
+              {session?.user?.handle ? `@${session.user.handle}` : 'Signed in'}
             </Text>
             <Text className="text-sm text-muted">{session?.user?.email}</Text>
           </View>

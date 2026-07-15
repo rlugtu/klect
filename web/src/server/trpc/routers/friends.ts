@@ -27,9 +27,9 @@ export const friendsRouter = router({
     .query(({ input }) => getFriendListIds(input.friendId, input.listIds)),
 
   sendRequest: protectedProcedure
-    .input(z.object({ email: z.string() }))
+    .input(z.object({ handle: z.string() }))
     .mutation(({ ctx, input }) =>
-      core.sendFriendRequest(ctx.user.id, ctx.user.email, input.email),
+      core.sendFriendRequest(ctx.user.id, input.handle),
     ),
 
   // Friend request straight to a user by id (from their profile page).

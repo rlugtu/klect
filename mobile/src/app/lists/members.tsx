@@ -18,6 +18,7 @@ import { useHeaderHeight } from '@react-navigation/elements';
 
 import { trpc } from '@/client/api';
 import { authClient } from '@/client/auth';
+import { atHandle } from '@/lib/handle';
 import { useTheme } from '@/theme/theme-provider';
 import { THEME_TOKENS } from '@/theme/tokens';
 
@@ -36,7 +37,7 @@ export default function MembersScreen() {
 
   const [members, setMembers] = useState<Members>([]);
   const [invites, setInvites] = useState<Invites>([]);
-  const [email, setEmail] = useState('');
+  const [handle, setHandle] = useState('');
   const [inviteRole, setInviteRole] = useState<InviteRole>('VIEWER');
   const [msg, setMsg] = useState<string | null>(null);
   const [offerFriend, setOfferFriend] = useState<string | null>(null);
@@ -59,19 +60,19 @@ export default function MembersScreen() {
   useFocusEffect(useCallback(() => load(), [load]));
 
   async function invite() {
-    if (!id || !email.trim()) return;
+    if (!id || !handle.trim()) return;
     setBusy(true);
     setMsg(null);
     setOfferFriend(null);
     try {
       const res = await trpc.sharing.invite.mutate({
         listId: id,
-        email: email.trim(),
+        handle: handle.trim(),
         role: inviteRole,
       });
       setMsg(res.success ?? res.error ?? null);
-      setOfferFriend(res.offerFriend?.email ?? null);
-      setEmail('');
+      setOfferFriend(res.offerFriend?.handle ?? null);
+      setHandle('');
       load();
     } catch (e) {
       setMsg(e instanceof Error ? e.message : 'Invite failed');
@@ -79,10 +80,10 @@ export default function MembersScreen() {
     setBusy(false);
   }
 
-  async function sendFriendRequest(friendEmail: string) {
+  async function sendFriendRequest(friendHandle: string) {
     setOfferFriend(null);
     try {
-      const res = await trpc.friends.sendRequest.mutate({ email: friendEmail });
+      const res = await trpc.friends.sendRequest.mutate({ handle: friendHandle });
       setMsg(res.success ?? res.error ?? null);
     } catch (e) {
       setMsg(e instanceof Error ? e.message : 'Request failed');
@@ -140,13 +141,12 @@ export default function MembersScreen() {
           <Text className="text-sm uppercase text-muted">Invite</Text>
           <TextInput
             className="rounded-skin border-skin border-border px-4 py-3 text-ink"
-            placeholder="Email"
+            placeholder="@handle"
             placeholderTextColor={muted}
             autoCapitalize="none"
             autoCorrect={false}
-            keyboardType="email-address"
-            value={email}
-            onChangeText={setEmail}
+            value={handle}
+            onChangeText={setHandle}
           />
           <View className="flex-row gap-2">
             {(['VIEWER', 'COLLABORATOR'] as InviteRole[]).map((r) => (
@@ -179,7 +179,7 @@ export default function MembersScreen() {
               className="items-center rounded-skin border-skin border-border py-2.5"
               onPress={() => sendFriendRequest(offerFriend)}>
               <Text className="text-primary">
-                {offerFriend} isn&apos;t your friend — add them?
+                @{offerFriend} isn&apos;t your friend — add them?
               </Text>
             </Pressable>
           )}
@@ -195,11 +195,9 @@ export default function MembersScreen() {
             <View className="flex-1 pr-2">
               <Text className="text-base text-ink">
                 {m.user.icon ? `${m.user.icon} ` : ''}
-                {m.user.displayName ?? m.user.name}
+                {atHandle(m.user.handle)}
               </Text>
-              <Text className="text-xs text-muted">
-                {m.user.email} · {m.role.toLowerCase()}
-              </Text>
+              <Text className="text-xs text-muted">{m.role.toLowerCase()}</Text>
             </View>
             {isOwner && m.role !== 'OWNER' && (
               <View className="flex-row items-center gap-3">
@@ -225,7 +223,7 @@ export default function MembersScreen() {
               key={inv.id}
               className="flex-row items-center justify-between rounded-skin border-skin border-border bg-panel p-3">
               <View className="flex-1 pr-2">
-                <Text className="text-base text-ink">{inv.email}</Text>
+                <Text className="text-base text-ink">{atHandle(inv.handle)}</Text>
                 <Text className="text-xs text-muted">{inv.role.toLowerCase()}</Text>
               </View>
               <Pressable onPress={() => revoke(inv.id)} hitSlop={8}>
