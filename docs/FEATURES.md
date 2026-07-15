@@ -378,15 +378,17 @@ date picker); same procedures.
 
 ### Nearby / geolocation
 **Description.** Find geocoded bookmarks within a radius of your current location, nearest first;
-bookmarks with a typed (non-geocoded) location are skipped and counted.
+bookmarks with a typed (non-geocoded) location are excluded. (Web counts and shows the skipped
+total; mobile omits them silently.)
 **Web.** `/nearby` → `NearbyFinder` (browser Geolocation API), radius **0.5 / 1 / 2 / 5 / 10 mi**,
 per-list toggles; `nearby.find` (haversine).
 **Mobile.** `src/app/(tabs)/nearby.tsx` — a **full-screen Mapbox map** (`@rnmapbox/maps`) that
 auto-locates on open, with a **floating** radius selector (**1 / 5 / 10 / 25 mi**) over the map, a
-numbered **pin** per result, and a **bottom drawer** (`@gorhom/bottom-sheet`) listing results
-(distance + up to 3 tag pills); tapping a pin scrolls the drawer to that row, tapping a row opens the
-bookmark. Uses native `expo-location` GPS + reverse-geocoded label; `nearby.find` (results carry
-`lat`/`lon`).
+numbered **pin** per result, and a **bottom drawer** (`@gorhom/bottom-sheet`) listing results, each
+row showing a **number badge that matches its map pin** (row N ↔ pin N), the distance, and up to 3
+tag pills; tapping a pin scrolls the drawer to that row, tapping a row opens the bookmark. Uses
+native `expo-location` GPS + a reverse-geocoded label trimmed to street/city/region (no ZIP or
+country); `nearby.find` (results carry `lat`/`lon`).
 **Differences.** Radius options differ; web offers per-list toggles, mobile searches all. Web renders
 a list; mobile renders an interactive map + drawer.
 

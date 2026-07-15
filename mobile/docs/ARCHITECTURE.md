@@ -261,16 +261,17 @@ modal with `router.back()` (or `router.dismissAll()` after leaving a list).
   `Camera`; style follows light/dark theme, tiles need `EXPO_PUBLIC_MAPBOX_TOKEN`). On open it
   **auto-locates** (`expo-location` foreground permission → `getCurrentPositionAsync`), centers the
   camera on the user, and resolves a "Your location" label via `places.reverseGeocode` (falling back
-  to a raw coordinate readout). A **floating radius selector** (glass pill, chips 1/5/10/25 mi) sits
+  to a raw coordinate readout; the reverse-geocoded address is trimmed client-side to
+  street/city/region — ZIP and country are dropped). A **floating radius selector** (glass pill, chips 1/5/10/25 mi) sits
   over the top of the map (`zIndex` below the drawer, so dragging the drawer to full height covers
   the chips rather than letting them float over it); tapping a chip runs `nearby.find` (haversine-filters the user's
   coordinate-bearing bookmarks) and `fitBounds` frames the user + all results. Each result is a
   **numbered pin** (`MarkerView`); tapping one expands the drawer and scrolls to its row (briefly
   ringed). A persistent **bottom drawer** (`@gorhom/bottom-sheet` non-modal `BottomSheet` +
-  `BottomSheetFlatList`, snap points 45% / 90%) holds the result list — compact rows with an
-  emphasized distance and up to 3 `#hashtag` tags (`TagPill`), the location label, and a
-  "N skipped (no coordinates)" note. Tapping a row opens the bookmark. Only bookmarks given
-  coordinates via location search appear. (`app.config.js` injects the Mapbox **download** token
+  `BottomSheetFlatList`, snap points 45% / 90%) holds the result list — compact rows, each carrying
+  a **number badge that matches its map pin** (row N ↔ pin N), an emphasized distance, and up to 3
+  `#hashtag` tags (`TagPill`), plus the location label. Tapping a row opens the bookmark. Only
+  bookmarks given coordinates via location search appear (coordinate-less ones are silently omitted). (`app.config.js` injects the Mapbox **download** token
   from `MAPBOX_DOWNLOAD_TOKEN` at build time; see `.env.example`.)
 - **Profile** (`(tabs)/profile.tsx` own · `users/[id].tsx` others, both render
   `components/profile-view.tsx`) — a user's avatar/icon, name, "Member since", stats (public lists ·

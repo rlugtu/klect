@@ -28,6 +28,23 @@ Mapbox.setAccessToken(process.env.EXPO_PUBLIC_MAPBOX_TOKEN ?? null);
 const formatCoords = (lat: number, lon: number) =>
   `${lat.toFixed(4)}°, ${lon.toFixed(4)}°`;
 
+/** Trim a Mapbox full address for display: drop the country and any trailing
+ *  postal code so we show only street / city / region. */
+function shortAddress(full: string): string {
+  const parts = full
+    .split(',')
+    .map((s) => s.trim())
+    .filter(Boolean);
+  if (parts.length === 0) return full;
+  // full_address always ends with the country segment — drop it.
+  if (parts.length > 1) parts.pop();
+  // Strip a trailing postcode token from the last remaining segment,
+  // e.g. "California 94103" -> "California".
+  const i = parts.length - 1;
+  parts[i] = parts[i].replace(/\s+\S*\d\S*$/, '').trim();
+  return parts.filter(Boolean).join(', ');
+}
+
 // Roughly one card's height — good enough for scrollToIndex from a pin tap. Cards
 // vary a little (tags/no tags), so getItemLayout is approximate but reliable.
 const ITEM_HEIGHT = 96;
@@ -42,7 +59,6 @@ export default function NearbyScreen() {
   // Null until the user taps a distance — no range starts selected.
   const [radius, setRadius] = useState<number | null>(null);
   const [items, setItems] = useState<NearbyItem[]>([]);
-  const [skipped, setSkipped] = useState(0);
   const [coords, setCoords] = useState<{ lat: number; lon: number } | null>(null);
   const [locationLabel, setLocationLabel] = useState<string | null>(null);
   const [status, setStatus] = useState<string | null>(
@@ -79,7 +95,9 @@ export default function NearbyScreen() {
         });
         const place = await trpc.places.reverseGeocode.query({ lat, lon });
         if (!cancelled)
-          setLocationLabel(place.ok ? place.data.address : formatCoords(lat, lon));
+          setLocationLabel(
+            place.ok ? shortAddress(place.data.address) : formatCoords(lat, lon),
+          );
       } catch (e) {
         if (!cancelled)
           setStatus(e instanceof Error ? e.message : 'Could not get your location');
@@ -133,10 +151,11 @@ export default function NearbyScreen() {
         trpc.nearby.find.query({ lat, lon, radiusMiles: r, listIds: [] }),
         trpc.places.reverseGeocode.query({ lat, lon }),
       ]);
-      setLocationLabel(place.ok ? place.data.address : formatCoords(lat, lon));
+      setLocationLabel(
+        place.ok ? shortAddress(place.data.address) : formatCoords(lat, lon),
+      );
       if (res.ok) {
         setItems(res.data);
-        setSkipped(res.skipped);
         fitToResults(res.data, { lat, lon });
         setStatus(res.data.length === 0 ? `No bookmarks within ${r} mi.` : null);
       } else {
@@ -266,11 +285,6 @@ export default function NearbyScreen() {
             </Text>
           )}
           {status && <Text style={{ color: t.muted, marginTop: 2 }}>{status}</Text>}
-          {skipped > 0 && (
-            <Text style={{ color: t.muted, fontSize: 12, marginTop: 2 }}>
-              {skipped} skipped (no coordinates)
-            </Text>
-          )}
         </View>
         <BottomSheetFlatList
           ref={listRef}
@@ -292,7 +306,7 @@ export default function NearbyScreen() {
             paddingHorizontal: 16,
             paddingBottom: insets.bottom + 96,
           }}
-          renderItem={({ item }) => {
+          renderItem={({ item, index }) => {
             const active = highlightId === item.card.id;
             return (
               <Pressable
@@ -311,11 +325,18 @@ export default function NearbyScreen() {
                   },
                 ]}>
                 <View style={styles.cardTop}>
-                  <Text
-                    style={[styles.cardName, { color: t.ink }]}
-                    numberOfLines={1}>
-                    {item.card.name}
-                  </Text>
+                  <View style={styles.cardNumWrap}>
+                    <View style={[styles.cardNum, { backgroundColor: t.primary }]}>
+                      <Text style={[styles.pinLabel, { color: t.primaryInk }]}>
+                        {index + 1}
+                      </Text>
+                    </View>
+                    <Text
+                      style={[styles.cardName, { color: t.ink }]}
+                      numberOfLines={1}>
+                      {item.card.name}
+                    </Text>
+                  </View>
                   <Text style={[styles.cardName, { color: t.ink }]}>
                     {item.distanceMiles.toFixed(1)} mi
                   </Text>
@@ -415,6 +436,20 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '600',
     flexShrink: 1,
+  },
+  cardNumWrap: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    flexShrink: 1,
+  },
+  cardNum: {
+    minWidth: 22,
+    height: 22,
+    paddingHorizontal: 5,
+    borderRadius: 11,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   tags: {
     flexDirection: 'row',
