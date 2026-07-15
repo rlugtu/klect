@@ -96,7 +96,7 @@ export default function BookmarkScreen() {
       contentContainerStyle={{ padding: 16, paddingTop: headerHeight + 8, gap: 12 }}>
       <Stack.Screen
         options={{
-          headerTitle: () => null,
+          headerTitle: '',
           headerRight: () =>
             b ? (
               <Pressable

@@ -129,7 +129,7 @@ export default function MembersScreen() {
     <ScrollView
       className="flex-1 bg-bg"
       contentContainerStyle={{ padding: 16, paddingTop: headerHeight + 8, gap: 20 }}>
-      <Stack.Screen options={{ headerTitle: () => null }} />
+      <Stack.Screen options={{ headerTitle: '' }} />
 
       <Text className="font-serif text-3xl text-ink">Members</Text>
 

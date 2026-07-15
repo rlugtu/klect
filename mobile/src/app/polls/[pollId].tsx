@@ -73,7 +73,7 @@ export default function PollDetailScreen() {
   if (loading && !poll) {
     return (
       <View className="flex-1 bg-bg">
-        <Stack.Screen options={{ headerTitle: () => null }} />
+        <Stack.Screen options={{ headerTitle: '' }} />
         <View className="gap-3 p-4" style={{ paddingTop: headerHeight + 8 }}>
           <Skeleton height={28} />
           <Skeleton height={40} />
@@ -87,7 +87,7 @@ export default function PollDetailScreen() {
   if (!poll) {
     return (
       <View className="flex-1 items-center justify-center bg-bg">
-        <Stack.Screen options={{ headerTitle: () => null }} />
+        <Stack.Screen options={{ headerTitle: '' }} />
         <Text className="font-sans text-danger">{error ?? 'Poll not found.'}</Text>
       </View>
     );
@@ -157,7 +157,7 @@ export default function PollDetailScreen() {
 
   return (
     <View className="flex-1 bg-bg">
-      <Stack.Screen options={{ headerTitle: () => null }} />
+      <Stack.Screen options={{ headerTitle: '' }} />
       <ScrollView
         contentContainerStyle={{
           padding: 16,

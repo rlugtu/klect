@@ -62,7 +62,7 @@ export default function PollListScreen() {
 
   return (
     <View className="flex-1 bg-bg">
-      <Stack.Screen options={{ headerTitle: () => null }} />
+      <Stack.Screen options={{ headerTitle: '' }} />
 
       <FlatList
         data={polls}
