@@ -38,7 +38,7 @@ export default async function PollPage({
   return (
     <main className="mx-auto w-full max-w-3xl px-6 py-12 flex flex-col gap-8">
       <div className="flex items-center justify-between gap-4">
-        <Link href={`/lists/${id}/polls`}>
+        <Link href={`/lists/${id}?tab=polls`}>
           <PixelButton variant="ghost" size="sm">
             ← Polls
           </PixelButton>

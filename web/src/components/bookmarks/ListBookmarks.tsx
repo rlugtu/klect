@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import type { BookmarkCardData } from "@/lib/types";
+import { cn } from "@/lib/utils";
 import { BookmarkCard } from "./BookmarkCard";
 import { PixelInput } from "@/components/ui/PixelInput";
 import { PixelButton } from "@/components/ui/PixelButton";
@@ -26,6 +27,8 @@ export function ListBookmarks({
   const [open, setOpen] = useState(false);
   const [tagMenuOpen, setTagMenuOpen] = useState(false);
   const [selected, setSelected] = useState<string[]>([]);
+  // Off → all bookmarks; on → only those not yet marked visited.
+  const [hideVisited, setHideVisited] = useState(false);
   const tagMenuRef = useRef<HTMLDivElement>(null);
 
   // Close the tag dropdown on outside click or Escape (it's button-triggered,
@@ -87,11 +90,35 @@ export function ListBookmarks({
     const nameOk = !q || b.name.toLowerCase().includes(q);
     const tagOk =
       selected.length === 0 || b.tags.some((t) => selected.includes(t.name));
-    return nameOk && tagOk;
+    const visitedOk = !hideVisited || !b.visited;
+    return nameOk && tagOk && visitedOk;
   });
 
   return (
     <div className="flex flex-col gap-4">
+      <div className="flex items-center justify-between gap-3">
+        <span className="text-sm">Show only unvisited</span>
+        <button
+          type="button"
+          role="switch"
+          aria-checked={hideVisited}
+          aria-label="Show only unvisited"
+          onClick={() => setHideVisited((v) => !v)}
+          className={cn(
+            "pixel-box-sm relative h-6 w-11 shrink-0 cursor-pointer transition-colors",
+            hideVisited ? "bg-primary" : "bg-panel",
+          )}
+        >
+          <span
+            aria-hidden
+            className={cn(
+              "absolute top-1/2 h-4 w-4 -translate-y-1/2 transition-transform",
+              hideVisited ? "bg-primary-ink translate-x-6" : "bg-ink translate-x-0.5",
+            )}
+          />
+        </button>
+      </div>
+
       <div className="flex items-stretch gap-2">
       <div className="relative flex-1">
         <PixelInput

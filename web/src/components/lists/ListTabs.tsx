@@ -1,8 +1,6 @@
-"use client";
-
 import Link from "next/link";
-import { usePathname } from "next/navigation";
 import { List, Vote, type LucideIcon } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 type TabDef = {
   key: string;
@@ -14,9 +12,11 @@ type TabDef = {
 };
 
 /**
- * Route-based tabs for the single-list view. Each tab is a link that highlights
- * by URL, so content stays server-rendered and the poll sub-routes keep working.
- * Add a future tab by appending one entry here (+ its route).
+ * Rounded-pill segmented control for the single-list view — echoes the app's
+ * nav styling. Both faces render on the same route: the List tab is the bare
+ * list URL, the Polls tab adds `?tab=polls`, so the header/details/tabs stay
+ * mounted and only the content below swaps. Add a future tab by appending one
+ * entry here.
  */
 const TABS: TabDef[] = [
   {
@@ -30,8 +30,8 @@ const TABS: TabDef[] = [
     key: "polls",
     label: "Polls",
     icon: Vote,
-    href: (id) => `/lists/${id}/polls`,
-    // Polls require membership (the route 404s for public viewers).
+    href: (id) => `/lists/${id}?tab=polls`,
+    // Polls require membership (the tab is hidden for public viewers).
     show: ({ isMember }) => isMember,
   },
 ];
@@ -45,29 +45,28 @@ export function ListTabs({
   activeKey: string;
   isMember: boolean;
 }) {
-  const pathname = usePathname();
   const tabs = TABS.filter((t) => t.show({ isMember }));
   if (tabs.length < 2) return null;
 
   return (
     <nav
       aria-label="List views"
-      className="border-border flex items-center gap-1 border-b-2"
+      className="border-border bg-panel inline-flex items-center gap-1 self-start rounded-full border-2 p-1"
     >
       {tabs.map((tab) => {
-        const href = tab.href(listId);
-        const active = tab.key === activeKey || pathname === href;
+        const active = tab.key === activeKey;
         const Icon = tab.icon;
         return (
           <Link
             key={tab.key}
-            href={href}
+            href={tab.href(listId)}
             aria-current={active ? "page" : undefined}
-            className={`-mb-0.5 flex items-center gap-1.5 border-b-2 px-3 py-2 text-sm transition-colors ${
+            className={cn(
+              "flex items-center gap-1.5 rounded-full px-4 py-1.5 text-sm transition-colors",
               active
-                ? "border-primary text-primary"
-                : "border-transparent text-muted hover:text-primary"
-            }`}
+                ? "bg-primary text-primary-ink"
+                : "text-muted hover:text-primary",
+            )}
           >
             <Icon size={14} aria-hidden />
             {tab.label}

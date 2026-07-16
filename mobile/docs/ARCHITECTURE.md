@@ -241,17 +241,22 @@ modal with `router.back()` (or `router.dismissAll()` after leaving a list).
   a player. When the extracted image is missing **or fails to load** (reel `og:image`s are often
   hotlink-blocked/expiring social-CDN URLs), `PhotoCard` walks a fallback chain on error — a derived
   YouTube poster (`videoPosterUrl`) then a no-key page screenshot (`screenshotThumbUrl`, WordPress
-  mShots), both in `lib/video-embed.ts`. Header holds **Add** (→ `bookmarks/new?listId=`, editors)
-  and a **⋮** button opening a `@gorhom/bottom-sheet` **actions menu** (Edit list → `lists/edit`,
-  owner Members → `lists/members`, Duplicate list → `lists/actions`, owner destructive Clear list →
-  native confirm → `lists.clearBookmarks`). Above the feed, in the `FlatList` header: a **List | Polls**
-  tab row (Polls pushes the `polls` route), then a **filter
+  mShots), both in `lib/video-embed.ts`. The nav header holds a single **round Add** button (→
+  `bookmarks/new?listId=`, editors); the **⋮** button — opening a `@gorhom/bottom-sheet` **actions
+  menu** (Edit list → `lists/edit`, owner Members → `lists/members`, Duplicate list → `lists/actions`,
+  owner destructive Clear list → native confirm → `lists.clearBookmarks`) — now sits on the
+  **list-name row**, right-justified beside the title. Below the identity block, in the `FlatList`
+  header: a rounded-pill **List | Polls** segmented control (echoes the floating nav bar). Polls
+  render **inline** — tapping the tab swaps the feed to the list's polls (`polls.forList`, via the
+  shared `components/poll-row.tsx`) with a **Create poll** button (editors), no route push, so the
+  header/details/tab bar stay mounted; poll detail/create stay their own pushed routes. On the **List**
+  tab, below the tabs: a **Show only unvisited** toggle, then a **filter
   row** — a left-justified **search box** (filters the feed by bookmark name, case-insensitive
   substring) that fills the remaining width, with a **Tags ▾** button on its right (only when the
   list has tags) that opens a `@gorhom/bottom-sheet` tag filter (multi-select **OR**, distinct tags
-  across the list). Name search and the tag filter combine with **AND**. Selected tags render below
+  across the list). Name search, the tag filter, and the unvisited toggle combine with **AND**. Selected tags render below
   as a removable `#hashtag` row (tap to remove); a **Clear all** control appears whenever a tag is selected **or** the
-  search box has text, and clears **both**. Footer is the list `CommentsSection`. Access comes from
+  search box has text, and clears **both**. Footer is the list `CommentsSection` (List tab only). Access comes from
   `lists.get` (`{ list, role, isMember }`): **non-members of a public list** get a read-only view —
   the Add button, action row, and comment composer are all hidden and a "Public · view only" note
   shows. (The owner's public/private control lives on the **edit** screen, not here.)

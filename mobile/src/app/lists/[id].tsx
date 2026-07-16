@@ -21,6 +21,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { trpc } from '@/client/api';
 import CommentsSection, { type CommentItem } from '@/components/comments-section';
 import PhotoCard from '@/components/photo-card';
+import PollRow from '@/components/poll-row';
 import TagPill from '@/components/tag-pill';
 import { screenshotThumbUrl, videoPosterUrl } from '@/lib/video-embed';
 import { useTheme } from '@/theme/theme-provider';
@@ -28,6 +29,7 @@ import { THEME_TOKENS } from '@/theme/tokens';
 
 // Inferred from web's tRPC procedures.
 type Bookmarks = Awaited<ReturnType<typeof trpc.bookmarks.forList.query>>;
+type Polls = Awaited<ReturnType<typeof trpc.polls.forList.query>>;
 type ListAccess = Awaited<ReturnType<typeof trpc.lists.get.query>>;
 
 export default function ListScreen() {
@@ -39,12 +41,16 @@ export default function ListScreen() {
   const actionsSheetRef = useRef<BottomSheetModal>(null);
 
   const [bookmarks, setBookmarks] = useState<Bookmarks>([]);
+  const [polls, setPolls] = useState<Polls>([]);
   const [access, setAccess] = useState<ListAccess>(null);
   const [comments, setComments] = useState<CommentItem[]>([]);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [query, setQuery] = useState('');
   // Off by default → all bookmarks; on → only those the user hasn't visited.
   const [hideVisited, setHideVisited] = useState(false);
+  // Which face of the list view is showing — bookmarks or its polls. Rendered
+  // inline (no route change) so the header/details/tabs stay put.
+  const [tab, setTab] = useState<'list' | 'polls'>('list');
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -61,6 +67,11 @@ export default function ListScreen() {
       .then(setBookmarks)
       .catch((e) => setError(e instanceof Error ? e.message : 'Request failed'))
       .finally(() => setLoading(false));
+  }, [id]);
+
+  const loadPolls = useCallback(() => {
+    if (!id) return;
+    trpc.polls.forList.query({ listId: id }).then(setPolls).catch(() => {});
   }, [id]);
 
   // Distinct tags present across the list's bookmarks (for the filter sheet).
@@ -95,12 +106,13 @@ export default function ListScreen() {
     useCallback(() => {
       if (!id) return;
       loadBookmarks();
+      loadPolls();
       trpc.lists.get
         .query({ listId: id })
         .then(setAccess)
         .catch(() => {});
       loadComments();
-    }, [id, loadBookmarks, loadComments]),
+    }, [id, loadBookmarks, loadPolls, loadComments]),
   );
 
   function confirmClear() {
@@ -139,64 +151,69 @@ export default function ListScreen() {
       <Stack.Screen
         options={{
           headerTitle: '',
-          headerRight: () => (
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-              {canEdit && (
-                <Pressable
-                  accessibilityLabel="Add bookmark"
-                  hitSlop={8}
-                  onPress={() =>
-                    router.push({
-                      pathname: '/bookmarks/new',
-                      params: { listId: id, listName: name },
-                    })
-                  }
-                  style={{
-                    width: 32,
-                    height: 32,
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                  }}>
-                  {/* Nudge right to counter the Ionicons "add" glyph's left side-bearing. */}
-                  <Ionicons
-                    name="add"
-                    size={28}
-                    color={t.primary}
-                    style={{ marginLeft: 1 }}
-                  />
-                </Pressable>
-              )}
+          headerRight: () =>
+            canEdit ? (
+              // Round "add bookmark" action; the ⋮ list actions now live on the
+              // list-name row below.
+              <Pressable
+                accessibilityLabel="Add bookmark"
+                hitSlop={8}
+                onPress={() =>
+                  router.push({
+                    pathname: '/bookmarks/new',
+                    params: { listId: id, listName: name },
+                  })
+                }
+                style={{
+                  width: 34,
+                  height: 34,
+                  borderRadius: 17,
+                  backgroundColor: t.primary,
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}>
+                {/* Nudge right to counter the Ionicons "add" glyph's left side-bearing. */}
+                <Ionicons
+                  name="add"
+                  size={24}
+                  color={t.primaryInk}
+                  style={{ marginLeft: 1 }}
+                />
+              </Pressable>
+            ) : null,
+        }}
+      />
+
+      <FlatList
+        data={
+          (tab === 'list' ? shown : polls) as (
+            | Bookmarks[number]
+            | Polls[number]
+          )[]
+        }
+        keyExtractor={(item) => item.id}
+        contentContainerStyle={{
+          padding: 16,
+          paddingTop: headerHeight + 8,
+          gap: tab === 'list' ? 16 : 12,
+          paddingBottom: 24,
+        }}
+        ListHeaderComponent={
+          <View className="gap-3 pb-1">
+            <View className="flex-row items-start justify-between gap-3">
+              <Text className="flex-1 font-serif text-3xl text-ink">
+                {name ?? 'List'}
+              </Text>
               {isMember && (
                 <Pressable
                   accessibilityLabel="List actions"
                   hitSlop={8}
                   onPress={() => actionsSheetRef.current?.present()}
-                  style={{
-                    width: 32,
-                    height: 32,
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                  }}>
-                  <Ionicons name="ellipsis-vertical" size={20} color={t.ink} />
+                  className="p-1">
+                  <Ionicons name="ellipsis-vertical" size={22} color={t.ink} />
                 </Pressable>
               )}
             </View>
-          ),
-        }}
-      />
-
-      <FlatList
-        data={shown}
-        keyExtractor={(b) => b.id}
-        contentContainerStyle={{
-          padding: 16,
-          paddingTop: headerHeight + 8,
-          gap: 16,
-          paddingBottom: 24,
-        }}
-        ListHeaderComponent={
-          <View className="gap-3 pb-1">
-            <Text className="font-serif text-3xl text-ink">{name ?? 'List'}</Text>
 
             {description.trim() !== '' && (
               <Text className="font-sans text-muted">{description}</Text>
@@ -211,88 +228,139 @@ export default function ListScreen() {
               </View>
             )}
 
-            <View className="flex-row items-center justify-between">
-              <Text className="font-sans text-ink">Show only unvisited</Text>
-              <Switch
-                value={hideVisited}
-                onValueChange={setHideVisited}
-                trackColor={{ true: t.primary, false: `${t.muted}66` }}
-                ios_backgroundColor={`${t.muted}66`}
-              />
-            </View>
-
             {isMember && (
-              <View className="flex-row border-b border-border">
-                <View className="flex-row items-center gap-1.5 border-b-2 border-primary px-1 pb-2">
-                  <Ionicons name="list" size={16} color={t.primary} />
-                  <Text className="font-sans-semibold text-primary">List</Text>
-                </View>
+              // Rounded-pill segmented control, echoing the floating nav bar.
+              <View className="flex-row self-start rounded-full border-skin border-border bg-panel p-1">
                 <Pressable
-                  onPress={() =>
-                    router.push({
-                      pathname: '/polls',
-                      params: { listId: id, listName: name },
-                    })
-                  }
-                  className="ml-4 flex-row items-center gap-1.5 border-b-2 border-transparent px-1 pb-2">
-                  <Ionicons name="bar-chart" size={16} color={t.muted} />
-                  <Text className="font-sans text-muted">Polls</Text>
+                  onPress={() => setTab('list')}
+                  className={`flex-row items-center gap-1.5 rounded-full px-4 py-1.5 ${
+                    tab === 'list' ? 'bg-primary' : ''
+                  }`}>
+                  <Ionicons
+                    name="list"
+                    size={16}
+                    color={tab === 'list' ? t.primaryInk : t.muted}
+                  />
+                  <Text
+                    className={
+                      tab === 'list'
+                        ? 'font-sans-semibold text-primary-ink'
+                        : 'font-sans text-muted'
+                    }>
+                    List
+                  </Text>
+                </Pressable>
+                <Pressable
+                  onPress={() => setTab('polls')}
+                  className={`flex-row items-center gap-1.5 rounded-full px-4 py-1.5 ${
+                    tab === 'polls' ? 'bg-primary' : ''
+                  }`}>
+                  <Ionicons
+                    name="bar-chart"
+                    size={16}
+                    color={tab === 'polls' ? t.primaryInk : t.muted}
+                  />
+                  <Text
+                    className={
+                      tab === 'polls'
+                        ? 'font-sans-semibold text-primary-ink'
+                        : 'font-sans text-muted'
+                    }>
+                    Polls
+                  </Text>
                 </Pressable>
               </View>
             )}
 
-            <View className="flex-row items-center gap-2">
-              <TextInput
-                className="flex-1 rounded-skin border-skin border-border px-4 py-2.5 font-sans text-ink"
-                placeholder="Search bookmarks"
-                placeholderTextColor={t.muted}
-                autoCapitalize="none"
-                autoCorrect={false}
-                value={query}
-                onChangeText={setQuery}
-              />
-              {availableTags.length > 0 && (
-                <Pressable
-                  onPress={() => sheetRef.current?.present()}
-                  className="rounded-skin border-skin border-border px-3 py-2.5">
-                  <Text className="font-sans-semibold text-ink">Tags ▾</Text>
-                </Pressable>
-              )}
-            </View>
+            {tab === 'list' ? (
+              <>
+                <View className="flex-row items-center justify-between">
+                  <Text className="font-sans text-ink">Show only unvisited</Text>
+                  <Switch
+                    value={hideVisited}
+                    onValueChange={setHideVisited}
+                    trackColor={{ true: t.primary, false: `${t.muted}66` }}
+                    ios_backgroundColor={`${t.muted}66`}
+                  />
+                </View>
 
-            {(selectedTags.length > 0 || query.trim() !== '') && (
-              <View className="flex-row flex-wrap items-center gap-1">
-                {selectedTags.map((tag) => (
+                <View className="flex-row items-center gap-2">
+                  <TextInput
+                    className="flex-1 rounded-skin border-skin border-border px-4 py-2.5 font-sans text-ink"
+                    placeholder="Search bookmarks"
+                    placeholderTextColor={t.muted}
+                    autoCapitalize="none"
+                    autoCorrect={false}
+                    value={query}
+                    onChangeText={setQuery}
+                  />
+                  {availableTags.length > 0 && (
+                    <Pressable
+                      onPress={() => sheetRef.current?.present()}
+                      className="rounded-skin border-skin border-border px-3 py-2.5">
+                      <Text className="font-sans-semibold text-ink">Tags ▾</Text>
+                    </Pressable>
+                  )}
+                </View>
+
+                {(selectedTags.length > 0 || query.trim() !== '') && (
+                  <View className="flex-row flex-wrap items-center gap-1">
+                    {selectedTags.map((tag) => (
+                      <Pressable
+                        key={tag.id}
+                        onPress={() => toggleTag(tag.id)}
+                        className="px-1 py-0.5">
+                        <Text className="font-sans text-sm text-muted">
+                          #{tag.name.toLowerCase()} ✕
+                        </Text>
+                      </Pressable>
+                    ))}
+                    <Pressable
+                      onPress={() => {
+                        setSelected(new Set());
+                        setQuery('');
+                      }}
+                      className="px-1">
+                      <Text className="font-sans text-xs text-muted">Clear all</Text>
+                    </Pressable>
+                  </View>
+                )}
+
+                {loading && <Text className="font-sans text-muted">Loading…</Text>}
+                {error && <Text className="font-sans text-danger">{error}</Text>}
+                {!loading && !error && bookmarks.length === 0 && (
+                  <Text className="font-serif-italic text-muted">
+                    No bookmarks yet — add your first find.
+                  </Text>
+                )}
+              </>
+            ) : (
+              <>
+                {canEdit && (
                   <Pressable
-                    key={tag.id}
-                    onPress={() => toggleTag(tag.id)}
-                    className="px-1 py-0.5">
-                    <Text className="font-sans text-sm text-muted">
-                      #{tag.name.toLowerCase()} ✕
+                    onPress={() =>
+                      router.push({
+                        pathname: '/polls/new',
+                        params: { listId: id, listName: name },
+                      })
+                    }
+                    className="items-center rounded-skin bg-primary py-3">
+                    <Text className="font-sans-semibold text-primary-ink">
+                      Create poll
                     </Text>
                   </Pressable>
-                ))}
-                <Pressable
-                  onPress={() => {
-                    setSelected(new Set());
-                    setQuery('');
-                  }}
-                  className="px-1">
-                  <Text className="font-sans text-xs text-muted">Clear all</Text>
-                </Pressable>
-              </View>
-            )}
-
-            {loading && <Text className="font-sans text-muted">Loading…</Text>}
-            {error && <Text className="font-sans text-danger">{error}</Text>}
-            {!loading && !error && bookmarks.length === 0 && (
-              <Text className="font-serif-italic text-muted">
-                No bookmarks yet — add your first find.
-              </Text>
+                )}
+                {polls.length === 0 && (
+                  <Text className="font-serif-italic text-muted">
+                    No polls yet.
+                  </Text>
+                )}
+              </>
             )}
           </View>
         }
         ListFooterComponent={
+          tab !== 'list' ? null : (
           <View className="mt-6">
             <CommentsSection
               comments={comments}
@@ -308,41 +376,59 @@ export default function ListScreen() {
               }}
             />
           </View>
+          )
         }
-        renderItem={({ item }) => (
-          <PhotoCard
-            // Never the video itself — always a static thumbnail. If the
-            // extracted image is missing or fails (e.g. a hotlink-blocked reel
-            // og:image), fall back to a YouTube poster or a page screenshot.
-            image={item.images[0] ?? null}
-            fallbackImage={
-              videoPosterUrl(item.videoUrl, item.videoType) ??
-              screenshotThumbUrl(item.urls[0])
-            }
-            onPress={() =>
-              router.push({
-                pathname: '/bookmarks/[id]',
-                params: { id: item.id, name: item.name },
-              })
-            }>
-            <Text className="font-serif text-lg text-ink">{item.name}</Text>
-            {item.description ? (
-              <Text className="font-sans text-sm text-muted" numberOfLines={2}>
-                {item.description}
-              </Text>
-            ) : null}
-            <View className="mt-1 flex-row flex-wrap items-center gap-1">
-              {item.rating > 0 && (
-                <Text className="mr-1 text-sm text-accent">
-                  {'★'.repeat(item.rating)}
+        renderItem={({ item }) => {
+          if (tab === 'polls') {
+            const poll = item as Polls[number];
+            return (
+              <PollRow
+                poll={poll}
+                onPress={() =>
+                  router.push({
+                    pathname: '/polls/[pollId]',
+                    params: { pollId: poll.id },
+                  })
+                }
+              />
+            );
+          }
+          const b = item as Bookmarks[number];
+          return (
+            <PhotoCard
+              // Never the video itself — always a static thumbnail. If the
+              // extracted image is missing or fails (e.g. a hotlink-blocked reel
+              // og:image), fall back to a YouTube poster or a page screenshot.
+              image={b.images[0] ?? null}
+              fallbackImage={
+                videoPosterUrl(b.videoUrl, b.videoType) ??
+                screenshotThumbUrl(b.urls[0])
+              }
+              onPress={() =>
+                router.push({
+                  pathname: '/bookmarks/[id]',
+                  params: { id: b.id, name: b.name },
+                })
+              }>
+              <Text className="font-serif text-lg text-ink">{b.name}</Text>
+              {b.description ? (
+                <Text className="font-sans text-sm text-muted" numberOfLines={2}>
+                  {b.description}
                 </Text>
-              )}
-              {item.tags.map((bt) => (
-                <TagPill key={bt.tag.id} name={bt.tag.name} color={bt.tag.color} />
-              ))}
-            </View>
-          </PhotoCard>
-        )}
+              ) : null}
+              <View className="mt-1 flex-row flex-wrap items-center gap-1">
+                {b.rating > 0 && (
+                  <Text className="mr-1 text-sm text-accent">
+                    {'★'.repeat(b.rating)}
+                  </Text>
+                )}
+                {b.tags.map((bt) => (
+                  <TagPill key={bt.tag.id} name={bt.tag.name} color={bt.tag.color} />
+                ))}
+              </View>
+            </PhotoCard>
+          );
+        }}
       />
 
       <BottomSheetModal

@@ -4,27 +4,11 @@ import { Stack, useFocusEffect, useLocalSearchParams, useRouter } from 'expo-rou
 import { useHeaderHeight } from '@react-navigation/elements';
 
 import { trpc } from '@/client/api';
-import { atHandle } from '@/lib/handle';
+import PollRow from '@/components/poll-row';
 import { useTheme } from '@/theme/theme-provider';
 import { THEME_TOKENS } from '@/theme/tokens';
 
 type Polls = Awaited<ReturnType<typeof trpc.polls.forList.query>>;
-
-/** Relative status label derived from the poll's start/end (ISO strings over the
- *  wire — the tRPC client has no date transformer). */
-function pollStatus(startAt: string, endAt: string | null): string {
-  const now = Date.now();
-  const start = new Date(startAt).getTime();
-  const end = endAt ? new Date(endAt).getTime() : null;
-  if (now < start) return 'Scheduled';
-  if (end != null && now >= end) return 'Ended';
-  if (end == null) return 'Active';
-  const mins = Math.round((end - now) / 60000);
-  if (mins < 60) return `Ends in ${mins}m`;
-  const hrs = Math.round(mins / 60);
-  if (hrs < 24) return `Ends in ${hrs}h`;
-  return `Ends in ${Math.round(hrs / 24)}d`;
-}
 
 export default function PollListScreen() {
   const router = useRouter();
@@ -107,27 +91,14 @@ export default function PollListScreen() {
             </Text>
           )
         }
-        renderItem={({ item }) => {
-          const creator = atHandle(item.creator.handle);
-          return (
-            <Pressable
-              onPress={() =>
-                router.push({ pathname: '/polls/[pollId]', params: { pollId: item.id } })
-              }
-              className="rounded-skin border-skin border-border bg-panel p-4">
-              <Text className="font-serif text-lg text-ink">{item.name}</Text>
-              <View className="mt-1 flex-row items-center justify-between">
-                <Text className="font-sans text-sm text-muted">
-                  {item.creator.icon ? `${item.creator.icon} ` : ''}
-                  {creator} · {item._count.options} options
-                </Text>
-                <Text className="font-sans-medium text-xs text-primary">
-                  {pollStatus(item.startAt, item.endAt)}
-                </Text>
-              </View>
-            </Pressable>
-          );
-        }}
+        renderItem={({ item }) => (
+          <PollRow
+            poll={item}
+            onPress={() =>
+              router.push({ pathname: '/polls/[pollId]', params: { pollId: item.id } })
+            }
+          />
+        )}
       />
     </View>
   );

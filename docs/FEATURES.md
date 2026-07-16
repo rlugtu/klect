@@ -162,7 +162,7 @@ never trapped on the wrong screen.
 | Location autocomplete + business autofill | ✅ | ✅ | Mapbox Search Box |
 | Video detection & player | ⚠️ | ⚠️ | Web iframe click-to-play · Mobile `expo-video` + WebView |
 | Tags (user-scoped, auto-colored, OR filter) | ✅ | ✅ | Per-list filter: web dropdown · mobile bottom sheet |
-| Ratings / Visited / Notes | ✅ | ✅ | |
+| Ratings / Visited / Notes | ✅ | ✅ | Visited also drives a **Show only unvisited** toggle on the list view (above the search row) |
 | Sharing & permissions | ✅ | ✅ | Owner / Collaborator / Viewer; **request-based** invites (invitee approves/rejects) |
 | Friends | ✅ | ✅ | Add by **@handle** (request + accept); bulk-add a friend to your lists |
 | Direct messages | ✅ | ✅ | Friends-only 1:1 chat; Friends\|Messages tab switch + unread badge; paginated history; near-real-time (Supabase Realtime, polling fallback); per-user clear/delete; unfriend keeps history but blocks sending (`dms.*`) |
@@ -204,9 +204,10 @@ icon), delete (owner-only, cascades bookmarks/comments/members/polls), and brows
 or belong to with bookmark + member counts and a role badge.
 **Web.** Home `/` renders `HomeLists`; detail `/lists/[id]`. The detail view has a shared
 `ListPageHeader` (identity block + owner-only **Members** button + a **⋮ actions menu** via
-`ListToolbar`) and **route-based tabs** (`ListTabs`: **List** = `/lists/[id]`, **Polls** =
-`/lists/[id]/polls`); edit/delete live in the ⋮ menu's Edit panel. `lists.mine` / `lists.get` /
-`lists.create` / `lists.update` / `lists.delete`.
+`ListToolbar`, on the list-name row) and a rounded-pill **List | Polls** segmented tab bar
+(`ListTabs`: **List** = `/lists/[id]`, **Polls** = `/lists/[id]?tab=polls`, rendered inline so the
+header/details/tabs stay mounted); edit/delete live in the ⋮ menu's Edit panel. `lists.mine` /
+`lists.get` / `lists.create` / `lists.update` / `lists.delete`.
 **Mobile.** `src/app/(tabs)/index.tsx` (home cards, with a **Collab / Viewer** pill on lists you
 don't own), `src/app/lists/[id].tsx` (detail), `lists/new.tsx` + `lists/edit.tsx` modals. Same
 procedures.
@@ -425,9 +426,13 @@ or any as the list owner.
 start/end dates, max votes per person, whether re-votes are allowed, and (at creation only) whether
 the poll is **anonymous**; see ranked results with voters. Anonymous polls hide *who* voted for
 what from everyone (counts still show) and can't be un-anonymized after creation.
-**Web.** `/lists/[id]/polls[...]` routes, `PollForm` + `PollVote`; `polls.*` procedures.
-**Mobile.** `src/app/polls/*` (list, detail with Vote/Results tabs, new/edit modal with a native
-date picker); same procedures.
+**Web.** The poll **list** is the **Polls** tab of the list view, rendered inline at
+`/lists/[id]?tab=polls` (`PollsView`) so the header/details/tabs stay mounted; detail/new/edit stay
+their own `/lists/[id]/polls/[...]` routes (`PollForm` + `PollVote`). The legacy `/lists/[id]/polls`
+URL redirects to the inline tab. `polls.*` procedures.
+**Mobile.** The poll list renders **inline** as the **Polls** tab on the list screen (shared
+`components/poll-row.tsx`); detail + new/edit are pushed `src/app/polls/*` routes (detail with
+Vote/Results tabs, new/edit modal with a native date picker); same procedures.
 **Differences.** None functionally.
 
 ### Nearby / geolocation

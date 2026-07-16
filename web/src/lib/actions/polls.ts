@@ -38,7 +38,7 @@ export async function createPoll(listId: string, formData: FormData) {
     pollInputFromFormData(formData),
   );
 
-  revalidatePath(`/lists/${listId}/polls`);
+  revalidatePath(`/lists/${listId}`);
   redirect(`/lists/${listId}/polls/${poll.id}`);
 }
 
@@ -50,7 +50,7 @@ export async function updatePoll(pollId: string, formData: FormData) {
     pollInputFromFormData(formData),
   );
 
-  revalidatePath(`/lists/${listId}/polls`);
+  revalidatePath(`/lists/${listId}`);
   revalidatePath(`/lists/${listId}/polls/${pollId}`);
   redirect(`/lists/${listId}/polls/${pollId}`);
 }
@@ -59,8 +59,8 @@ export async function deletePoll(pollId: string) {
   const user = await requireUser();
   const { listId } = await core.deletePoll(user.id, pollId);
 
-  revalidatePath(`/lists/${listId}/polls`);
-  redirect(`/lists/${listId}/polls`);
+  revalidatePath(`/lists/${listId}`);
+  redirect(`/lists/${listId}?tab=polls`);
 }
 
 /** Replace the caller's votes with the checked options; stays on the poll. */
