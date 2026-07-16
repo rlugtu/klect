@@ -14,7 +14,9 @@
     "production": {
       "autoIncrement": true,
       "env": {
-        "EXPO_PUBLIC_API_URL": "https://klect.vercel.app"
+        "EXPO_PUBLIC_API_URL": "https://klect.vercel.app",
+        "EXPO_PUBLIC_SUPABASE_URL": "https://eenczjbpnxacvygkhbuz.supabase.co",
+        "EXPO_PUBLIC_SUPABASE_ANON_KEY": "sb_publishable_UO3p900f0zqAkV7444Z_xA_gGQSjfvJ"
       }
     }
   },
