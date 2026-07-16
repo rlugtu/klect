@@ -224,7 +224,7 @@ export default function BookmarkForm({
         // indicator (notably in the share-extension flow, which has no tab bar).
         contentContainerStyle={{
           paddingHorizontal: 16,
-          paddingTop: 4,
+          paddingTop: 12,
           paddingBottom: 16 + insets.bottom,
           gap: 12,
         }}
@@ -237,8 +237,14 @@ export default function BookmarkForm({
         {header ? (
           <>
             {header}
-            {/* Separate the list-picker section from the autofill input below. */}
-            <View className="my-1 border-t border-border" />
+            {/* Separate the list-picker section from the bookmark fields below, with the
+                "Bookmark" section header sharing the divider row. */}
+            <View className="my-1 flex-row items-center gap-3">
+              <Text className="font-sans-medium text-sm uppercase text-muted">
+                Bookmark
+              </Text>
+              <View className="h-px flex-1 bg-border" />
+            </View>
           </>
         ) : null}
         <View className="flex-row gap-2">
