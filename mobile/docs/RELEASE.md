@@ -13,6 +13,16 @@ These are wrong/placeholder in the repo today and block a real production build:
 - [x] **Production API URL** — `eas.json` `production` profile sets
       `env.EXPO_PUBLIC_API_URL = https://klect.vercel.app` (the deployed web app), so
       device builds hit the live API instead of localhost. The local `mobile/.env` stays dev-only.
+- [x] **Near me map token** — the **public** `pk.` Mapbox token is stored as an **EAS environment
+      variable** `EXPO_PUBLIC_MAPBOX_TOKEN` on the `production` environment (`eas env:create
+      --environment production --name EXPO_PUBLIC_MAPBOX_TOKEN --value pk... --visibility plaintext`),
+      *not* committed to `eas.json` — GitHub push protection rejects Mapbox tokens even public ones.
+      `EXPO_PUBLIC_*` values are inlined at bundle time; the untracked `mobile/.env` is **not** in the
+      EAS build, so without this the token ships as `null` → the Near me map renders blank (logo only,
+      no tiles). `eas build` (incl. `--local`) pulls EAS env vars automatically. The **secret**
+      `MAPBOX_DOWNLOAD_TOKEN` (`sk.`) is build-time only (fetches the native SDK via `app.config.js`)
+      and stays in local `mobile/.env` for the local build. Verify a build inlines the runtime token:
+      `strings <bundle>.hbc | grep pk.eyJ`.
 - [ ] **iOS icon** — `app.json` `ios.icon` is `./assets/expo.icon`; confirm it resolves to a real
       1024×1024 PNG (root `icon` is `./assets/images/icon.png`).
 - [x] **`eas.json` `submit.production.ascAppId`** — set to `6789320507` (the App Store Connect

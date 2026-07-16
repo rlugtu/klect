@@ -63,7 +63,11 @@ header + status bar mask it with **`expo-linear-gradient` + `@react-native-maske
 so the blur fades out gradually with no hard line), `expo-location`,
 **`@rnmapbox/maps`** (the Near me screen's full-screen Mapbox map + numbered pins; needs a public
 `EXPO_PUBLIC_MAPBOX_TOKEN` at runtime and a secret `MAPBOX_DOWNLOAD_TOKEN` injected by `app.config.js`
-at build time — both in `.env`, see `.env.example`; requires the custom dev build),
+at build time — both in `.env` for dev, see `.env.example`; requires the custom dev build. For
+**release builds** the public `EXPO_PUBLIC_MAPBOX_TOKEN` is stored as an **EAS environment variable**
+(`production` env; `eas build` pulls it) rather than committed to `eas.json` — GitHub push protection
+rejects Mapbox tokens. The untracked `.env` isn't in the EAS build, so if the token is missing from
+EAS the map ships blank; the secret download token stays in local `.env`, supplied at build),
 `expo-secure-store`,
 **`expo-share-extension`** (native iOS share extension — reuses `BookmarkForm` to save a shared URL
 as a bookmark *inside the share sheet*, authenticating via a shared-keychain bearer token; entry is
