@@ -300,7 +300,8 @@ export default function NearbyScreen() {
               <Switch
                 value={hideVisited}
                 onValueChange={setHideVisited}
-                trackColor={{ true: t.primary }}
+                trackColor={{ true: t.primary, false: `${t.muted}66` }}
+                ios_backgroundColor={`${t.muted}66`}
               />
             </View>
           </View>
@@ -328,6 +329,7 @@ export default function NearbyScreen() {
           }}
           contentContainerStyle={{
             gap: 8,
+            paddingTop: 12,
             paddingHorizontal: 16,
             paddingBottom: insets.bottom + 96,
           }}

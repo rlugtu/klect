@@ -101,7 +101,7 @@ export function DmInbox({
           {header}
           <Pressable
             onPress={() => router.push('/dm/new')}
-            className="flex-row items-center justify-center gap-2 self-start rounded-skin bg-primary px-4 py-2.5">
+            className="flex-row items-center justify-center gap-2 self-end rounded-skin bg-primary px-4 py-2.5">
             <Ionicons name="create-outline" size={16} color={t.primaryInk} />
             <Text className="font-sans-semibold text-primary-ink">New chat</Text>
           </Pressable>
@@ -135,7 +135,7 @@ export function DmInbox({
             onLongPress={() => confirmDelete(item.conversationId)}
             className="flex-row items-center gap-3 rounded-skin border-skin border-border bg-panel p-3">
             {item.unread ? (
-              <View className="size-2.5 rounded-full bg-accent" />
+              <View className="size-2.5 rounded-full bg-danger" />
             ) : (
               <View className="size-2.5" />
             )}

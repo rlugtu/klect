@@ -161,7 +161,8 @@ export default function ListScreen() {
               <Switch
                 value={hideVisited}
                 onValueChange={setHideVisited}
-                trackColor={{ true: t.primary }}
+                trackColor={{ true: t.primary, false: `${t.muted}66` }}
+                ios_backgroundColor={`${t.muted}66`}
               />
             </View>
 

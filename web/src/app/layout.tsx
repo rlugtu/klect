@@ -47,8 +47,8 @@ const workSans = Work_Sans({
 });
 
 export const metadata: Metadata = {
-  title: "Klect — retro bookmarks",
-  description: "Bookmarks organized into shareable lists. 8-bit style.",
+  title: "Klect — more than links",
+  description: "More than links. Everything in one place.",
   applicationName: "Klect",
   appleWebApp: {
     capable: true,
