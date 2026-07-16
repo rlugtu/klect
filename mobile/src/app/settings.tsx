@@ -1,6 +1,8 @@
-import { Pressable, ScrollView, Text, View } from 'react-native';
+import { Platform, Pressable, ScrollView, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useHeaderHeight } from '@react-navigation/elements';
+import { useRouter } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
 
 import { authClient, clearBearerToken } from '@/client/auth';
 import { useTheme } from '@/theme/theme-provider';
@@ -20,6 +22,8 @@ export default function SettingsScreen() {
   const { theme, setTheme } = useTheme();
   const { data: session } = authClient.useSession();
   const headerHeight = useHeaderHeight();
+  const router = useRouter();
+  const t = THEME_TOKENS[theme];
 
   return (
     <SafeAreaView style={{ flex: 1 }} edges={['left', 'right']} className="bg-bg">
@@ -71,6 +75,21 @@ export default function SettingsScreen() {
             );
           })}
         </View>
+
+        {Platform.OS === 'ios' && (
+          <View className="gap-2">
+            <Text className="text-sm uppercase text-muted">Sharing</Text>
+            <Pressable
+              onPress={() => router.push('/share-help')}
+              className="flex-row items-center justify-between rounded-skin border-skin border-border bg-panel p-3">
+              <View className="flex-row items-center gap-3">
+                <Ionicons name="share-outline" size={22} color={t.primary} />
+                <Text className="text-base text-ink">Add Klect to your Share Sheet</Text>
+              </View>
+              <Ionicons name="chevron-forward" size={18} color={t.muted} />
+            </Pressable>
+          </View>
+        )}
 
         <Pressable
           className="items-center rounded-skin border-skin border-border py-3"

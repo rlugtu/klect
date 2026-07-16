@@ -178,6 +178,7 @@ never trapped on the wrong screen.
 | Profile & settings | ✅ | ✅ | Theme picker (all 6 themes) |
 | Themes | ✅ | ✅ | All 6 both; **default differs** (web Modern Light · mobile Journal Light) |
 | Native share extension | ➖ | ✅ | Mobile-only, iOS (save a bookmark inside the OS share sheet) |
+| "Share to Klect" how-to | ✅ | ✅ | Illustrated setup walkthrough in Settings (mobile entry iOS-only) |
 | PWA install | ✅ | ➖ | Web-only (mobile is a native app) |
 | AI caption extraction | ✅ | ➖ | Web-only (`comprehend.caption`, Claude-backed) |
 
@@ -505,8 +506,14 @@ filled out and saved **inside the share sheet**, without opening the app.
 share sheet (auto-autofill via `metadata.fetch`), saving through `bookmarks.createInLists`. Auth uses
 a bearer token read from the shared keychain; if none is present it prompts to open Klect and sign in.
 Requires the custom dev build.
-**Web.** ➖ Not possible — no OS-level share sheet.
-**Differences.** **Mobile-only (iOS).** Android share-to-app is not currently supported.
+**Setup help.** A short, illustrated **"Share to Klect"** walkthrough teaches users how to surface
+and favorite the extension in the iOS share sheet — four steps, one screenshot each. It's reachable
+from **Settings** on both apps: a pushed screen (`share-help.tsx`, iOS-only entry) on mobile and the
+`/settings/share-extension` page on web (so web-first users discover the iOS feature too).
+**Web.** ➖ The extension itself isn't possible — no OS-level share sheet — but the how-to page is
+served on web for discovery.
+**Differences.** The extension is **mobile-only (iOS)**; the how-to page exists on both. Android
+share-to-app is not currently supported.
 
 ### PWA install
 **Description.** Install the web app to the home screen with an offline fallback page.

@@ -43,6 +43,18 @@ export default async function SettingsPage() {
       </PixelCard>
 
       <PixelCard>
+        <h2 className="text-sm mb-4">iOS share sheet</h2>
+        <p className="text-muted mb-4 text-sm">
+          Save links to Klect from any app on your iPhone — no copy-pasting.
+        </p>
+        <Link href="/settings/share-extension">
+          <PixelButton variant="secondary" size="sm">
+            Learn how →
+          </PixelButton>
+        </Link>
+      </PixelCard>
+
+      <PixelCard>
         <h2 className="text-sm mb-4">Account</h2>
         <p className="text-muted mb-1">
           Signed in as <span className="text-ink">@{user.handle}</span>

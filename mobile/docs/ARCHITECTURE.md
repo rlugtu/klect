@@ -324,8 +324,13 @@ modal with `router.back()` (or `router.dismissAll()` after leaving a list).
   (`friends.requestByUser`); your own omits it but shows a **settings gear** (top-right) that pushes
   the Settings screen.
 - **Settings** (`settings.tsx`, a pushed stack route reached via the Profile gear) — account summary
-  (name/email from the session); **theme picker** (all six themes, four-swatch preview + check);
-  sign out.
+  (name/email from the session); **theme picker** (all six themes, four-swatch preview + check); an
+  iOS-only **"Add Klect to your Share Sheet"** row (gated on `Platform.OS === 'ios'`) that pushes the
+  help screen; sign out.
+- **Share to Klect** (`share-help.tsx`, a pushed stack route from Settings) — a static, illustrated
+  walkthrough for surfacing/favoriting the share extension in the iOS share sheet: four steps, one
+  screenshot each (`assets/images/share-help/step-1..4.png`, the same PNGs the web help page serves).
+  No data fetching; theme-aware via the semantic classes.
 - **Login / sign-up** (`components/login-screen.tsx`) — shown when signed out. A mode toggle switches
   between **Sign in** and **Create account** (the latter adds a Name field; password ≥ 8), mirroring
   web's `LoginForm`; Google is available in both. `signUp.email` creates the account, then the

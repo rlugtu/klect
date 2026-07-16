@@ -265,7 +265,8 @@ helper — never rely on UI gating alone. Read-only public access uses `assertCa
 | `/lists/[id]/polls/[pollId]` | Poll detail: **Vote**/**Results** toggle; edit/delete for the creator or list owner |
 | `/lists/[id]/polls/[pollId]/edit` | Edit a poll (creator or list owner); reconciles options |
 | `/users/[handle]` | **Profile** (reachable by @handle or id): a user's identity (avatar/icon, @handle, member-since), stats (public lists · friends), their **public lists**, and an Add-friend action on others' profiles. Your own profile is linked from a **Profile** item in the primary nav; on your own profile a **settings gear** opens `/settings`. |
-| `/settings` | Edit profile/theme/icon; manage/leave shared lists; pending requests. Reached via the **gear icon on your own profile** (no longer a primary-nav item). |
+| `/settings` | Edit profile/theme/icon; manage/leave shared lists; pending requests. Reached via the **gear icon on your own profile** (no longer a primary-nav item). Links to the share-sheet how-to. |
+| `/settings/share-extension` | **"Share to Klect"** — a static, illustrated how-to for adding the iOS share extension to the system share sheet (four steps). Mirrored on mobile as the pushed `share-help` screen (iOS-only entry). |
 | `/invite/[token]` | Accept an invite |
 
 **Home search bar behavior** (unified control):
@@ -360,7 +361,9 @@ The capabilities the app ships today. Product-level coverage (and web/mobile par
 - **Platform extras** — the web app is an installable **PWA** (manifest, prod-only service worker,
   `/offline` fallback) and has an AI **caption extraction** procedure (`comprehend.caption`). The iOS
   app adds a native **share extension** that saves a shared link into a list from inside the OS share
-  sheet.
+  sheet. A short, illustrated **"Share to Klect"** how-to (in Settings on both apps —
+  `/settings/share-extension` on web, the `share-help` screen on mobile) walks users through adding
+  and favoriting the extension in the iOS share sheet.
 
 ---
 
