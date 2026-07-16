@@ -55,7 +55,7 @@ export function ListPicker({
 
   return (
     <View className="gap-2">
-      <Text className="text-sm text-muted">Add to lists</Text>
+      <Text className="font-sans-medium text-sm uppercase text-muted">Add to lists</Text>
 
       {editable.length > 0 && (
         <View className="flex-row flex-wrap gap-2">

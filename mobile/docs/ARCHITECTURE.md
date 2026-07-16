@@ -360,6 +360,9 @@ and a 0–5 star rating. It **merges edited fields over `initial`**, preserving 
 surface (notes, coords when free-typed, extra urls, visited) so editing never wipes them. `EMPTY_BOOKMARK`
 is the create baseline. An optional `header` slot renders above the form — the standalone flow passes
 `<ListPicker>` into it so the picker shares the form's keyboard-aware scroll and single submit button.
+When a `header` is present the two areas are labelled with matching uppercase section headers — an
+**"Add to lists"** header over the picker and a **"Bookmark"** header sharing the divider row above the
+fields — visually splitting the drawer into its list and bookmark sections.
 `onSubmit(data)` is provided by each screen; throwing from it surfaces the message inline (used to
 enforce "pick at least one list"). `autofillOnMount` (guarded to run once) fetches metadata when the
 form opens with a shared URL. Tags are entered comma-separated; a leading `#` is stripped on input
