@@ -97,7 +97,15 @@ function AppStack() {
           Cancel action) inside the modal, so it hides the empty chevron-only nav header. */}
       <Stack.Screen
         name="bookmarks/new"
-        options={{ presentation: 'modal', headerShown: false }}
+        options={{
+          // formSheet (not plain modal) so we can tune the top corner radius to a
+          // milder curve; full-height detent + hidden grabber keep the current feel.
+          presentation: 'formSheet',
+          sheetAllowedDetents: [1.0],
+          sheetCornerRadius: 16,
+          sheetGrabberVisible: false,
+          headerShown: false,
+        }}
       />
       <Stack.Screen name="bookmarks/edit" options={{ ...opaqueModal }} />
       <Stack.Screen name="polls/index" options={{ ...blankTitle }} />

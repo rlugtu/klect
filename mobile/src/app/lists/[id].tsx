@@ -164,19 +164,18 @@ export default function ListScreen() {
                     params: { listId: id, listName: name },
                   })
                 }
+                // Flat, borderless action: just the primary-colored glyph, no filled pill.
                 style={{
                   width: 34,
                   height: 34,
-                  borderRadius: 17,
-                  backgroundColor: t.primary,
                   alignItems: 'center',
                   justifyContent: 'center',
                 }}>
                 {/* Nudge right to counter the Ionicons "add" glyph's left side-bearing. */}
                 <Ionicons
                   name="add"
-                  size={24}
-                  color={t.primaryInk}
+                  size={28}
+                  color={t.primary}
                   style={{ marginLeft: 1 }}
                 />
               </Pressable>
@@ -230,7 +229,7 @@ export default function ListScreen() {
 
             {isMember && (
               // Rounded-pill segmented control, echoing the floating nav bar.
-              <View className="flex-row self-start rounded-full border-skin border-border bg-panel p-1">
+              <View className="flex-row self-center rounded-full border-skin border-border bg-panel p-1">
                 <Pressable
                   onPress={() => setTab('list')}
                   className={`flex-row items-center gap-1.5 rounded-full px-4 py-1.5 ${

@@ -180,6 +180,9 @@ a centered title anywhere in the app**.
 - **Modal screens**: `lists/new`, `lists/edit`, `bookmarks/new`, `bookmarks/edit`. `bookmarks/new`
   hides the nav header (`headerShown: false`) and draws its own compact in-drawer top bar (title
   **"New Bookmark"** + a **Cancel** that `router.back()`s) so there's no empty chevron-only header.
+  It uses `presentation: 'formSheet'` (not plain `modal`) pinned to a full-height detent
+  (`sheetAllowedDetents: [1.0]`, grabber hidden) purely so its top corners can use a milder
+  `sheetCornerRadius: 16` — a tunable curve the native `modal` presentation doesn't expose.
 - **`+native-intent.tsx`** — `redirectSystemPath` intercepts the Share Extension's re-open deep link
   (`klect://dataUrl=<key>…`, not a real route) and rewrites it to `/`, so expo-router doesn't render
   the not-found screen; the share payload is then picked up by the provider (see Share intent below).
@@ -241,12 +244,12 @@ modal with `router.back()` (or `router.dismissAll()` after leaving a list).
   a player. When the extracted image is missing **or fails to load** (reel `og:image`s are often
   hotlink-blocked/expiring social-CDN URLs), `PhotoCard` walks a fallback chain on error — a derived
   YouTube poster (`videoPosterUrl`) then a no-key page screenshot (`screenshotThumbUrl`, WordPress
-  mShots), both in `lib/video-embed.ts`. The nav header holds a single **round Add** button (→
-  `bookmarks/new?listId=`, editors); the **⋮** button — opening a `@gorhom/bottom-sheet` **actions
+  mShots), both in `lib/video-embed.ts`. The nav header holds a single **flat Add** button (a
+  borderless primary-colored **＋** glyph, no filled pill → `bookmarks/new?listId=`, editors); the **⋮** button — opening a `@gorhom/bottom-sheet` **actions
   menu** (Edit list → `lists/edit`, owner Members → `lists/members`, Duplicate list → `lists/actions`,
   owner destructive Clear list → native confirm → `lists.clearBookmarks`) — now sits on the
   **list-name row**, right-justified beside the title. Below the identity block, in the `FlatList`
-  header: a rounded-pill **List | Polls** segmented control (echoes the floating nav bar). Polls
+  header: a **center-aligned** rounded-pill **List | Polls** segmented control (echoes the floating nav bar). Polls
   render **inline** — tapping the tab swaps the feed to the list's polls (`polls.forList`, via the
   shared `components/poll-row.tsx`) with a **Create poll** button (editors), no route push, so the
   header/details/tab bar stay mounted; poll detail/create stay their own pushed routes. On the **List**
