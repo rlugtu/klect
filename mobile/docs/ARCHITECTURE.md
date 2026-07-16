@@ -241,8 +241,11 @@ modal with `router.back()` (or `router.dismissAll()` after leaving a list).
   a player. When the extracted image is missing **or fails to load** (reel `og:image`s are often
   hotlink-blocked/expiring social-CDN URLs), `PhotoCard` walks a fallback chain on error — a derived
   YouTube poster (`videoPosterUrl`) then a no-key page screenshot (`screenshotThumbUrl`, WordPress
-  mShots), both in `lib/video-embed.ts`. Header holds only **Add** (→ `bookmarks/new?listId=`).
-  Above the feed, in the `FlatList` header: an **Edit list / Members** action row, then a **filter
+  mShots), both in `lib/video-embed.ts`. Header holds **Add** (→ `bookmarks/new?listId=`, editors)
+  and a **⋮** button opening a `@gorhom/bottom-sheet` **actions menu** (Edit list → `lists/edit`,
+  owner Members → `lists/members`, Duplicate list → `lists/actions`, owner destructive Clear list →
+  native confirm → `lists.clearBookmarks`). Above the feed, in the `FlatList` header: a **List | Polls**
+  tab row (Polls pushes the `polls` route), then a **filter
   row** — a left-justified **search box** (filters the feed by bookmark name, case-insensitive
   substring) that fills the remaining width, with a **Tags ▾** button on its right (only when the
   list has tags) that opens a `@gorhom/bottom-sheet` tag filter (multi-select **OR**, distinct tags

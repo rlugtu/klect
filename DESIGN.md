@@ -240,9 +240,9 @@ helper — never rely on UI gating alone. Read-only public access uses `assertCa
 | `/friends/dms/[conversationId]` | **Chat thread**: message history (older loads on demand via keyset cursor) + composer; composer is disabled with a note when you're no longer friends. Mobile equivalents: the DMs view is an in-screen tab on the Friends screen; threads are `/dm/[conversationId]` and `/dm/new`. |
 | `/nearby` | **Near me**: find geocoded bookmarks within a chosen radius of your current location, closest→farthest |
 | `/bookmarks/new` | **New bookmark**: standalone create flow; pick/create one or more target lists and add the bookmark independently to each. Reached from a **＋ Bookmark** item in the primary nav (web home header · mobile tab bar) |
-| `/lists/[id]` | Bookmarks in a list; filter/search within; list-level comments; invite UI (owner) |
+| `/lists/[id]` | Bookmarks in a list; filter/search within; list-level comments; **List \| Polls** tabs + owner **Members** button + a **⋮ actions menu** (Edit / Duplicate / Clear) |
 | `/lists/[id]/bookmarks/[bid]` | Bookmark detail: 8-bit layout, tag pills, comments newest-first; **← Back** returns to the previous page (list / nearby / search), falling back to the list on direct load |
-| `/lists/[id]/polls` | Polls in a list (newest first, with status + counts); **New poll** for collaborators+ |
+| `/lists/[id]/polls` | Polls in a list (newest first, with status + counts); **New poll** for collaborators+; the **Polls** tab of the list view (shares `/lists/[id]`'s header) |
 | `/lists/[id]/polls/new` | Create a poll: fields + a searchable/tag-filterable bookmark option picker (≥2) |
 | `/lists/[id]/polls/[pollId]` | Poll detail: **Vote**/**Results** toggle; edit/delete for the creator or list owner |
 | `/lists/[id]/polls/[pollId]/edit` | Edit a poll (creator or list owner); reconciles options |

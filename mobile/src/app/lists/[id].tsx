@@ -1,5 +1,13 @@
 import { useCallback, useMemo, useRef, useState } from 'react';
-import { FlatList, Pressable, Switch, Text, TextInput, View } from 'react-native';
+import {
+  Alert,
+  FlatList,
+  Pressable,
+  Switch,
+  Text,
+  TextInput,
+  View,
+} from 'react-native';
 import {
   Stack,
   useFocusEffect,
@@ -28,6 +36,7 @@ export default function ListScreen() {
   const t = THEME_TOKENS[useTheme().theme];
   const headerHeight = useHeaderHeight();
   const sheetRef = useRef<BottomSheetModal>(null);
+  const actionsSheetRef = useRef<BottomSheetModal>(null);
 
   const [bookmarks, setBookmarks] = useState<Bookmarks>([]);
   const [access, setAccess] = useState<ListAccess>(null);
@@ -42,6 +51,16 @@ export default function ListScreen() {
   const loadComments = useCallback(() => {
     if (!id) return;
     trpc.comments.forList.query({ listId: id }).then(setComments).catch(() => {});
+  }, [id]);
+
+  const loadBookmarks = useCallback(() => {
+    if (!id) return;
+    setLoading(true);
+    trpc.bookmarks.forList
+      .query({ listId: id })
+      .then(setBookmarks)
+      .catch((e) => setError(e instanceof Error ? e.message : 'Request failed'))
+      .finally(() => setLoading(false));
   }, [id]);
 
   // Distinct tags present across the list's bookmarks (for the filter sheet).
@@ -75,24 +94,43 @@ export default function ListScreen() {
   useFocusEffect(
     useCallback(() => {
       if (!id) return;
-      setLoading(true);
-      trpc.bookmarks.forList
-        .query({ listId: id })
-        .then(setBookmarks)
-        .catch((e) => setError(e instanceof Error ? e.message : 'Request failed'))
-        .finally(() => setLoading(false));
+      loadBookmarks();
       trpc.lists.get
         .query({ listId: id })
         .then(setAccess)
         .catch(() => {});
       loadComments();
-    }, [id, loadComments]),
+    }, [id, loadBookmarks, loadComments]),
   );
+
+  function confirmClear() {
+    if (!id) return;
+    Alert.alert(
+      'Clear all bookmarks?',
+      'This deletes every bookmark in this list. The list itself stays. This cannot be undone.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Clear all',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await trpc.lists.clearBookmarks.mutate({ listId: id });
+              loadBookmarks();
+            } catch (e) {
+              setError(e instanceof Error ? e.message : 'Clear failed');
+            }
+          },
+        },
+      ],
+    );
+  }
 
   const selectedTags = availableTags.filter((tag) => selected.has(tag.id));
 
   const description = access?.list.description ?? '';
   const isMember = access?.isMember ?? false;
+  const isOwner = isMember && access?.role === 'OWNER';
   const canEdit =
     isMember && (access?.role === 'OWNER' || access?.role === 'COLLABORATOR');
 
@@ -101,32 +139,49 @@ export default function ListScreen() {
       <Stack.Screen
         options={{
           headerTitle: '',
-          headerRight: () =>
-            canEdit ? (
-              <Pressable
-                accessibilityLabel="Add bookmark"
-                hitSlop={8}
-                onPress={() =>
-                  router.push({
-                    pathname: '/bookmarks/new',
-                    params: { listId: id, listName: name },
-                  })
-                }
-                style={{
-                  width: 32,
-                  height: 32,
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                }}>
-                {/* Nudge right to counter the Ionicons "add" glyph's left side-bearing. */}
-                <Ionicons
-                  name="add"
-                  size={28}
-                  color={t.primary}
-                  style={{ marginLeft: 1 }}
-                />
-              </Pressable>
-            ) : null,
+          headerRight: () => (
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+              {canEdit && (
+                <Pressable
+                  accessibilityLabel="Add bookmark"
+                  hitSlop={8}
+                  onPress={() =>
+                    router.push({
+                      pathname: '/bookmarks/new',
+                      params: { listId: id, listName: name },
+                    })
+                  }
+                  style={{
+                    width: 32,
+                    height: 32,
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }}>
+                  {/* Nudge right to counter the Ionicons "add" glyph's left side-bearing. */}
+                  <Ionicons
+                    name="add"
+                    size={28}
+                    color={t.primary}
+                    style={{ marginLeft: 1 }}
+                  />
+                </Pressable>
+              )}
+              {isMember && (
+                <Pressable
+                  accessibilityLabel="List actions"
+                  hitSlop={8}
+                  onPress={() => actionsSheetRef.current?.present()}
+                  style={{
+                    width: 32,
+                    height: 32,
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }}>
+                  <Ionicons name="ellipsis-vertical" size={20} color={t.ink} />
+                </Pressable>
+              )}
+            </View>
+          ),
         }}
       />
 
@@ -167,40 +222,24 @@ export default function ListScreen() {
             </View>
 
             {isMember && (
-              <View className="flex-row flex-wrap gap-2">
-                {canEdit && (
-                  <Pressable
-                    onPress={() =>
-                      router.push({ pathname: '/lists/edit', params: { id } })
-                    }
-                    className="min-w-[45%] flex-1 items-center rounded-skin border-skin border-border py-3">
-                    <Text className="font-sans text-ink">Edit list</Text>
-                  </Pressable>
-                )}
+              <View className="flex-row border-b border-border">
+                <View className="flex-row items-center gap-1.5 border-b-2 border-primary px-1 pb-2">
+                  <Ionicons name="list" size={16} color={t.primary} />
+                  <Text className="font-sans-semibold text-primary">List</Text>
+                </View>
                 <Pressable
                   onPress={() =>
-                    router.push({ pathname: '/lists/members', params: { id, name } })
+                    router.push({
+                      pathname: '/polls',
+                      params: { listId: id, listName: name },
+                    })
                   }
-                  className="min-w-[45%] flex-1 items-center rounded-skin border-skin border-border py-3">
-                  <Text className="font-sans text-ink">Members</Text>
-                </Pressable>
-                <Pressable
-                  onPress={() =>
-                    router.push({ pathname: '/polls', params: { listId: id, listName: name } })
-                  }
-                  className="min-w-[45%] flex-1 items-center rounded-skin border-skin border-border py-3">
-                  <Text className="font-sans text-ink">Polls</Text>
-                </Pressable>
-                <Pressable
-                  onPress={() =>
-                    router.push({ pathname: '/lists/actions', params: { id, name } })
-                  }
-                  className="min-w-[45%] flex-1 items-center rounded-skin border-skin border-border py-3">
-                  <Text className="font-sans text-ink">Actions</Text>
+                  className="ml-4 flex-row items-center gap-1.5 border-b-2 border-transparent px-1 pb-2">
+                  <Ionicons name="bar-chart" size={16} color={t.muted} />
+                  <Text className="font-sans text-muted">Polls</Text>
                 </Pressable>
               </View>
             )}
-
 
             <View className="flex-row items-center gap-2">
               <TextInput
@@ -326,6 +365,56 @@ export default function ListScreen() {
               </Pressable>
             );
           })}
+        </BottomSheetView>
+      </BottomSheetModal>
+
+      <BottomSheetModal
+        ref={actionsSheetRef}
+        backgroundStyle={{ backgroundColor: t.panel }}
+        handleIndicatorStyle={{ backgroundColor: t.muted }}>
+        <BottomSheetView style={{ paddingHorizontal: 16, paddingBottom: 32 }}>
+          {canEdit && (
+            <Pressable
+              onPress={() => {
+                actionsSheetRef.current?.dismiss();
+                router.push({ pathname: '/lists/edit', params: { id } });
+              }}
+              className="flex-row items-center gap-3 border-b border-border py-3.5">
+              <Ionicons name="create-outline" size={20} color={t.ink} />
+              <Text className="font-sans text-ink">Edit list</Text>
+            </Pressable>
+          )}
+          {isOwner && (
+            <Pressable
+              onPress={() => {
+                actionsSheetRef.current?.dismiss();
+                router.push({ pathname: '/lists/members', params: { id, name } });
+              }}
+              className="flex-row items-center gap-3 border-b border-border py-3.5">
+              <Ionicons name="people-outline" size={20} color={t.ink} />
+              <Text className="font-sans text-ink">Members</Text>
+            </Pressable>
+          )}
+          <Pressable
+            onPress={() => {
+              actionsSheetRef.current?.dismiss();
+              router.push({ pathname: '/lists/actions', params: { id, name } });
+            }}
+            className="flex-row items-center gap-3 border-b border-border py-3.5">
+            <Ionicons name="copy-outline" size={20} color={t.ink} />
+            <Text className="font-sans text-ink">Duplicate list</Text>
+          </Pressable>
+          {isOwner && (
+            <Pressable
+              onPress={() => {
+                actionsSheetRef.current?.dismiss();
+                confirmClear();
+              }}
+              className="flex-row items-center gap-3 py-3.5">
+              <Ionicons name="trash-outline" size={20} color={t.danger} />
+              <Text className="font-sans text-danger">Clear list</Text>
+            </Pressable>
+          )}
         </BottomSheetView>
       </BottomSheetModal>
     </View>

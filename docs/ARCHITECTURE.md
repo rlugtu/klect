@@ -228,7 +228,7 @@ src/app/_layout.tsx           root Stack + auth gate (login when signed out); re
   (tabs)/friends.tsx          friends + add-by-email; → friend-requests / pending-requests
   (tabs)/profile.tsx          own profile; settings gear → push /settings
   settings.tsx                account + theme switcher (pushed route, reached from Profile gear)
-  lists/[id].tsx              a list's bookmarks + tag filter + comments; → Edit list / Members / Polls
+  lists/[id].tsx              a list's bookmarks + tag filter + comments; List|Polls tabs + ⋮ actions menu (Edit/Members/Duplicate/Clear)
   lists/new.tsx  lists/edit.tsx  lists/members.tsx
   bookmarks/[id].tsx          bookmark detail + comments + video + edit/delete/visited
   bookmarks/new.tsx  bookmarks/edit.tsx

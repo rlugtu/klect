@@ -202,8 +202,11 @@ emoji avatar, and a starting theme. Handles are lowercase `a–z 0–9 _`, 3–2
 **Description.** Lists are the containers bookmarks live in. Create/edit (name, description, emoji
 icon), delete (owner-only, cascades bookmarks/comments/members/polls), and browse all lists you own
 or belong to with bookmark + member counts and a role badge.
-**Web.** Home `/` renders `HomeLists`; detail `/lists/[id]`; edit/delete via `ListControls`.
-`lists.mine` / `lists.get` / `lists.create` / `lists.update` / `lists.delete`.
+**Web.** Home `/` renders `HomeLists`; detail `/lists/[id]`. The detail view has a shared
+`ListPageHeader` (identity block + owner-only **Members** button + a **⋮ actions menu** via
+`ListToolbar`) and **route-based tabs** (`ListTabs`: **List** = `/lists/[id]`, **Polls** =
+`/lists/[id]/polls`); edit/delete live in the ⋮ menu's Edit panel. `lists.mine` / `lists.get` /
+`lists.create` / `lists.update` / `lists.delete`.
 **Mobile.** `src/app/(tabs)/index.tsx` (home cards, with a **Collab / Viewer** pill on lists you
 don't own), `src/app/lists/[id].tsx` (detail), `lists/new.tsx` + `lists/edit.tsx` modals. Same
 procedures.
@@ -231,19 +234,22 @@ disabled while a search query is active (reordering a filtered subset is ambiguo
 **Differences.** Same procedure + persistence; different drag implementation per platform.
 
 ### Lists — actions (duplicate / clear)
-**Description.** An **Actions** entry point (alongside Edit / Members / Polls on a list) with two
-list-level operations. **Duplicate** forks the list into a brand-new, fully independent copy owned
+**Description.** A **⋮ actions menu** on a list (Edit / Duplicate / Clear) with two list-level
+operations besides edit. **Duplicate** forks the list into a brand-new, fully independent copy owned
 by whoever duplicates it — only the **bookmarks (with their tags)** are cloned; members, invites,
 polls, and comments are not carried over, and the copy is private. Any **member** (viewer+) can
 duplicate; the user picks a name (defaulting to `Copy of {name}`). **Clear** deletes every bookmark
 in the list and is **owner-only** (cascades tags/comments/poll options).
-**Web.** `ListActions` panel on `/lists/[id]` (mirrors `ListControls`): a duplicate form
-(`duplicateList` action → `lists.duplicate`, redirects to the new list) and an owner-only
-`ConfirmDeleteButton` (`clearListBookmarks` action → `lists.clearBookmarks`).
-**Mobile.** `lists/actions.tsx` full-screen route (opened from the list's action row): duplicate
-field + button (`lists.duplicate`, navigates to the new list) and an owner-only clear button guarded
-by a native confirm (`lists.clearBookmarks`).
-**Differences.** Same procedures + permissions; web uses an expanding panel, mobile a pushed screen.
+**Web.** `ListToolbar` ⋮ dropdown on `/lists/[id]`: **Edit list** (opens the edit panel with the
+visibility toggle + delete danger zone), **Duplicate list** (a name form → `duplicateList` action →
+`lists.duplicate`, redirects to the new list), and an owner-only destructive **Clear list**
+(`ConfirmDeleteButton` → `clearListBookmarks` action → `lists.clearBookmarks`).
+**Mobile.** A header **⋮** opens a bottom-sheet actions menu on `src/app/lists/[id].tsx`: **Edit
+list** → `lists/edit`, owner-only **Members** → `lists/members`, **Duplicate list** →
+`lists/actions.tsx` (duplicate field + button, `lists.duplicate`), and an owner-only destructive
+**Clear list** guarded by a native confirm (`lists.clearBookmarks`, refetches in place).
+**Differences.** Same procedures + permissions; web uses a dropdown + expanding panels, mobile a
+bottom-sheet menu (with duplicate on a pushed screen).
 
 ### Home search
 **Description.** Find lists and bookmarks from the home screen.
