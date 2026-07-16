@@ -2,9 +2,9 @@ import type { MetadataRoute } from "next";
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: "Klect — retro bookmarks",
+    name: "Klect",
     short_name: "Klect",
-    description: "Bookmarks organized into shareable lists. 8-bit style.",
+    description: "More than links. Everything in one place.",
     start_url: "/",
     scope: "/",
     display: "standalone",

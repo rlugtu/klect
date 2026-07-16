@@ -149,8 +149,8 @@ export default function FriendsScreen() {
             <Ionicons name="paper-plane-outline" size={16} color={muted} />
             <Text className="font-sans-medium text-sm text-ink">Pending</Text>
             {data.outgoing.length > 0 && (
-              <View className="rounded-full bg-primary px-2 py-0.5">
-                <Text className="font-sans-semibold text-xs text-primary-ink">
+              <View className="rounded-full bg-danger px-2 py-0.5">
+                <Text className="font-sans-semibold text-xs text-white">
                   {data.outgoing.length}
                 </Text>
               </View>
@@ -162,8 +162,8 @@ export default function FriendsScreen() {
             <Ionicons name="file-tray-outline" size={16} color={muted} />
             <Text className="font-sans-medium text-sm text-ink">Requests</Text>
             {data.incoming.length > 0 && (
-              <View className="rounded-full bg-primary px-2 py-0.5">
-                <Text className="font-sans-semibold text-xs text-primary-ink">
+              <View className="rounded-full bg-danger px-2 py-0.5">
+                <Text className="font-sans-semibold text-xs text-white">
                   {data.incoming.length}
                 </Text>
               </View>

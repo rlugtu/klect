@@ -151,7 +151,7 @@ export default function DmThreadScreen() {
       <KeyboardAvoidingView
         style={{ flex: 1 }}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        keyboardVerticalOffset={headerHeight}>
+        keyboardVerticalOffset={0}>
         <FlatList
           ref={listRef}
           data={messages}
