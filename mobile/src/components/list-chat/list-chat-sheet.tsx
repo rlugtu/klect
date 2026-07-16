@@ -1,10 +1,19 @@
 import { forwardRef, useCallback, useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Alert, Pressable, Text, View } from 'react-native';
+import {
+  ActivityIndicator,
+  Alert,
+  Keyboard,
+  Platform,
+  Pressable,
+  Text,
+  View,
+} from 'react-native';
 import {
   BottomSheetFlatList,
   BottomSheetModal,
   BottomSheetTextInput,
 } from '@gorhom/bottom-sheet';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 
 import { trpc } from '@/client/api';
@@ -47,6 +56,11 @@ export const ListChatSheet = forwardRef<
 >(function ListChatSheet({ listId, isOwner, canSend, onRead }, ref) {
   const t = THEME_TOKENS[useTheme().theme];
   const myId = authClient.useSession().data?.user.id ?? '';
+  const insets = useSafeAreaInsets();
+  // The sheet's bottom edge reaches the screen bottom, so the composer needs the safe-area
+  // inset to clear the home indicator — but only when the keyboard is hidden; once it's up
+  // the keyboard already covers that area (adding the inset then would double-space).
+  const [keyboardShown, setKeyboardShown] = useState(false);
 
   const [open, setOpen] = useState(false);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -79,6 +93,17 @@ export const ListChatSheet = forwardRef<
       .catch(() => {})
       .finally(() => setLoaded(true));
   }, [listId]);
+
+  useEffect(() => {
+    const showEvt = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
+    const hideEvt = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
+    const show = Keyboard.addListener(showEvt, () => setKeyboardShown(true));
+    const hide = Keyboard.addListener(hideEvt, () => setKeyboardShown(false));
+    return () => {
+      show.remove();
+      hide.remove();
+    };
+  }, []);
 
   // While open: catch up + mark read on ping, else poll as a fallback.
   useEffect(() => {
@@ -236,7 +261,9 @@ export const ListChatSheet = forwardRef<
         />
 
         {canSend ? (
-          <View className="flex-row items-center gap-2 border-t border-border px-3 py-2">
+          <View
+            className="flex-row items-center gap-2 border-t border-border px-3 py-2"
+            style={{ paddingBottom: 8 + (keyboardShown ? 0 : insets.bottom) }}>
             <BottomSheetTextInput
               className="flex-1 rounded-skin border-skin border-border bg-panel px-4 py-2.5 font-sans text-ink"
               placeholder="Message…"
@@ -257,7 +284,9 @@ export const ListChatSheet = forwardRef<
             </Pressable>
           </View>
         ) : (
-          <View className="border-t border-border px-4 py-3">
+          <View
+            className="border-t border-border px-4 py-3"
+            style={{ paddingBottom: 12 + (keyboardShown ? 0 : insets.bottom) }}>
             <Text className="text-center text-sm text-muted">
               Only members can post in this chat.
             </Text>

@@ -234,7 +234,10 @@ modal with `router.back()` (or `router.dismissAll()` after leaving a list).
   snap point holding a DM-style group thread (`BottomSheetFlatList` + `BottomSheetTextInput`). It
   loads history via `listChat.messages` (keyset **Load older**), sends via `listChat.send`, marks read
   while open (`listChat.markRead`), tags each message with the sender's **@handle + soft role suffix**,
-  and — for the **owner** — offers **Clear** (`listChat.clear`, hard-deletes all). The former
+  and — for the **owner** — offers **Clear** (`listChat.clear`, hard-deletes all). The composer
+  applies the safe-area **bottom inset only when the keyboard is hidden** (`useSafeAreaInsets` +
+  keyboard show/hide listeners) so it clears the iOS home indicator without double-spacing above the
+  keyboard — the same pattern as the DM thread composer. The former
   `headerRight` **add-bookmark** action moved to the **list-name row** as a louder filled "New" button
   (before the ⋮ actions); the chat icon took its place. Members-only.
 - **Friend requests** (`friend-requests.tsx`) — all incoming friend requests (`friends.list().incoming`)
