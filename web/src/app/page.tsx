@@ -1,5 +1,7 @@
 import Link from "next/link";
-import { requireOnboardedUser } from "@/lib/session";
+import { redirect } from "next/navigation";
+import { getSession } from "@/lib/session";
+import { LandingPage } from "@/components/marketing/LandingPage";
 import { getUserLists } from "@/lib/lists";
 import { getBookmarksByTags } from "@/lib/bookmarks";
 import { getIncomingRequests } from "@/lib/sharing";
@@ -30,7 +32,13 @@ export default async function Home({
 }: {
   searchParams: Promise<{ tags?: string }>;
 }) {
-  const user = await requireOnboardedUser();
+  // Logged-out visitors get the public marketing landing page; everyone else
+  // sees their app home. (Onboarding is still enforced for signed-in users.)
+  const session = await getSession();
+  if (!session) return <LandingPage />;
+  if (!session.user.handle) redirect("/onboarding");
+  const user = session.user;
+
   const selectedTags = parseTags((await searchParams).tags);
 
   const [memberships, userTags, incomingRequests] = await Promise.all([
