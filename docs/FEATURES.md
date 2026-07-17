@@ -510,6 +510,11 @@ Requires the custom dev build.
 and favorite the extension in the iOS share sheet — four steps, one screenshot each. It's reachable
 from **Settings** on both apps: a pushed screen (`share-help.tsx`, iOS-only entry) on mobile and the
 `/settings/share-extension` page on web (so web-first users discover the iOS feature too).
+**Setup nudge (mobile, iOS).** So new users don't miss this last setup step, a launch-time popup
+nudges them toward the walkthrough. It explains the value, links to the "Share to Klect" page, notes
+the same steps live in Settings, and carries an **acknowledge toggle** + a single close button whose
+label reads "Remind me again later" until the toggle is on, then "All set!". It reappears every
+launch until acknowledged (persisted locally). Mobile-only, iOS-only.
 **Web.** ➖ The extension itself isn't possible — no OS-level share sheet — but the how-to page is
 served on web for discovery.
 **Differences.** The extension is **mobile-only (iOS)**; the how-to page exists on both. Android

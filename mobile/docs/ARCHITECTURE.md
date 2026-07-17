@@ -331,6 +331,14 @@ modal with `router.back()` (or `router.dismissAll()` after leaving a list).
   walkthrough for surfacing/favoriting the share extension in the iOS share sheet: four steps, one
   screenshot each (`assets/images/share-help/step-1..4.png`, the same PNGs the web help page serves).
   No data fetching; theme-aware via the semantic classes.
+- **Share-sheet nudge popup** (`components/share-nudge-popup.tsx`, mounted in `AppStack` in
+  `app/_layout.tsx`) — a **launch-time** centered dialog (RN `Modal`) that points new users at the
+  one setup step the app can't do for them: enabling Klect in the iOS share sheet. It offers a CTA
+  into `share-help`, notes the same steps live in Settings, and carries an **acknowledge toggle** +
+  a single close button whose label flips between "Remind me again later" (off) and "All set!" (on).
+  Shows on every launch until acknowledged; the ack is persisted to `expo-secure-store` under
+  `klect.share-nudge-ack` (toggling on writes it immediately, off clears it). **iOS only** (the
+  share extension / walkthrough don't exist on Android).
 - **Login / sign-up** (`components/login-screen.tsx`) — shown when signed out. A mode toggle switches
   between **Sign in** and **Create account** (the latter adds a Name field; password ≥ 8), mirroring
   web's `LoginForm`; Google is available in both. `signUp.email` creates the account, then the

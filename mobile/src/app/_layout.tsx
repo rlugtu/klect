@@ -32,6 +32,7 @@ import {
 import HeaderBlurBackground from '@/components/header-blur-background';
 import LoginScreen from '@/components/login-screen';
 import OnboardingScreen from '@/components/onboarding-screen';
+import ShareNudgePopup from '@/components/share-nudge-popup';
 import { authClient } from '@/client/auth';
 import { ThemeProvider as AppThemeProvider, useTheme } from '@/theme/theme-provider';
 import { fontFor, THEME_TOKENS } from '@/theme/tokens';
@@ -67,6 +68,8 @@ function AppStack() {
     <>
     {/* Translucent status bar so screens render under a frosted top bar. */}
     <StatusBar style={theme.endsWith('DARK') ? 'light' : 'dark'} translucent />
+    {/* First-run nudge to enable the iOS share sheet — shows until acknowledged. */}
+    <ShareNudgePopup />
     <Stack
       screenOptions={{
         // No page ever shows a centered header title — the page name lives in the
