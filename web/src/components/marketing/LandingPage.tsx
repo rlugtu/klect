@@ -42,17 +42,34 @@ function Bullet({ children }: { children: React.ReactNode }) {
   );
 }
 
+/** The gradient behind the hero mockup — the app's spectrum, matching the
+ *  source design's hero card. */
+const HERO_GRADIENT =
+  "linear-gradient(150deg,#F7A8D4 0%,#A78BFA 48%,#56A8FF 100%)";
+
 type Feature = {
-  /** Maps to `public/marketing/<image>.png` — a bare phone screenshot. */
+  /** Maps to `public/marketing/<image>.png` — a bare (transparent) phone
+   *  screenshot that floats on the section's `gradient`. */
   image: string;
   alt: string;
   /** Intrinsic pixel dimensions of the screenshot, for aspect-ratio/CLS. */
   w: number;
   h: number;
+  /** CSS gradient rendered behind the phone, per the source design. */
+  gradient: string;
   eyebrow: string;
   title: React.ReactNode;
   /** Image sits on the left (reversed) or right of the copy. */
   reverse: boolean;
+  /** Max width of the gradient card, in px. Defaults to 360. */
+  maxW?: number;
+  /** Padding around the image inside the gradient card. Defaults to
+   *  `px-12 pt-14`. Tighten it to make the image fill more of the card. */
+  pad?: string;
+  /** Scale the image beyond the card. Values >1 make it larger than the
+   *  gradient; the card's `overflow-hidden` clips the overflow. Anchored to
+   *  the bottom center so the phone still rises from the bottom edge. */
+  imageScale?: number;
   body?: React.ReactNode;
   bullets?: React.ReactNode[];
   /** Extra bottom padding on the final section, per the source design. */
@@ -65,6 +82,7 @@ const FEATURES: Feature[] = [
     alt: "Rich bookmark detail screen",
     w: 1350,
     h: 2760,
+    gradient: "linear-gradient(155deg,#93D6FF 0%,#4F8CFF 100%)",
     eyebrow: "More than a link",
     reverse: true,
     title: (
@@ -85,6 +103,7 @@ const FEATURES: Feature[] = [
     alt: "Share sheet autofill screen",
     w: 1350,
     h: 2760,
+    gradient: "linear-gradient(150deg,#45D6C4 0%,#56A8FF 58%,#4F7CFF 100%)",
     eyebrow: "Paste and go",
     reverse: false,
     title: <>It fills itself in.</>,
@@ -107,6 +126,7 @@ const FEATURES: Feature[] = [
     alt: "Near me map screen",
     w: 1350,
     h: 2760,
+    gradient: "linear-gradient(150deg,#9DB7FF 0%,#B79CF5 52%,#6E8CFF 100%)",
     eyebrow: "Right place, right time",
     reverse: true,
     title: (
@@ -129,6 +149,7 @@ const FEATURES: Feature[] = [
     alt: "List poll and voting screen",
     w: 1350,
     h: 2760,
+    gradient: "linear-gradient(150deg,#F7A8D4 0%,#A78BFA 50%,#6EC8F0 100%)",
     eyebrow: "Better together",
     reverse: false,
     title: (
@@ -150,9 +171,11 @@ const FEATURES: Feature[] = [
     alt: "Klect on phone and tablet",
     w: 1080,
     h: 1350,
+    gradient: "linear-gradient(150deg,#FBB472 0%,#A78BFA 50%,#56A8FF 100%)",
     eyebrow: "Everywhere you are",
     reverse: true,
     last: true,
+    imageScale: 1.8,
     title: (
       <>
         One place.
@@ -170,29 +193,53 @@ const FEATURES: Feature[] = [
   },
 ];
 
-function PhoneFrame({
+/** A transparent phone screenshot floating on the section's gradient card —
+ *  the phone rises from the bottom edge, mirroring the source design's
+ *  gradient-backed mockups. */
+function GradientFrame({
   image,
   alt,
   w,
   h,
+  gradient,
+  maxW,
+  pad = "px-12 pt-14",
+  imageScale,
+  rotate = false,
+  priority = false,
 }: {
   image: string;
   alt: string;
   w: number;
   h: number;
+  gradient: string;
+  maxW: number;
+  pad?: string;
+  imageScale?: number;
+  rotate?: boolean;
+  priority?: boolean;
 }) {
   return (
-    <div className="flex min-w-[280px] flex-[1_1_320px] justify-center">
-      <div className="w-full max-w-[320px] overflow-hidden rounded-[28px] shadow-[0_30px_60px_-20px_rgba(21,20,26,0.25)]">
-        <Image
-          src={`/marketing/${image}.png`}
-          alt={alt}
-          width={w}
-          height={h}
-          sizes="(max-width: 900px) 90vw, 320px"
-          className="h-auto w-full"
-        />
-      </div>
+    <div
+      className={`w-full overflow-hidden rounded-[32px] shadow-[0_36px_72px_-28px_rgba(21,20,26,0.32)] ${pad} ${
+        rotate ? "-rotate-3" : ""
+      }`}
+      style={{ maxWidth: maxW, backgroundImage: gradient }}
+    >
+      <Image
+        src={`/marketing/${image}.png`}
+        alt={alt}
+        width={w}
+        height={h}
+        priority={priority}
+        sizes={`(max-width: 900px) 90vw, ${maxW}px`}
+        className="h-auto w-full drop-shadow-[0_18px_32px_rgba(21,20,26,0.28)]"
+        style={
+          imageScale
+            ? { transform: `scale(${imageScale})`, transformOrigin: "bottom center" }
+            : undefined
+        }
+      />
     </div>
   );
 }
@@ -217,12 +264,18 @@ function FeatureSection({ feature }: { feature: Feature }) {
   );
 
   const art = (
-    <PhoneFrame
-      image={feature.image}
-      alt={feature.alt}
-      w={feature.w}
-      h={feature.h}
-    />
+    <div className="flex min-w-[280px] flex-[1_1_360px] justify-center">
+      <GradientFrame
+        image={feature.image}
+        alt={feature.alt}
+        w={feature.w}
+        h={feature.h}
+        gradient={feature.gradient}
+        maxW={feature.maxW ?? 360}
+        pad={feature.pad}
+        imageScale={feature.imageScale}
+      />
+    </div>
   );
 
   return (
@@ -283,18 +336,17 @@ export function LandingPage() {
           <WaitlistForm variant="hero" />
           <span className="text-sm text-[#8A8796]">iOS · Android · Web</span>
         </div>
-        <div className="flex min-w-[280px] flex-[1_1_340px] justify-center">
-          <div className="w-full max-w-[340px] -rotate-3 overflow-hidden rounded-[32px] shadow-[0_40px_80px_-20px_rgba(21,20,26,0.35)]">
-            <Image
-              src="/marketing/hero.png"
-              alt="Klect lists screen"
-              width={1350}
-              height={2760}
-              priority
-              sizes="(max-width: 900px) 90vw, 340px"
-              className="h-auto w-full"
-            />
-          </div>
+        <div className="flex min-w-[280px] flex-[1_1_380px] justify-center">
+          <GradientFrame
+            image="hero"
+            alt="Klect lists screen"
+            w={1350}
+            h={2760}
+            gradient={HERO_GRADIENT}
+            maxW={380}
+            rotate
+            priority
+          />
         </div>
       </div>
 

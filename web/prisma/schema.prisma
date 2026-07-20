@@ -255,6 +255,16 @@ model ListInvite {
   @@index([email])
 }
 
+// Marketing waitlist / beta early-access signups from the logged-out landing page.
+// Not tied to a User — just captures interest to review later.
+model WaitlistSignup {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  createdAt DateTime @default(now())
+
+  @@index([createdAt])
+}
+
 model Bookmark {
   id          String   @id @default(uuid())
   listId      String
