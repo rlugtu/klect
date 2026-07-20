@@ -1,8 +1,9 @@
 "use client";
 
-import { useActionState, useState, useTransition } from "react";
+import { useActionState, useEffect, useState, useTransition } from "react";
 import { inviteToList, type InviteState } from "@/lib/actions/sharing";
 import { offerFriend } from "@/lib/actions/friends";
+import { toast } from "@/lib/toast";
 import { PixelInput } from "@/components/ui/PixelInput";
 import { PixelButton } from "@/components/ui/PixelButton";
 import { SubmitButton } from "@/components/ui/SubmitButton";
@@ -18,6 +19,12 @@ export function InviteForm({ listId }: { listId: string }) {
   const [pending, startTransition] = useTransition();
 
   const offerHandle = state.offerFriend?.handle;
+
+  // Toast the invite result; the "add as friend?" offer stays inline below.
+  useEffect(() => {
+    if (state.success) toast.success(state.success);
+    else if (state.error) toast.error(state.error);
+  }, [state]);
 
   return (
     <form action={formAction} className="flex flex-col gap-2">
@@ -43,8 +50,6 @@ export function InviteForm({ listId }: { listId: string }) {
           <SubmitButton label="Invite" pendingLabel="…" />
         </div>
       </div>
-      {state.error && <p className="text-danger text-sm">{state.error}</p>}
-      {state.success && <p className="text-success text-sm">{state.success}</p>}
       {offerHandle && friended?.handle !== offerHandle && (
         <div className="flex flex-wrap items-center gap-2">
           <span className="text-muted text-sm">

@@ -1,12 +1,13 @@
 "use client";
 
 import Link from "next/link";
-import { useActionState, useState } from "react";
+import { useActionState, useEffect, useState } from "react";
 import {
   addFriendToLists,
   removeFriend,
   type InviteState,
 } from "@/lib/actions/friends";
+import { toast } from "@/lib/toast";
 import { PixelButton } from "@/components/ui/PixelButton";
 import { PixelCard } from "@/components/ui/PixelCard";
 import { SubmitButton } from "@/components/ui/SubmitButton";
@@ -42,6 +43,11 @@ export function FriendRow({
     addFriendToLists.bind(null, friend.id),
     {},
   );
+
+  useEffect(() => {
+    if (state.success) toast.success(state.success);
+    else if (state.error) toast.error(state.error);
+  }, [state]);
 
   const name = atHandle(friend.handle);
   const toggle = (p: "edit" | "add") =>

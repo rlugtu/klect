@@ -10,6 +10,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { trpc } from '@/client/api';
+import { toast } from '@/client/toast';
 import { useTheme } from '@/theme/theme-provider';
 import { THEME_TOKENS, type ThemeName } from '@/theme/tokens';
 
@@ -82,6 +83,7 @@ export default function OnboardingScreen({ onDone }: { onDone: () => void }) {
     };
     try {
       await trpc.profile.update.mutate(input);
+      toast.success('Welcome to Klect 🎉');
       onDone();
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Could not save your profile.');

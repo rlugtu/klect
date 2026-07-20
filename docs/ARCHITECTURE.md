@@ -295,6 +295,12 @@ mobile-first** (see `mobile/docs/design.md`). Only palette/skin/font differ per 
   `comprehend`), so nothing ships in the app.
 - **Design tokens are data.** Palette + skin values live once (web `globals.css`, mirrored in
   mobile `tokens.ts`) and drive styling via CSS variables.
+- **Toasts are a shared imperative singleton, per app.** Action feedback goes through one small
+  pub/sub store with a matching API on each side (`web/src/lib/toast.ts`, `mobile/src/client/toast.ts`)
+  and a host mounted once in the root layout (`Toaster` / `ToastHost`). It's pure UI — no schema,
+  `core`, or tRPC — so it's the rare feature built independently on each client against the same API
+  shape. Call `toast.success/error/info(...)` right where an action resolves; on web, redirecting
+  server actions hand the toast across navigation via a flash cookie (`lib/toast-flash.ts`).
 
 ---
 

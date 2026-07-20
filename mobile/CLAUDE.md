@@ -47,6 +47,11 @@ only palette/skin/font differ, the screen *structure* is shared. Style with the 
 `font-sans[-medium|-semibold]` = Work Sans). Photo-forward cards use `components/photo-card.tsx` +
 `theme/shadows.ts`; tag pills use `components/tag-pill.tsx`.
 
+**Action feedback = toasts.** Call `toast.success/error/info(...)` from `@/client/toast` inside a
+screen's `try/catch` mutation handler (imperative singleton — there's no React Query layer to hook);
+the global `<ToastHost />` mounted in `_layout.tsx` renders them (3s countdown bar, press-hold to
+pause, swipe-up to dismiss, haptics). Mirrors web's `toast` API.
+
 ## Stack
 Expo SDK 54 (RN 0.81, React 19), expo-router (file-based routes in `src/app`; the `(tabs)` group is a
 bottom-positioned **swipeable** `@react-navigation/material-top-tabs` pager on

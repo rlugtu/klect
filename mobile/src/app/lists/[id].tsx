@@ -19,6 +19,7 @@ import { useHeaderHeight } from '@react-navigation/elements';
 import { Ionicons } from '@expo/vector-icons';
 
 import { trpc } from '@/client/api';
+import { toast } from '@/client/toast';
 import { subscribeListChat, realtimeEnabled } from '@/client/realtime';
 import CommentsSection, { type CommentItem } from '@/components/comments-section';
 import { ListChatSheet } from '@/components/list-chat/list-chat-sheet';
@@ -420,6 +421,7 @@ export default function ListScreen() {
               onAdd={async (value) => {
                 if (!id) return;
                 await trpc.comments.addToList.mutate({ listId: id, value });
+                toast.success('Comment posted');
                 loadComments();
               }}
               onDelete={async (commentId) => {

@@ -6,6 +6,7 @@ import { Stack, useFocusEffect } from 'expo-router';
 import { useHeaderHeight } from '@react-navigation/elements';
 
 import { trpc } from '@/client/api';
+import { toast, errorMessage } from '@/client/toast';
 import { cardShadow } from '@/theme/shadows';
 
 type Requests = Awaited<ReturnType<typeof trpc.sharing.incomingRequests.query>>;
@@ -28,10 +29,15 @@ export default function RequestsScreen() {
 
   async function decide(inviteId: string, decision: 'approve' | 'reject') {
     setRequests((cur) => cur.filter((r) => r.id !== inviteId));
-    if (decision === 'approve') {
-      await trpc.sharing.approveRequest.mutate({ inviteId });
-    } else {
-      await trpc.sharing.rejectRequest.mutate({ inviteId });
+    try {
+      if (decision === 'approve') {
+        await trpc.sharing.approveRequest.mutate({ inviteId });
+      } else {
+        await trpc.sharing.rejectRequest.mutate({ inviteId });
+      }
+      toast.success(decision === 'approve' ? 'Request approved' : 'Request rejected');
+    } catch (e) {
+      toast.error(errorMessage(e, 'Something went wrong'));
     }
     load();
   }

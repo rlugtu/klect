@@ -453,6 +453,14 @@ Journal fonts load, and gates the tree on the auth session (blank / `LoginScreen
 `SafeAreaProvider` → `GestureHandlerRootView` → app `ThemeProvider` — without expo-router or the
 bottom-sheet provider.
 
+**Toasts.** A global `<ToastHost />` (`components/toast/ToastHost.tsx`) is mounted as a sibling
+overlay inside the theme provider so it floats above every screen and reads the active palette. It
+subscribes to an imperative singleton store (`client/toast.ts`) — call `toast.success/error/info(...)`
+straight from a screen's `try/catch` mutation handler (there's no React Query layer to hook). Each
+toast auto-dismisses in 3s with a Reanimated countdown bar, pauses on press-and-hold, swipes up to
+dismiss, and fires a haptic + screen-reader announcement. Mirrors web's `toast` API
+(`web/src/lib/toast.ts`).
+
 ## Conventions & gotchas
 
 - **UI only.** Never add business logic or DB access here — it lands once in `web/` and is exposed as

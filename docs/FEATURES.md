@@ -56,6 +56,9 @@ with a link or a location.
 - **Comment together.** Leave comments on lists and individual bookmarks to plan and discuss.
 - **Vote with polls.** Can't decide? Create a poll from bookmarks in a list and have the group vote
   (great for "where should we eat?").
+- **Know your action worked.** Quick, unobtrusive pop-up messages confirm when something saves,
+  sends, or fails — they slide in, count down, and disappear on their own, colored green for success
+  or red for errors.
 - **Find things near you.** The "Near me" feature surfaces your saved spots within a chosen distance
   of wherever you are.
 - **Add a bookmark to several lists at once.** Save something to multiple lists in a single step.
@@ -183,6 +186,7 @@ never trapped on the wrong screen.
 | "Share to Klect" how-to | ✅ | ✅ | Illustrated setup walkthrough in Settings (mobile entry iOS-only) |
 | Privacy policy | ✅ | ✅ | Public `/privacy` page; linked from Settings (mobile opens it in an in-app browser) |
 | Account deletion | ✅ | ✅ | Settings "Danger zone"; type-to-confirm; permanently deletes the user + all owned data (`account.delete`) |
+| Toast notifications | ✅ | ✅ | Non-intrusive confirmation/error toasts with a 3s countdown bar + type colors (success/error/info); web bottom-right/top-center · mobile top, swipe-to-dismiss + haptics |
 | PWA install | ✅ | ➖ | Web-only (mobile is a native app) |
 | AI caption extraction | ✅ | ➖ | Web-only (`comprehend.caption`, Claude-backed) |
 
@@ -564,3 +568,23 @@ media caption using Claude.
 caption.
 **Mobile.** ➖ The procedure exists on the shared API but no mobile screen calls it.
 **Differences.** **Web-only** in practice.
+
+### Toast notifications
+**Description.** Lightweight, non-intrusive confirmations (and clearer error reporting) that appear
+when an action completes — creating/deleting a bookmark or list, sending a friend request, submitting
+a vote, posting a comment, saving a profile, etc. Each toast auto-dismisses after **3 seconds** with a
+shrinking **countdown progress bar**, is colored by **type** (success = green, error = red, info =
+neutral/primary) on a neutral panel surface so it reads correctly in all six themes, and can carry an
+optional action button. Both apps expose the same imperative API — `toast.success(...)` /
+`toast.error(...)` / `toast.info(...)` — so feedback is consistent across platforms.
+**Web.** A module-level store (`web/src/lib/toast.ts`) + a `<Toaster />` host mounted in the root
+layout; bottom-right on desktop, top-center on narrow screens; pauses the countdown on hover; the
+progress bar is a CSS keyframe. Redirecting server actions hand a toast across the navigation via a
+short-lived flash cookie (`web/src/lib/toast-flash.ts`).
+**Mobile.** An imperative singleton (`mobile/src/client/toast.ts`) + a `<ToastHost />` overlay mounted
+in the root layout; anchored below the notch (top, clear of the floating tab bar); Reanimated
+enter/exit + progress bar; **press-and-hold pauses** the countdown, **swipe-up dismisses**, and a
+haptic + screen-reader announcement fire on show.
+**Differences.** Same API and behavior; position (web adaptive · mobile top) and the pause gesture
+(hover · press-hold) differ per platform. Some lower-traffic action sites still adopt the one-line
+`toast.*` call incrementally.

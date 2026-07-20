@@ -3,6 +3,7 @@ import { ActivityIndicator, Text, View } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 
 import { trpc } from '@/client/api';
+import { toast } from '@/client/toast';
 import BookmarkForm, { type BookmarkData } from '@/components/bookmark-form';
 
 /** Edit an existing bookmark: fetch it, prefill the form, then update. */
@@ -64,6 +65,7 @@ export default function EditBookmarkScreen() {
       onSubmit={async (data) => {
         if (!id) return;
         await trpc.bookmarks.update.mutate({ bookmarkId: id, data });
+        toast.success('Bookmark updated');
         router.back();
       }}
     />

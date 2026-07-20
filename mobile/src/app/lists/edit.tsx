@@ -3,6 +3,7 @@ import { ActivityIndicator, Alert, Text, View } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 
 import { trpc } from '@/client/api';
+import { toast, errorMessage } from '@/client/toast';
 import ListForm, { type ListValues } from '@/components/list-form';
 
 /** Edit a list: fetch it, prefill the form, then update. */
@@ -57,9 +58,14 @@ export default function EditListScreen() {
         style: 'destructive',
         onPress: async () => {
           if (!id) return;
-          await trpc.lists.delete.mutate({ listId: id });
-          // Pop the edit modal AND the underlying (now-gone) list screen -> home.
-          router.dismissAll();
+          try {
+            await trpc.lists.delete.mutate({ listId: id });
+            toast.success('List deleted');
+            // Pop the edit modal AND the underlying (now-gone) list screen -> home.
+            router.dismissAll();
+          } catch (e) {
+            toast.error(errorMessage(e, 'Could not delete list'));
+          }
         },
       },
     ]);
@@ -82,6 +88,7 @@ export default function EditListScreen() {
         if (isOwner && v.isPublic !== initial.isPublic) {
           await trpc.lists.setVisibility.mutate({ listId: id, isPublic: v.isPublic });
         }
+        toast.success('List updated');
         router.back();
       }}
     />

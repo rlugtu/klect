@@ -33,6 +33,7 @@ import HeaderBlurBackground from '@/components/header-blur-background';
 import LoginScreen from '@/components/login-screen';
 import OnboardingScreen from '@/components/onboarding-screen';
 import ShareNudgePopup from '@/components/share-nudge-popup';
+import ToastHost from '@/components/toast/ToastHost';
 import { authClient } from '@/client/auth';
 import { ThemeProvider as AppThemeProvider, useTheme } from '@/theme/theme-provider';
 import { fontFor, THEME_TOKENS } from '@/theme/tokens';
@@ -166,6 +167,8 @@ export default function RootLayout() {
             ) : (
               <AppStack />
             )}
+            {/* Global toast overlay — sits above every screen, reads the theme. */}
+            <ToastHost />
           </BottomSheetModalProvider>
         </NavThemeProvider>
       </AppThemeProvider>

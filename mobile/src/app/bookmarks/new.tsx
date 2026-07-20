@@ -3,6 +3,7 @@ import { Pressable, Text, View } from 'react-native';
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 
 import { trpc } from '@/client/api';
+import { toast } from '@/client/toast';
 import BookmarkForm, { EMPTY_BOOKMARK } from '@/components/bookmark-form';
 import { ListPicker } from '@/components/list-picker';
 
@@ -61,6 +62,7 @@ export default function NewBookmarkScreen() {
       submitLabel="Save bookmark"
       onSubmit={async (data) => {
         await trpc.bookmarks.create.mutate({ listId, data });
+        toast.success('Bookmark saved');
         router.back();
       }}
     />
@@ -95,12 +97,14 @@ export default function NewBookmarkScreen() {
         if (selectedIds.length + newListNames.length === 0) {
           throw new Error('Pick at least one list for the bookmark.');
         }
+        const count = selectedIds.length + newListNames.length;
         await trpc.bookmarks.createInLists.mutate({
           existingListIds: selectedIds,
           newListNames,
           data,
           newListsPublic,
         });
+        toast.success(`Saved to ${count} ${count === 1 ? 'list' : 'lists'}`);
         router.back();
       }}
     />

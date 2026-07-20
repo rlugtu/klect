@@ -316,3 +316,17 @@ img[data-pixel] {
   border-radius: 12px;
   border-width: 1px;
 }
+
+/* ------------------------------------------------------------------ *
+ * Toast progress bar — the shrinking countdown that visualises a toast's
+ * auto-dismiss window. The <Toaster /> host sets animation-duration and
+ * pauses play state on hover. See components/ui/Toaster.tsx.
+ * ------------------------------------------------------------------ */
+@keyframes toast-shrink {
+  from {
+    transform: scaleX(1);
+  }
+  to {
+    transform: scaleX(0);
+  }
+}

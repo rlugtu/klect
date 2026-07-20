@@ -17,6 +17,7 @@ import {
 import { useHeaderHeight } from '@react-navigation/elements';
 
 import { trpc } from '@/client/api';
+import { toast, errorMessage } from '@/client/toast';
 import { useTheme } from '@/theme/theme-provider';
 import { THEME_TOKENS } from '@/theme/tokens';
 
@@ -57,12 +58,14 @@ export default function ListActionsScreen() {
         listId: id,
         name: newName.trim(),
       });
+      toast.success('List duplicated');
       router.replace({
         pathname: '/lists/[id]',
         params: { id: list.id, name: list.name },
       });
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Duplicate failed');
+      toast.error(errorMessage(e, 'Duplicate failed'));
       setDuplicating(false);
     }
   }
@@ -82,9 +85,11 @@ export default function ListActionsScreen() {
             setError(null);
             try {
               await trpc.lists.clearBookmarks.mutate({ listId: id });
+              toast.success('Bookmarks cleared');
               router.back();
             } catch (e) {
               setError(e instanceof Error ? e.message : 'Clear failed');
+              toast.error(errorMessage(e, 'Clear failed'));
               setClearing(false);
             }
           },

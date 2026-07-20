@@ -6,6 +6,7 @@ import { useHeaderHeight } from '@react-navigation/elements';
 import Animated, { LinearTransition } from 'react-native-reanimated';
 
 import { trpc } from '@/client/api';
+import { toast, errorMessage } from '@/client/toast';
 import { atHandle } from '@/lib/handle';
 import { authClient } from '@/client/auth';
 import Skeleton from '@/components/skeleton';
@@ -130,9 +131,10 @@ export default function PollDetailScreen() {
     setBusy(true);
     try {
       await trpc.polls.submitVotes.mutate({ pollId: poll!.id, optionIds: [...picks] });
+      toast.success('Vote submitted');
       load();
     } catch (e) {
-      Alert.alert('Could not submit', e instanceof Error ? e.message : 'Please try again.');
+      toast.error(errorMessage(e, 'Could not submit your vote'));
     } finally {
       setBusy(false);
     }
@@ -147,9 +149,10 @@ export default function PollDetailScreen() {
         onPress: async () => {
           try {
             await trpc.polls.delete.mutate({ pollId: poll!.id });
+            toast.success('Poll deleted');
             router.back();
           } catch (e) {
-            Alert.alert('Could not delete', e instanceof Error ? e.message : 'Try again.');
+            toast.error(errorMessage(e, 'Could not delete poll'));
           }
         },
       },

@@ -13,6 +13,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect, useRouter } from 'expo-router';
 
 import { trpc } from '@/client/api';
+import { toast, errorMessage } from '@/client/toast';
 import { authClient } from '@/client/auth';
 import { subscribeDm, realtimeEnabled } from '@/client/realtime';
 import { atHandle } from '@/lib/handle';
@@ -49,7 +50,6 @@ export default function FriendsScreen() {
   });
   const [lists, setLists] = useState<Memberships>([]);
   const [handle, setHandle] = useState('');
-  const [msg, setMsg] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [loaded, setLoaded] = useState(false);
 
@@ -86,14 +86,14 @@ export default function FriendsScreen() {
   async function addFriend() {
     if (!handle.trim()) return;
     setBusy(true);
-    setMsg(null);
     try {
       const res = await trpc.friends.sendRequest.mutate({ handle: handle.trim() });
-      setMsg(res.success ?? res.error ?? null);
+      if (res.error) toast.error(res.error);
+      else toast.success(res.success ?? 'Request sent');
       setHandle('');
       load();
     } catch (e) {
-      setMsg(e instanceof Error ? e.message : 'Request failed');
+      toast.error(errorMessage(e, 'Request failed'));
     }
     setBusy(false);
   }
@@ -105,8 +105,13 @@ export default function FriendsScreen() {
         text: 'Remove',
         style: 'destructive',
         onPress: async () => {
-          await trpc.friends.remove.mutate({ id });
-          load();
+          try {
+            await trpc.friends.remove.mutate({ id });
+            toast.success('Friend removed');
+            load();
+          } catch (e) {
+            toast.error(errorMessage(e, 'Could not remove friend'));
+          }
         },
       },
     ]);
@@ -194,7 +199,6 @@ export default function FriendsScreen() {
               </Text>
             )}
           </Pressable>
-          {msg && <Text className="font-sans text-muted">{msg}</Text>}
         </View>
 
         {!loaded && <ActivityIndicator />}
@@ -298,7 +302,6 @@ function FriendCard({
   const [sharedIds, setSharedIds] = useState<string[]>([]);
   const [role, setRole] = useState<InviteRole>('COLLABORATOR');
   const [busy, setBusy] = useState(false);
-  const [msg, setMsg] = useState<string | null>(null);
 
   // Tapping anywhere on the row opens the actions panel; opening it also loads which
   // lists this friend already belongs to (to pre-select the "add to lists" chips).
@@ -308,7 +311,6 @@ function FriendCard({
       return;
     }
     setOpen(true);
-    setMsg(null);
     try {
       const ids = await trpc.friends.friendListIds.query({
         friendId: friend.friend.id,
@@ -342,7 +344,6 @@ function FriendCard({
 
   async function submit() {
     setBusy(true);
-    setMsg(null);
     try {
       const res = await trpc.friends.addToLists.mutate({
         friendId: friend.friend.id,
@@ -350,13 +351,14 @@ function FriendCard({
         role,
       });
       if (res.error) {
-        setMsg(res.error);
+        toast.error(res.error);
       } else {
+        toast.success(res.success ?? 'Invites sent');
         setOpen(false);
         onSubmitted();
       }
     } catch (e) {
-      setMsg(e instanceof Error ? e.message : 'Failed');
+      toast.error(errorMessage(e, 'Failed'));
     }
     setBusy(false);
   }
@@ -469,7 +471,6 @@ function FriendCard({
               </Pressable>
             </>
           )}
-          {msg && <Text className="text-danger">{msg}</Text>}
         </View>
       )}
     </View>

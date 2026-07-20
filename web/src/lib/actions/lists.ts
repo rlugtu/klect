@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { requireUser } from "@/lib/session";
+import { setFlashToast } from "@/lib/toast-flash";
 import * as core from "@/lib/core/lists";
 import {
   duplicateList as duplicateListCore,
@@ -23,6 +24,7 @@ export async function createList(formData: FormData) {
   const list = await core.createList(user.id, listInputFromFormData(formData));
 
   revalidatePath("/");
+  await setFlashToast("success", "List created");
   redirect(`/lists/${list.id}`);
 }
 
@@ -48,6 +50,7 @@ export async function deleteList(listId: string) {
   await core.deleteList(user.id, listId);
 
   revalidatePath("/");
+  await setFlashToast("success", "List deleted");
   redirect("/");
 }
 
@@ -67,6 +70,7 @@ export async function duplicateList(sourceListId: string, formData: FormData) {
   );
 
   revalidatePath("/");
+  await setFlashToast("success", "List duplicated");
   redirect(`/lists/${list.id}`);
 }
 

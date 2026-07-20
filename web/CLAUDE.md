@@ -37,6 +37,10 @@ Run these from `web/` (the app no longer lives at the repo root).
   routes.
 - **Auth**: `requireUser` / `requireOnboardedUser` guard server components; **every mutation
   re-checks `assertRole(userId, listId, minRole)`** — never trust UI gating.
+- **Action feedback = toasts**: surface success/error with `toast.*` from `src/lib/toast.ts` (a
+  framework-agnostic singleton; `<Toaster />` mounts once in the root layout). Client islands toast
+  after `await`ing an action; **redirecting** actions can't (redirect throws) so they queue one via a
+  flash cookie (`setFlashToast` in `src/lib/toast-flash.ts`) that `<Toaster />` reads on mount.
 - **Ownership**: every participant (incl. owner) has a `ListMembership` row (uniform ordering +
   access); `List.ownerId` is the canonical owner.
 - **Styling / themes**: design tokens are CSS vars in `src/app/globals.css` (`@theme inline`),

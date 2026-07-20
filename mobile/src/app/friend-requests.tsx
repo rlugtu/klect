@@ -6,6 +6,7 @@ import { Stack, useFocusEffect } from 'expo-router';
 import { useHeaderHeight } from '@react-navigation/elements';
 
 import { trpc } from '@/client/api';
+import { toast, errorMessage } from '@/client/toast';
 import { atHandle } from '@/lib/handle';
 import FloatingStatusBar from '@/components/floating-status-bar';
 import { cardShadow } from '@/theme/shadows';
@@ -31,8 +32,13 @@ export default function FriendRequestsScreen() {
 
   async function decide(id: string, decision: 'accept' | 'decline') {
     setIncoming((cur) => cur.filter((r) => r.id !== id));
-    if (decision === 'accept') await trpc.friends.accept.mutate({ id });
-    else await trpc.friends.decline.mutate({ id });
+    try {
+      if (decision === 'accept') await trpc.friends.accept.mutate({ id });
+      else await trpc.friends.decline.mutate({ id });
+      toast.success(decision === 'accept' ? 'Friend added' : 'Request declined');
+    } catch (e) {
+      toast.error(errorMessage(e, 'Something went wrong'));
+    }
     load();
   }
 

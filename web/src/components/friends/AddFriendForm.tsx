@@ -1,7 +1,8 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { useActionState, useEffect, useState } from "react";
 import { sendFriendRequest, type FriendState } from "@/lib/actions/friends";
+import { toast } from "@/lib/toast";
 import { PixelButton } from "@/components/ui/PixelButton";
 import { PixelInput } from "@/components/ui/PixelInput";
 import { PixelCard } from "@/components/ui/PixelCard";
@@ -15,6 +16,12 @@ export function AddFriendForm() {
     sendFriendRequest,
     {},
   );
+
+  // Surface the action's result as a toast (replaces the old inline lines).
+  useEffect(() => {
+    if (state.success) toast.success(state.success);
+    else if (state.error) toast.error(state.error);
+  }, [state]);
 
   return (
     <div className="flex flex-col gap-3">
@@ -43,10 +50,6 @@ export function AddFriendForm() {
               />
               <SubmitButton label="Send request" pendingLabel="…" size="sm" />
             </div>
-            {state.error && <p className="text-danger text-sm">{state.error}</p>}
-            {state.success && (
-              <p className="text-success text-sm">{state.success}</p>
-            )}
           </form>
         </PixelCard>
       )}

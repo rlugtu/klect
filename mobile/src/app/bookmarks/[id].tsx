@@ -19,6 +19,7 @@ import { useHeaderHeight } from '@react-navigation/elements';
 import { Ionicons } from '@expo/vector-icons';
 
 import { trpc } from '@/client/api';
+import { toast, errorMessage } from '@/client/toast';
 import BookmarkVideo from '@/components/bookmark-video';
 import CommentsSection, { type CommentItem } from '@/components/comments-section';
 import TagPill from '@/components/tag-pill';
@@ -67,11 +68,14 @@ export default function BookmarkScreen() {
 
   async function toggleVisited() {
     if (!id || !b) return;
-    setData({ ...data!, bookmark: { ...b, visited: !b.visited } }); // optimistic
+    const next = !b.visited;
+    setData({ ...data!, bookmark: { ...b, visited: next } }); // optimistic
     try {
       await trpc.bookmarks.toggleVisited.mutate({ bookmarkId: id });
+      toast.info(next ? 'Marked as visited' : 'Marked as not visited');
     } catch {
       setData({ ...data!, bookmark: { ...b, visited: b.visited } }); // revert
+      toast.error('Could not update');
     }
   }
 
@@ -83,8 +87,13 @@ export default function BookmarkScreen() {
         style: 'destructive',
         onPress: async () => {
           if (!id) return;
-          await trpc.bookmarks.delete.mutate({ bookmarkId: id });
-          router.back();
+          try {
+            await trpc.bookmarks.delete.mutate({ bookmarkId: id });
+            toast.success('Bookmark deleted');
+            router.back();
+          } catch (e) {
+            toast.error(errorMessage(e, 'Could not delete bookmark'));
+          }
         },
       },
     ]);
@@ -235,6 +244,7 @@ export default function BookmarkScreen() {
             onAdd={async (value) => {
               if (!id) return;
               await trpc.comments.addToBookmark.mutate({ bookmarkId: id, value });
+              toast.success('Comment posted');
               loadComments();
             }}
             onDelete={async (commentId) => {

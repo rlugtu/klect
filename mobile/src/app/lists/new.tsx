@@ -1,6 +1,7 @@
 import { useRouter } from 'expo-router';
 
 import { trpc } from '@/client/api';
+import { toast } from '@/client/toast';
 import ListForm from '@/components/list-form';
 
 /** Create a new list. */
@@ -18,6 +19,7 @@ export default function NewListScreen() {
           icon: v.icon,
           isPublic: v.isPublic,
         });
+        toast.success('List created');
         router.back();
       }}
     />

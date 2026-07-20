@@ -11,6 +11,7 @@ import { Stack, useFocusEffect, useLocalSearchParams, useRouter } from 'expo-rou
 import { BottomSheetModal, BottomSheetView } from '@gorhom/bottom-sheet';
 
 import { trpc } from '@/client/api';
+import { toast } from '@/client/toast';
 import DateTimeField from '@/components/date-time-field';
 import Skeleton from '@/components/skeleton';
 import { useTheme } from '@/theme/theme-provider';
@@ -133,6 +134,7 @@ export default function NewPollScreen() {
     try {
       if (pollId) await trpc.polls.update.mutate({ pollId, data });
       else await trpc.polls.create.mutate({ listId, data });
+      toast.success(pollId ? 'Poll updated' : 'Poll created');
       router.back();
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Could not save poll.');

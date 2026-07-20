@@ -9,6 +9,7 @@ import {
 import { getSession } from "@/lib/session";
 import { themeDataAttr } from "@/lib/theme";
 import { PWARegister } from "@/components/PWARegister";
+import { Toaster } from "@/components/ui/Toaster";
 import "./globals.css";
 
 // Chunky display font for headings/buttons — the signature 8-bit look.
@@ -83,6 +84,7 @@ export default async function RootLayout({
     >
       <body className="min-h-full flex flex-col">
         {children}
+        <Toaster />
         <PWARegister />
       </body>
     </html>

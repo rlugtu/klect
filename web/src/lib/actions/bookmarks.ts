@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { requireUser } from "@/lib/session";
+import { setFlashToast } from "@/lib/toast-flash";
 import * as core from "@/lib/core/bookmarks";
 
 /** Extract a bookmark's fields + tags from submitted FormData. */
@@ -74,6 +75,7 @@ export async function deleteBookmark(bookmarkId: string) {
   const { listId } = await core.deleteBookmark(user.id, bookmarkId);
 
   revalidatePath(`/lists/${listId}`);
+  await setFlashToast("success", "Bookmark deleted");
   redirect(`/lists/${listId}`);
 }
 
