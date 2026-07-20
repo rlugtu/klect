@@ -167,7 +167,7 @@ never trapped on the wrong screen.
 | Home search | ⚠️ | ⚠️ | Web: unified list + cross-list tag filter · Mobile: local name search |
 | Bookmarks — CRUD & fields | ✅ | ✅ | URLs, images, notes, rating, visited, location, tags |
 | Standalone multi-list bookmark create | ✅ | ✅ | One independent copy per selected list |
-| Link metadata autofill | ✅ | ✅ | Paste URL → LinkPreview extract + LLM comprehension → clean name/description/tags/location/images/video |
+| Link metadata autofill | ✅ | ✅ | Paste URL → two-phase: self-fetch/LinkPreview extract (fast) then JSON-LD/LLM comprehension + geocode → clean name/description/tags/location/coords/images/video |
 | Location autocomplete + business autofill | ✅ | ✅ | Mapbox Search Box |
 | Video detection & player | ⚠️ | ⚠️ | Web iframe click-to-play · Mobile `expo-video` + WebView |
 | Tags (user-scoped, auto-colored, OR filter) | ✅ | ✅ | Per-list filter: web dropdown · mobile bottom sheet |
@@ -300,16 +300,21 @@ toggle) → `bookmarks.createInLists`.
 **Description.** Paste a link and the bookmark auto-fills with clean, readable fields — a
 tidied name, a `Link Summary:`-prefixed description that also breaks out vital details
 (Ingredients, Steps, Hours, Event Details, …) when the page has them, up to 3 suggested tags, and
-an inferred location — plus images and a detected playable video.
-**Web / Mobile.** Both call `metadata.fetch`, a two-stage pipeline: **extraction** (YouTube via
-fast oEmbed; everything else via **LinkPreview**, falling back to **Microlink**) + `detectVideo`,
-then a **comprehension** layer (`comprehendMetadata`, `claude-haiku-4-5`) that cleans the
-title, summarizes, and adds `tags` + `location`. For articles it also fetches the page's readable
-text server-side (`core/page-text.ts`, SSRF-guarded) so the LLM can extract those detail sections.
-Web: button in `BookmarkForm`. Mobile: manual button **and** auto-trigger when opened with a
-`?url=` param (e.g. from a share). Both keys are optional — autofill degrades to raw metadata
-when they're unset.
-**Differences.** Mobile also auto-fires autofill on mount for shared URLs; otherwise identical.
+an inferred + geocoded location — plus images and a detected playable video. It fills in **two
+phases** so the visible fields appear fast (~1–2s) and the richer details patch in a moment later.
+**Web / Mobile.** Both call **`metadata.extract`** (Phase 1) then **`metadata.comprehend`** (Phase 2).
+Phase 1 fetches the page **once** server-side (`core/page-text.ts` `fetchPage`, SSRF-guarded) for
+OG/meta → name/description/image + `detectVideo`, falling back to **LinkPreview → Microlink** when
+blocked (YouTube via oEmbed; social reels prefer Microlink). Phase 2 takes a **JSON-LD fast path**
+(`structuredDataFromJsonLd` — recipes/events/products/places, no LLM) or else `comprehendMetadata`
+(`claude-haiku-4-5`) on the readable text (YouTube: the video description), then **geocodes** the
+location to coordinates (so it shows in Near me). Both phases are cached + coalesced by URL. Web: the
+loading overlay drops after Phase 1, then an "Enhancing…" indicator while Phase 2 patches via
+seed+remount. Mobile: manual button **and** auto-trigger when opened with a `?url=` param (e.g. from
+a share); Phase 2 fills-when-empty with an inline "Enhancing…" row. Both keys are optional — autofill
+degrades to JSON-LD/raw metadata when unset. (`metadata.fetch` still does both in one call.)
+**Differences.** Mobile auto-fires autofill on mount for shared URLs and fills Phase-2
+tags/location only when empty (web overwrites via remount); otherwise identical.
 
 ### Location autocomplete + business autofill
 **Description.** Type-ahead for addresses and businesses (POIs). Picking a plain address stores the
@@ -537,7 +542,8 @@ Light).
 **Description.** Share a URL into Klect from any other app's native share sheet to save a bookmark —
 filled out and saved **inside the share sheet**, without opening the app.
 **Mobile.** `expo-share-extension` (iOS only) renders the full `BookmarkForm` + list picker in the
-share sheet (auto-autofill via `metadata.fetch`), saving through `bookmarks.createInLists`. Auth uses
+share sheet (auto-autofill on mount, two-phase via `metadata.extract` + `metadata.comprehend`),
+saving through `bookmarks.createInLists`. Auth uses
 a bearer token read from the shared keychain; if none is present it prompts to open Klect and sign in.
 Requires the custom dev build.
 **Setup help.** A short, illustrated **"Share to Klect"** walkthrough teaches users how to surface

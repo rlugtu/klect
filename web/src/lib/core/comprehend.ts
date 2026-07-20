@@ -135,7 +135,7 @@ export async function comprehendMetadata(raw: {
   try {
     const res = await client.messages.parse({
       model: "claude-haiku-4-5",
-      max_tokens: 2048,
+      max_tokens: 1024,
       system: METADATA_SYSTEM,
       messages: [{ role: "user", content: context }],
       output_config: { format: zodOutputFormat(metadataSchema) },
@@ -170,7 +170,7 @@ export async function comprehendMetadata(raw: {
  * Build the bookmark description: a "Link Summary:" header + the summary, then a
  * labeled bullet section per non-empty detail group (Ingredients, Steps, Hours…).
  */
-function assembleDescription(
+export function assembleDescription(
   summary: string,
   details: { heading: string; items: string[] }[],
 ): string {

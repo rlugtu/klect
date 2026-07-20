@@ -60,25 +60,33 @@ Run these from `web/` (the app no longer lives at the repo root).
   documents them. `MAPBOX_TOKEN` must also be set in the deploy host's env (not just local). These
   secrets stay **only in web** — mobile reaches Mapbox/Microlink/Anthropic capabilities through
   tRPC procedures, so no keys ship in the app.
-- Link autofill (`fetchLinkMetadata`, `[link-metadata]` log) is a two-stage pipeline:
-  **extraction** then **comprehension**. Extraction uses **LinkPreview**
-  (`LINKPREVIEW_API_KEY`) as the primary generic unfurler, falling back to **Microlink**
-  (free tier, IP-rate-limited) when the key is unset or LinkPreview fails; YouTube still
-  uses oEmbed. The raw metadata is then passed through the **comprehension** layer
-  (`comprehendMetadata` in `core/comprehend.ts`, `claude-haiku-4-5`, `[comprehend]` log)
-  which cleans the title, writes a `Link Summary:`-prefixed description, and adds suggested
-  `tags` + an inferred `location` (added to `LinkMetadata`). When the Anthropic key is set and
-  the target is an article (not a video), comprehension is fed the page's readable text via a
-  **server-side fetch** (`core/page-text.ts`, `fetchReadableText`, `[page-text]` log) that is
-  **SSRF-guarded** (http(s) only; rejects hosts resolving to private/loopback/link-local IPs;
-  manual redirects re-validated per hop; timeout + html-only + byte cap). That text lets the LLM
-  extract vital detail sections (Ingredients, Steps, Hours, Event Details, …) appended under the
-  summary. Both layers degrade gracefully: no `ANTHROPIC_API_KEY` → raw metadata, no page fetch,
-  no `Link Summary:` prefix; both keys unset → Microlink-only. Social reels (Instagram/Facebook/
-  TikTok, `isSocialVideo`) prefer Microlink first (better caption coverage) — but the full caption
-  is often truncated/login-walled, so reliable reel-caption extraction still needs a social-scraper
-  API (`SOCIAL_SCRAPER_TOKEN` / `comprehend.caption` are stubbed for this but not yet wired). The
-  shared `metadata.fetch` tRPC procedure means web + mobile autofill both benefit.
+- Link autofill (`core/metadata.ts`, `[link-metadata]` log) is a **two-phase** pipeline so the UI
+  fills fast then enriches. **Phase 1 — extraction** (`getLinkExtraction`, `metadata.extract`):
+  we fetch the page **once ourselves** (`core/page-text.ts` `fetchPage`, `[page-text]` log) and read
+  OG/meta → title/description/image + `detectVideo`; this **warms a shared page cache** (`core/cache.ts`).
+  Falls back to **LinkPreview** (`LINKPREVIEW_API_KEY`) → **Microlink** (free tier, IP-rate-limited)
+  only when the self-fetch is blocked/empty; YouTube still uses oEmbed; social reels
+  (Instagram/Facebook/TikTok, `isSocialVideo`) still prefer Microlink first (better caption coverage).
+  No LLM — returns immediately. **Phase 2 — comprehension** (`getLinkComprehension`,
+  `metadata.comprehend`, non-blocking): from the same cached fetch it first tries a **JSON-LD fast
+  path** (`core/structured-data.ts`, `structuredDataFromJsonLd`) — schema.org
+  Recipe/HowTo/Event/Product/LocalBusiness parsed straight into `{heading, items}` detail sections,
+  **no LLM**; otherwise runs `comprehendMetadata` (`core/comprehend.ts`, `claude-haiku-4-5`,
+  `[comprehend]` log) on the readable text (for **YouTube**, the video's `og:description`), cleaning
+  the title, writing a `Link Summary:`-prefixed description with detail sections (Ingredients, Steps,
+  Hours, Event Details, …), and adding up to 3 `tags` + an inferred `location`. The location is then
+  **geocoded** (`searchPlaces`→`retrievePlace`, shared session token) into `latitude`/`longitude` on
+  `LinkComprehension`, so autofilled bookmarks appear in **Near me**. `fetchPage` is **SSRF-guarded**
+  (http(s) only; rejects hosts resolving to private/loopback/link-local IPs; manual redirects
+  re-validated per hop; timeout + html-only + byte cap). Both phases are **cached + coalesced by URL**
+  (in-memory, per-instance/ephemeral on serverless — dedupes double-taps + fan-out + warm repeats).
+  Both clients call `metadata.extract` then `metadata.comprehend` and patch phase-2 fields in as they
+  land (web reuses the `BookmarkForm` seed+remount; mobile fills-when-empty with an "Enhancing…" row).
+  Everything degrades gracefully: no `ANTHROPIC_API_KEY` → JSON-LD/raw metadata only, no
+  `Link Summary:`; no `LINKPREVIEW_API_KEY` → self-fetch/Microlink. Social reel captions are still
+  often truncated/login-walled — reliable reel extraction needs a social-scraper API
+  (`SOCIAL_SCRAPER_TOKEN` / `comprehend.caption` stubbed, not wired). `metadata.fetch` still composes
+  both phases for one-shot callers.
 - Location field is a **Mapbox Search Box** autocomplete (`lib/actions/places.ts`, proxied
   server-side, `[places]` log prefix, `proximity=ip` bias). It's two-step: `searchPlaces`
   (/suggest) returns coordinate-less suggestions, `retrievePlace` (/retrieve) resolves the

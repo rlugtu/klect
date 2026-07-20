@@ -78,22 +78,41 @@ export default function BookmarkForm({
   const [longitude, setLongitude] = useState<number | null>(initial.longitude);
   const [videoUrl, setVideoUrl] = useState(initial.videoUrl);
   const [videoType, setVideoType] = useState(initial.videoType);
-  const [autofilling, setAutofilling] = useState(false);
+  const [autofilling, setAutofilling] = useState(false); // phase 1 (blocking)
+  const [enhancing, setEnhancing] = useState(false); // phase 2 (non-blocking)
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Phase 2 — comprehension. Its own abort/timeout; returns null on failure so the
+  // fast fields from phase 1 stand.
+  async function comprehendUrl(target: string) {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), AUTOFILL_TIMEOUT_MS);
+    try {
+      return await trpc.metadata.comprehend.query(
+        { url: target },
+        { signal: controller.signal },
+      );
+    } catch {
+      return null;
+    } finally {
+      clearTimeout(timer);
+    }
+  }
+
   async function autofill() {
-    if (!url.trim()) return;
+    const target = url.trim();
+    if (!target) return;
     // Drop the keyboard the instant the (blocking) fetch begins.
     Keyboard.dismiss();
     setAutofilling(true);
     setError(null);
-    // The overlay blocks all interaction, so the fetch must always resolve — cap it.
+    // Phase 1 — fast extraction under the blocking overlay. Always resolve — cap it.
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), AUTOFILL_TIMEOUT_MS);
     try {
-      const res = await trpc.metadata.fetch.query(
-        { url: url.trim() },
+      const res = await trpc.metadata.extract.query(
+        { url: target },
         { signal: controller.signal },
       );
       if (res.ok) {
@@ -102,13 +121,9 @@ export default function BookmarkForm({
         if (res.data.images.length) setImages(res.data.images);
         setVideoUrl(res.data.video?.url ?? '');
         setVideoType(res.data.video?.type ?? '');
-        // Comprehension-suggested tags/location — only fill empty fields so we
-        // never clobber what the user already typed.
-        if (res.data.tags.length && !tagsText.trim())
-          setTagsText(res.data.tags.join(', '));
-        if (res.data.location && !location.trim()) setLocation(res.data.location);
       } else {
         setError(res.error);
+        return; // extraction failed — skip phase 2
       }
     } catch (e) {
       setError(
@@ -118,10 +133,27 @@ export default function BookmarkForm({
             ? e.message
             : 'Autofill failed',
       );
+      return;
     } finally {
       clearTimeout(timer);
       setAutofilling(false);
     }
+
+    // Phase 2 — comprehension, non-blocking (form stays editable). Refined
+    // title/description win; tags/location fill only when still empty.
+    setEnhancing(true);
+    const c = await comprehendUrl(target);
+    if (c) {
+      if (c.title) setName(c.title);
+      if (c.description) setDescription(c.description);
+      if (c.tags.length && !tagsText.trim()) setTagsText(c.tags.join(', '));
+      if (c.location && !location.trim()) {
+        setLocation(c.location);
+        setLatitude(c.latitude);
+        setLongitude(c.longitude);
+      }
+    }
+    setEnhancing(false);
   }
 
   // Auto-fetch page metadata once when the form opens with a prefilled URL
@@ -159,10 +191,11 @@ export default function BookmarkForm({
     if (!place.website) return;
     Keyboard.dismiss();
     setAutofilling(true);
+    // Phase 1 — extract the website (blocking).
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), AUTOFILL_TIMEOUT_MS);
     try {
-      const res = await trpc.metadata.fetch.query(
+      const res = await trpc.metadata.extract.query(
         { url: place.website },
         { signal: controller.signal },
       );
@@ -184,6 +217,15 @@ export default function BookmarkForm({
       clearTimeout(timer);
       setAutofilling(false);
     }
+
+    // Phase 2 — enrich description/tags (location + coords already set by the place).
+    setEnhancing(true);
+    const c = await comprehendUrl(place.website);
+    if (c) {
+      if (fillDescription && c.description) setDescription(c.description);
+      if (c.tags.length && !tagsText.trim()) setTagsText(c.tags.join(', '));
+    }
+    setEnhancing(false);
   }
 
   async function submit() {
@@ -260,7 +302,7 @@ export default function BookmarkForm({
           />
           <Pressable
             className="items-center justify-center rounded-skin border-skin border-border px-3"
-            disabled={autofilling}
+            disabled={autofilling || enhancing}
             onPress={autofill}>
             {autofilling ? (
               <ActivityIndicator />
@@ -269,6 +311,14 @@ export default function BookmarkForm({
             )}
           </Pressable>
         </View>
+
+        {/* Non-blocking phase-2 indicator — the form stays editable while it runs. */}
+        {enhancing && (
+          <View className="flex-row items-center gap-2">
+            <ActivityIndicator size="small" />
+            <Text className="text-sm text-muted">✨ Enhancing details…</Text>
+          </View>
+        )}
 
         <View className="gap-1">
           <LocationInput

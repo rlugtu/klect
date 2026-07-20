@@ -9,7 +9,7 @@ import { FieldLabel } from "@/components/ui/FieldLabel";
 import { RatingInput } from "./RatingInput";
 import { TagInput } from "./TagInput";
 import { LocationInput } from "./LocationInput";
-import { fetchLinkMetadata } from "@/lib/actions/metadata";
+import { fetchLinkExtraction, fetchLinkComprehension } from "@/lib/actions/metadata";
 import type { RetrievedPlace } from "@/lib/actions/places";
 
 export type BookmarkDefaults = {
@@ -64,7 +64,8 @@ export function BookmarkForm({
   const [videoType, setVideoType] = useState(defaults?.videoType ?? "");
 
   const [link, setLink] = useState("");
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(false); // phase 1 (blocking)
+  const [enhancing, setEnhancing] = useState(false); // phase 2 (non-blocking)
   const [error, setError] = useState<string | null>(null);
 
   // TagInput / LocationInput are self-managed (seeded from their defaults), so we
@@ -87,14 +88,40 @@ export function BookmarkForm({
     });
   }
 
+  // Layer comprehension (tags/location/coords + refined title/description) onto the
+  // form. Runs after extraction, non-blocking; re-seeds the self-managed children.
+  async function enhance(target: string, { reseedLocation }: { reseedLocation: boolean }) {
+    setEnhancing(true);
+    try {
+      const c = await fetchLinkComprehension(target);
+      if (c.title) setName(c.title);
+      if (c.description) setDescription(c.description);
+      if (c.tags.length) {
+        setSeedTags(c.tags);
+        setTagKey((k) => k + 1);
+      }
+      // Only reseed location for a link unfurl — a picked place already set it.
+      if (reseedLocation && c.location) {
+        setSeedLocation(c.location);
+        setSeedLat(c.latitude); // real coords now (geocoded), or null
+        setSeedLon(c.longitude);
+        setLocKey((k) => k + 1);
+      }
+    } finally {
+      setEnhancing(false);
+    }
+  }
+
   async function autofill() {
-    if (!link.trim() || loading) return;
+    const target = link.trim();
+    if (!target || loading) return;
     setLoading(true);
     setError(null);
 
-    const result = await fetchLinkMetadata(link);
+    // Phase 1 — fast extraction; fill the visible fields and drop the overlay.
+    const result = await fetchLinkExtraction(target);
     setLoading(false);
-    console.log("[autofill] link:", link, "→ result:", result);
+    console.log("[autofill] link:", target, "→ extraction:", result);
 
     // Always keep the original source link, even on failure.
     addSourceUrl(result.ok ? result.data.sourceUrl : result.sourceUrl);
@@ -114,19 +141,10 @@ export function BookmarkForm({
       setVideoUrl(d.video.url);
       setVideoType(d.video.type);
     }
-    // Comprehension-suggested tags/location (remount the child to re-seed). Only
-    // reseed location when the link yields one, so a picked place is preserved.
-    if (d.tags.length) {
-      setSeedTags(d.tags);
-      setTagKey((k) => k + 1);
-    }
-    if (d.location) {
-      setSeedLocation(d.location);
-      setSeedLat(null); // inferred text has no coordinates
-      setSeedLon(null);
-      setLocKey((k) => k + 1);
-    }
     setLink("");
+
+    // Phase 2 — comprehension, in the background.
+    await enhance(target, { reseedLocation: true });
   }
 
   // Autofill the bookmark when a business is picked in the Location field. Each pick overwrites
@@ -146,7 +164,7 @@ export function BookmarkForm({
     if (!place.website) return;
 
     setLoading(true);
-    const result = await fetchLinkMetadata(place.website);
+    const result = await fetchLinkExtraction(place.website);
     setLoading(false);
     if (!result.ok) return; // keep the basics set above
 
@@ -158,6 +176,9 @@ export function BookmarkForm({
       setVideoUrl(d.video.url);
       setVideoType(d.video.type);
     }
+
+    // Phase 2 — enrich description/tags (location already set by the picked place).
+    await enhance(place.website, { reseedLocation: false });
   }
 
   return (
@@ -200,6 +221,15 @@ export function BookmarkForm({
             </PixelButton>
           </div>
           {error && <p className="text-danger text-sm">{error}</p>}
+          {enhancing && (
+            <p className="text-muted flex items-center gap-2 text-sm">
+              <span
+                aria-hidden
+                className="border-border border-t-primary size-3 animate-spin rounded-full border-2"
+              />
+              ✨ Enhancing details…
+            </p>
+          )}
         </div>
 
         {/* divider */}

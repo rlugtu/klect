@@ -1,7 +1,11 @@
 import { z } from "zod";
 import { router, protectedProcedure } from "../trpc";
 import * as places from "@/lib/core/places";
-import { fetchLinkMetadata } from "@/lib/core/metadata";
+import {
+  fetchLinkMetadata,
+  getLinkExtraction,
+  getLinkComprehension,
+} from "@/lib/core/metadata";
 import { comprehendCaption } from "@/lib/core/comprehend";
 
 /**
@@ -25,6 +29,19 @@ export const placesRouter = router({
 });
 
 export const metadataRouter = router({
+  // Phase 1 — fast extraction (no LLM). Clients call this first.
+  extract: protectedProcedure
+    .input(z.object({ url: z.string() }))
+    .query(({ input }) => getLinkExtraction(input.url)),
+
+  // Phase 2 — comprehension (JSON-LD / LLM) + geocode. Clients call this after
+  // extract to patch tags/location/coords/details into the form.
+  comprehend: protectedProcedure
+    .input(z.object({ url: z.string() }))
+    .query(({ input }) => getLinkComprehension(input.url)),
+
+  // One-shot (extraction + comprehension merged). Kept for callers that want a
+  // single round trip.
   fetch: protectedProcedure
     .input(z.object({ url: z.string() }))
     .query(({ input }) => fetchLinkMetadata(input.url)),
