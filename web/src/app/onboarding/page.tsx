@@ -5,11 +5,6 @@ import { completeOnboarding } from "@/lib/actions/profile";
 import { ProfileForm } from "@/components/profile/ProfileForm";
 import { PixelCard } from "@/components/ui/PixelCard";
 
-function toDateInput(value: Date | string | null | undefined): string | null {
-  if (!value) return null;
-  return new Date(value).toISOString().slice(0, 10);
-}
-
 export default async function OnboardingPage() {
   const user = await requireUser();
   // Already onboarded → skip.
@@ -29,7 +24,6 @@ export default async function OnboardingPage() {
             firstName: user.firstName ?? null,
             lastName: user.lastName ?? null,
             handle: user.handle ?? null,
-            birthday: toDateInput(user.birthday),
             icon: user.icon ?? null,
             theme: coerceTheme(user.theme),
           }}

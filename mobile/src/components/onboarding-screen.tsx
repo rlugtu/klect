@@ -14,8 +14,7 @@ import { toast } from '@/client/toast';
 import { useTheme } from '@/theme/theme-provider';
 import { THEME_TOKENS, type ThemeName } from '@/theme/tokens';
 
-// The exact input web's profile procedure accepts — no hand-written DTO. birthday is
-// `z.coerce.date()` server-side, so an ISO string is accepted for the Date field.
+// The exact input web's profile procedure accepts — no hand-written DTO.
 type ProfileInput = Parameters<typeof trpc.profile.update.mutate>[0];
 
 // Same avatar set as web's ProfileForm (web/src/components/profile/ProfileForm.tsx).
@@ -30,9 +29,6 @@ const THEME_LABELS: Record<ThemeName, string> = {
   MODERN_LIGHT: 'Modern · Light',
   MODERN_DARK: 'Modern · Dark',
 };
-
-// yyyy-mm-dd — matches web's date input format; anything else is treated as unset.
-const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 
 // Public @handle format — mirrors web core's HANDLE_RE (lowercase a–z 0–9 _, 3–20).
 const HANDLE_RE = /^[a-z0-9_]{3,20}$/;
@@ -54,7 +50,6 @@ export default function OnboardingScreen({ onDone }: { onDone: () => void }) {
   const [handle, setHandle] = useState('');
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
-  const [birthday, setBirthday] = useState('');
   const [icon, setIcon] = useState('🔖');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -67,17 +62,13 @@ export default function OnboardingScreen({ onDone }: { onDone: () => void }) {
       );
       return;
     }
-    if (birthday.trim() && !DATE_RE.test(birthday.trim())) {
-      setError('Birthday must be in YYYY-MM-DD format.');
-      return;
-    }
     setBusy(true);
     setError(null);
     const input: ProfileInput = {
       handle: normalizedHandle,
       firstName: firstName.trim() || null,
       lastName: lastName.trim() || null,
-      birthday: birthday.trim() ? new Date(birthday.trim()) : null,
+      birthday: null,
       icon,
       theme,
     };
@@ -141,19 +132,6 @@ export default function OnboardingScreen({ onDone }: { onDone: () => void }) {
               onChangeText={setLastName}
             />
           </View>
-        </View>
-
-        <View className="gap-1.5">
-          <Text className="font-sans-medium text-sm text-muted">Birthday</Text>
-          <TextInput
-            className="rounded-skin border-skin border-border px-4 py-3 font-sans text-ink"
-            placeholder="YYYY-MM-DD"
-            placeholderTextColor={muted}
-            autoCapitalize="none"
-            autoCorrect={false}
-            value={birthday}
-            onChangeText={setBirthday}
-          />
         </View>
 
         <View className="gap-2">

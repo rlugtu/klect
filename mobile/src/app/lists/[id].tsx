@@ -162,6 +162,43 @@ export default function ListScreen() {
     );
   }
 
+  // Remove a tag from every bookmark in the list (collaborators). Confirms with
+  // the affected count, then clears any active filter on that tag and reloads.
+  function confirmRemoveTag(name: string) {
+    if (!id) return;
+    const n = bookmarks.filter((b) =>
+      b.tags.some((bt) => bt.tag.name === name),
+    ).length;
+    Alert.alert(
+      `Remove #${name.toLowerCase()}?`,
+      `This removes it from ${n} ${n === 1 ? 'bookmark' : 'bookmarks'} in this list. This cannot be undone.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Remove',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await trpc.tags.removeFromList.mutate({ listId: id, name });
+              setSelected((prev) => {
+                const next = new Set(prev);
+                for (const tag of availableTags)
+                  if (tag.name === name) next.delete(tag.id);
+                return next;
+              });
+              toast.success(`Removed #${name.toLowerCase()} from this list`);
+              loadBookmarks();
+            } catch (e) {
+              toast.error(
+                e instanceof Error ? e.message : 'Could not remove tag',
+              );
+            }
+          },
+        },
+      ],
+    );
+  }
+
   const selectedTags = availableTags.filter((tag) => selected.has(tag.id));
 
   const description = access?.list.description ?? '';
@@ -494,15 +531,28 @@ export default function ListScreen() {
           {availableTags.map((tag) => {
             const on = selected.has(tag.id);
             return (
-              <Pressable
+              <View
                 key={tag.id}
-                onPress={() => toggleTag(tag.id)}
-                className="flex-row items-center justify-between border-b border-border py-3">
-                <Text className="font-sans text-ink">
-                  #{tag.name.toLowerCase()}
-                </Text>
-                {on && <Text className="text-base text-primary">✓</Text>}
-              </Pressable>
+                className="flex-row items-center border-b border-border">
+                <Pressable
+                  onPress={() => toggleTag(tag.id)}
+                  className="flex-1 flex-row items-center justify-between py-3">
+                  <Text className="font-sans text-ink">
+                    #{tag.name.toLowerCase()}
+                  </Text>
+                  {on && <Text className="text-base text-primary">✓</Text>}
+                </Pressable>
+                {canEdit && (
+                  // Collaborators can strip a tag off every bookmark in the list.
+                  <Pressable
+                    accessibilityLabel={`Remove ${tag.name} from this list`}
+                    hitSlop={8}
+                    onPress={() => confirmRemoveTag(tag.name)}
+                    className="pl-4 py-3">
+                    <Ionicons name="trash-outline" size={18} color={t.danger} />
+                  </Pressable>
+                )}
+              </View>
             );
           })}
         </BottomSheetView>

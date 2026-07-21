@@ -8,6 +8,7 @@ import { BookmarkCard } from "./BookmarkCard";
 import { PixelInput } from "@/components/ui/PixelInput";
 import { PixelButton } from "@/components/ui/PixelButton";
 import { PixelBadge } from "@/components/ui/PixelBadge";
+import { toast } from "@/lib/toast";
 
 const MAX_RESULTS = 6;
 
@@ -15,13 +16,22 @@ const MAX_RESULTS = 6;
  * Bookmark grid for a single list with an in-list search: type to filter cards
  * by name; matching tags appear to add as pills (OR filter). Name + tags both
  * narrow the visible grid. All client-side over the already-loaded bookmarks.
+ *
+ * Collaborators (`canManageTags`) also get a trash affordance on each tag in the
+ * filter dropdown that removes it from every bookmark in this list.
  */
 export function ListBookmarks({
   listId,
   bookmarks,
+  canManageTags = false,
+  removeTagAction,
 }: {
   listId: string;
   bookmarks: BookmarkCardData[];
+  /** When true, the tag filter dropdown shows a remove (trash) control per tag. */
+  canManageTags?: boolean;
+  /** Server action (pre-bound to listId) that removes a tag from the whole list. */
+  removeTagAction?: (name: string) => Promise<void>;
 }) {
   const [query, setQuery] = useState("");
   const [open, setOpen] = useState(false);
@@ -29,17 +39,26 @@ export function ListBookmarks({
   const [selected, setSelected] = useState<string[]>([]);
   // Off → all bookmarks; on → only those not yet marked visited.
   const [hideVisited, setHideVisited] = useState(false);
+  // Tag name pending a remove confirmation in the filter dropdown, or null.
+  const [confirmTag, setConfirmTag] = useState<string | null>(null);
+  const [removing, setRemoving] = useState(false);
   const tagMenuRef = useRef<HTMLDivElement>(null);
+
+  // Close the dropdown and abandon any pending remove-confirmation together.
+  function closeTagMenu() {
+    setTagMenuOpen(false);
+    setConfirmTag(null);
+  }
 
   // Close the tag dropdown on outside click or Escape (it's button-triggered,
   // so it doesn't ride the input's focus/blur like the typeahead does).
   useEffect(() => {
     if (!tagMenuOpen) return;
     function onPointerDown(e: MouseEvent) {
-      if (!tagMenuRef.current?.contains(e.target as Node)) setTagMenuOpen(false);
+      if (!tagMenuRef.current?.contains(e.target as Node)) closeTagMenu();
     }
     function onKeyDown(e: KeyboardEvent) {
-      if (e.key === "Escape") setTagMenuOpen(false);
+      if (e.key === "Escape") closeTagMenu();
     }
     document.addEventListener("mousedown", onPointerDown);
     document.addEventListener("keydown", onKeyDown);
@@ -84,6 +103,26 @@ export function ListBookmarks({
     setQuery("");
     setSelected([]);
     setOpen(false);
+  }
+
+  // How many bookmarks in this list currently carry `tag` (for the confirm copy).
+  function countWithTag(tag: string) {
+    return bookmarks.filter((b) => b.tags.some((t) => t.name === tag)).length;
+  }
+
+  async function removeListTag(tag: string) {
+    if (!removeTagAction) return;
+    setRemoving(true);
+    try {
+      await removeTagAction(tag);
+      setSelected((s) => s.filter((t) => t !== tag));
+      setConfirmTag(null);
+      toast.success(`Removed #${tag} from this list`);
+    } catch {
+      toast.error("Couldn't remove that tag.");
+    } finally {
+      setRemoving(false);
+    }
   }
 
   const visible = bookmarks.filter((b) => {
@@ -171,7 +210,7 @@ export function ListBookmarks({
         <PixelButton
           type="button"
           variant="secondary"
-          onClick={() => setTagMenuOpen((v) => !v)}
+          onClick={() => (tagMenuOpen ? closeTagMenu() : setTagMenuOpen(true))}
           aria-haspopup="listbox"
           aria-expanded={tagMenuOpen}
           className="h-full normal-case"
@@ -193,29 +232,76 @@ export function ListBookmarks({
             ) : (
               availableTags.map((t) => {
                 const isSelected = selected.includes(t);
+                if (confirmTag === t) {
+                  // Inline confirm replaces the row while a remove is pending.
+                  const n = countWithTag(t);
+                  return (
+                    <div
+                      key={t}
+                      className="flex w-full flex-col gap-1.5 px-2 py-1.5"
+                    >
+                      <span className="text-sm">
+                        Remove <span className="font-bold">#{t}</span> from {n}{" "}
+                        {n === 1 ? "bookmark" : "bookmarks"}?
+                      </span>
+                      <div className="flex gap-2">
+                        <button
+                          type="button"
+                          disabled={removing}
+                          onClick={() => removeListTag(t)}
+                          className="text-danger hover:underline disabled:opacity-50 cursor-pointer text-sm font-bold"
+                        >
+                          Remove
+                        </button>
+                        <button
+                          type="button"
+                          disabled={removing}
+                          onClick={() => setConfirmTag(null)}
+                          className="text-muted hover:underline cursor-pointer text-sm"
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    </div>
+                  );
+                }
                 return (
-                  <button
+                  <div
                     key={t}
-                    type="button"
-                    role="option"
-                    aria-selected={isSelected}
-                    onClick={() => toggleTag(t)}
-                    className={`hover:bg-primary/15 flex w-full cursor-pointer items-center gap-2 px-2 py-1.5 text-left ${
+                    className={`hover:bg-primary/15 flex w-full items-center gap-2 ${
                       isSelected ? "bg-primary/15 font-bold" : ""
                     }`}
                   >
-                    <span
-                      aria-hidden
-                      className="border-border inline-block h-3 w-3 shrink-0 border"
-                      style={{
-                        backgroundColor: tagColor.get(t) || "transparent",
-                      }}
-                    />
-                    <span className="truncate">{t}</span>
-                    <span aria-hidden className="text-primary ml-auto">
-                      {isSelected ? "✓" : ""}
-                    </span>
-                  </button>
+                    <button
+                      type="button"
+                      role="option"
+                      aria-selected={isSelected}
+                      onClick={() => toggleTag(t)}
+                      className="flex flex-1 cursor-pointer items-center gap-2 px-2 py-1.5 text-left"
+                    >
+                      <span
+                        aria-hidden
+                        className="border-border inline-block h-3 w-3 shrink-0 border"
+                        style={{
+                          backgroundColor: tagColor.get(t) || "transparent",
+                        }}
+                      />
+                      <span className="truncate">{t}</span>
+                      <span aria-hidden className="text-primary ml-auto">
+                        {isSelected ? "✓" : ""}
+                      </span>
+                    </button>
+                    {canManageTags && (
+                      <button
+                        type="button"
+                        aria-label={`Remove ${t} from this list`}
+                        onClick={() => setConfirmTag(t)}
+                        className="text-muted hover:text-danger shrink-0 cursor-pointer px-2 py-1.5"
+                      >
+                        🗑
+                      </button>
+                    )}
+                  </div>
                 );
               })
             )}
