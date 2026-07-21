@@ -178,6 +178,23 @@ export default function SettingsScreen() {
         </View>
 
         <View className="gap-2">
+          <Text className="text-sm uppercase text-muted">Feedback</Text>
+          <Pressable
+            onPress={() => router.push('/feedback')}
+            className="flex-row items-center justify-between rounded-skin border-skin border-border bg-panel p-3">
+            <View className="flex-row items-center gap-3">
+              <Ionicons
+                name="chatbubble-ellipses-outline"
+                size={22}
+                color={t.primary}
+              />
+              <Text className="text-base text-ink">Send feedback</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={18} color={t.muted} />
+          </Pressable>
+        </View>
+
+        <View className="gap-2">
           <Text className="text-sm uppercase text-muted">Privacy</Text>
           <Pressable
             onPress={() => WebBrowser.openBrowserAsync(`${API_URL}/privacy`)}

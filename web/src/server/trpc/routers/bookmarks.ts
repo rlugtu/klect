@@ -70,4 +70,10 @@ export const bookmarksRouter = router({
     .mutation(({ ctx, input }) =>
       core.toggleVisited(ctx.user.id, input.bookmarkId),
     ),
+
+  setRating: protectedProcedure
+    .input(z.object({ bookmarkId: z.string(), rating: z.number().min(0).max(5) }))
+    .mutation(({ ctx, input }) =>
+      core.setRating(ctx.user.id, input.bookmarkId, input.rating),
+    ),
 });

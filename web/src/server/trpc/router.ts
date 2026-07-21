@@ -12,6 +12,7 @@ import { accountRouter } from "./routers/account";
 import { tagsRouter } from "./routers/tags";
 import { nearbyRouter } from "./routers/nearby";
 import { notificationsRouter } from "./routers/notifications";
+import { feedbackRouter } from "./routers/feedback";
 import {
   placesRouter,
   metadataRouter,
@@ -38,6 +39,7 @@ export const appRouter = router({
   tags: tagsRouter,
   nearby: nearbyRouter,
   notifications: notificationsRouter,
+  feedback: feedbackRouter,
   places: placesRouter,
   metadata: metadataRouter,
   comprehend: comprehendRouter,

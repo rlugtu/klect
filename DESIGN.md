@@ -214,6 +214,10 @@ PollVote        id, pollId, optionId, userId — unique per (optionId, userId); 
   stale tokens are pruned on `DeviceNotRegistered`). `NotificationPreference` is a 1:1
   per-user row of category toggles (`directMessages`, `listChat`, `friends`, `lists`,
   `comments`, `polls`) — **absent row = all on**. Both cascade on user delete.
+- **Feedback** (`Feedback`): free-text in-app feedback from a signed-in user (Settings → Send
+  feedback). One row per submission — `category` (`bug` | `idea` | `other`), `message`, optional
+  `platform` (`ios` | `web`) + `appVersion`, `createdAt`. No admin UI; reviewed via Prisma Studio.
+  Cascades on user delete.
 
 ---
 
@@ -505,6 +509,7 @@ release builds don't reliably persist `Secure` cookies. `auth.api.getSession()` 
 | `bookmarks.update` | mutation | `{ bookmarkId, data: BookmarkInput }` | COLLABORATOR (in core) | `core.updateBookmark` |
 | `bookmarks.delete` | mutation | `{ bookmarkId }` | COLLABORATOR (in core) | `core.deleteBookmark` |
 | `bookmarks.toggleVisited` | mutation | `{ bookmarkId }` | COLLABORATOR (in core) | `core.toggleVisited` |
+| `bookmarks.setRating` | mutation | `{ bookmarkId, rating: 0–5 }` | COLLABORATOR (in core) | `core.setRating` — inline single-field rating update from the detail view (clamped 0–5); avoids resending the whole `BookmarkInput` |
 | `comments.forList` | query | `{ listId }` | `assertCanView` (member **or** public list) | `getListComments` |
 | `comments.forBookmark` | query | `{ bookmarkId }` | membership check | `getBookmarkComments` |
 | `comments.addToList` | mutation | `{ listId, value }` | VIEWER (in core) | `core.addListComment` |
@@ -559,6 +564,7 @@ release builds don't reliably persist `Secure` cookies. `auth.api.getSession()` 
 | `notifications.getPreferences` | query | – | self | `core/notifications.getNotificationPreferences` — per-category toggles, defaults all-on |
 | `notifications.updatePreferences` | mutation | `{ directMessages?, listChat?, friends?, lists?, comments?, polls? }` | self | `core/notifications.updateNotificationPreferences` — upserts a subset, returns the full set |
 | `notifications.badgeCount` | query | – | self | `core/notifications.computeBadgeCount` — unread DMs + incoming friend requests + pending list invites (the app-icon badge source) |
+| `feedback.submit` | mutation | `{ category, message, platform?, appVersion? }` | self | `core.submitFeedback` — stores in-app feedback (category normalized to bug/idea/other; message required, ≤2000 chars); reviewed via Prisma Studio |
 | `places.search` | query | `{ text, sessionToken }` | signed-in | `core/places.searchPlaces` |
 | `places.retrieve` | query | `{ id, sessionToken }` | signed-in | `core/places.retrievePlace` |
 | `places.reverseGeocode` | query | `{ lat, lon }` | signed-in | `core/places.reverseGeocode` |

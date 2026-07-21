@@ -145,6 +145,7 @@ function AppStack() {
       <Stack.Screen name="users/[handle]" options={{ ...transparentHeader }} />
       <Stack.Screen name="settings" options={{ ...blankTitle }} />
       <Stack.Screen name="share-help" options={{ ...blankTitle }} />
+      <Stack.Screen name="feedback" options={{ ...blankTitle }} />
       <Stack.Screen name="delete-account" options={{ ...blankTitle }} />
       <Stack.Screen name="requests" options={{ ...blankTitle }} />
       <Stack.Screen name="friend-requests" options={{ ...transparentHeader }} />

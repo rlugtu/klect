@@ -130,8 +130,9 @@ The mobile-facing surface, mounted at `/api/trpc` beside the auth handler.
   signed-in user, narrows `ctx.user`).
 - `inputs.ts` — reusable zod input schemas (the typed contract mobile sends).
 - `routers/*.ts` — one router per domain (lists, bookmarks, comments, polls, sharing, friends,
-  profile, tags, nearby, and the external-service router mounted as `places`/`metadata`/`comprehend`);
-  **55 procedures** total. Each is a thin wrapper over a `core` mutation or a `lib` read.
+  profile, tags, nearby, feedback, and the external-service router mounted as
+  `places`/`metadata`/`comprehend`); **80 procedures** total. Each is a thin wrapper over a `core`
+  mutation or a `lib` read.
 - `router.ts` — combines them into `appRouter` and `export type AppRouter`.
 
 **Security note:** the read modules have no built-in authz (RSC pages gate before reading),
@@ -228,7 +229,8 @@ src/app/_layout.tsx           root Stack + auth gate (login when signed out); re
   (tabs)/create.tsx           action-only tab: press intercepted → push /bookmarks/new (renders null)
   (tabs)/friends.tsx          friends + add-by-email; → friend-requests / pending-requests
   (tabs)/profile.tsx          own profile; settings gear → push /settings
-  settings.tsx                account + theme switcher + privacy link + danger zone (pushed route, reached from Profile gear)
+  settings.tsx                account + theme switcher + privacy link + feedback + danger zone (pushed route, reached from Profile gear)
+  feedback.tsx                Send feedback (category + message) → feedback.submit (pushed route, reached from Settings)
   delete-account.tsx          "Danger zone" account deletion; type-your-@handle to confirm → account.delete → sign out
   lists/[id].tsx              a list's bookmarks + tag filter + comments; List|Polls tabs + ⋮ actions menu (Edit/Members/Duplicate/Clear)
   lists/new.tsx  lists/edit.tsx  lists/members.tsx

@@ -77,6 +77,8 @@ model User {
   // Push notifications (mobile): one row per device + per-user category prefs.
   deviceTokens           DeviceToken[]
   notificationPreference NotificationPreference?
+
+  feedback Feedback[]
 }
 
 // A friendship between two users. Directed request (requester -> addressee) that
@@ -289,6 +291,23 @@ model NotificationPreference {
   comments       Boolean  @default(true)
   polls          Boolean  @default(true)
   updatedAt      DateTime @updatedAt
+}
+
+// In-app feedback from a signed-in user (Settings → Send feedback). Free-text
+// message plus a coarse category and client metadata; reviewed later via Prisma
+// Studio. Cascades away with the user.
+model Feedback {
+  id         String   @id @default(uuid())
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  category   String // "bug" | "idea" | "other"
+  message    String
+  platform   String? // "ios" | "web"
+  appVersion String?
+  createdAt  DateTime @default(now())
+
+  @@index([userId])
+  @@index([createdAt])
 }
 
 // Marketing waitlist / beta early-access signups from the logged-out landing page.

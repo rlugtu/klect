@@ -22,6 +22,8 @@ import { trpc } from '@/client/api';
 import { toast, errorMessage } from '@/client/toast';
 import BookmarkVideo from '@/components/bookmark-video';
 import CommentsSection, { type CommentItem } from '@/components/comments-section';
+import RatingStars from '@/components/rating-stars';
+import VisitedPill from '@/components/visited-pill';
 import TagPill from '@/components/tag-pill';
 import { screenshotThumbUrl, videoPosterUrl } from '@/lib/video-embed';
 import { useTheme } from '@/theme/theme-provider';
@@ -79,6 +81,18 @@ export default function BookmarkScreen() {
     }
   }
 
+  async function setRating(rating: number) {
+    if (!id || !b) return;
+    const prev = b.rating;
+    setData({ ...data!, bookmark: { ...b, rating } }); // optimistic
+    try {
+      await trpc.bookmarks.setRating.mutate({ bookmarkId: id, rating });
+    } catch {
+      setData({ ...data!, bookmark: { ...b, rating: prev } }); // revert
+      toast.error('Could not update rating');
+    }
+  }
+
   function confirmDelete() {
     Alert.alert('Delete bookmark?', 'This cannot be undone.', [
       { text: 'Cancel', style: 'cancel' },
@@ -102,6 +116,8 @@ export default function BookmarkScreen() {
   return (
     <ScrollView
       className="flex-1 bg-bg"
+      keyboardShouldPersistTaps="handled"
+      automaticallyAdjustKeyboardInsets
       contentContainerStyle={{ padding: 16, paddingTop: headerHeight + 8, gap: 12 }}>
       <Stack.Screen
         options={{
@@ -184,20 +200,8 @@ export default function BookmarkScreen() {
           <Text className="font-serif text-3xl text-ink">{b.name}</Text>
 
           <View className="flex-row items-center gap-3">
-            {b.rating > 0 && (
-              <Text className="text-base">
-                <Text className="text-accent">{'★'.repeat(b.rating)}</Text>
-                <Text className="text-muted">{'☆'.repeat(5 - b.rating)}</Text>
-              </Text>
-            )}
-            <Pressable
-              onPress={toggleVisited}
-              className={`rounded-skin-sm px-2.5 py-0.5 ${b.visited ? 'bg-success' : 'border-skin border-border'}`}>
-              <Text
-                className={`font-sans text-xs ${b.visited ? 'text-primary-ink' : 'text-muted'}`}>
-                {b.visited ? 'Visited' : 'Mark visited'}
-              </Text>
-            </Pressable>
+            <RatingStars value={b.rating} onChange={setRating} />
+            <VisitedPill visited={b.visited} onToggle={toggleVisited} />
           </View>
 
           {b.tags.length > 0 && (

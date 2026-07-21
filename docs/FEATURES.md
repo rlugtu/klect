@@ -72,6 +72,8 @@ with a link or a location.
   where you can also **share links straight into Klect** from any other app.
 - **Stay in control of your data.** A plain-language privacy policy explains what's collected, and
   you can **permanently delete your account** — and everything in it — at any time from Settings.
+- **Tell us what you think.** Send **feedback** — a bug, an idea, or anything else — straight from
+  Settings.
 
 ---
 
@@ -191,6 +193,7 @@ never trapped on the wrong screen.
 | "Share to Klect" how-to | ✅ | ✅ | Illustrated setup walkthrough in Settings (mobile entry iOS-only) |
 | Privacy policy | ✅ | ✅ | Public `/privacy` page; linked from Settings (mobile opens it in an in-app browser) |
 | Account deletion | ✅ | ✅ | Settings "Danger zone"; type-to-confirm; permanently deletes the user + all owned data (`account.delete`) |
+| Send feedback | ✅ | ✅ | Settings → Send feedback; category (bug/idea/other) + message → `Feedback` table (`feedback.submit`) |
 | Toast notifications | ✅ | ✅ | Non-intrusive confirmation/error toasts with a 3s countdown bar + type colors (success/error/info); web bottom-right/top-center · mobile top, swipe-to-dismiss + haptics |
 | PWA install | ✅ | ➖ | Web-only (mobile is a native app) |
 | AI caption extraction | ✅ | ➖ | Web-only (`comprehend.caption`, Claude-backed) |
@@ -369,9 +372,15 @@ tags are saved lowercase.
 filtering on the home screen.
 
 ### Ratings / Visited / Notes
-**Description.** Rate a bookmark 0–5 stars, toggle a "visited" flag, and keep multiline notes.
-**Web.** `RatingInput` / `StarRating`, `VisitedToggle` (`bookmarks.toggleVisited`), notes textarea.
-**Mobile.** Star control + optimistic "Mark visited" toggle on the detail screen; notes field.
+**Description.** Rate a bookmark 0–5 stars, toggle a "visited" flag, and keep multiline notes. Both
+the rating and the visited flag are editable **inline on the detail view** (tap a star to rate, tap
+the pill to toggle visited) as well as in the add/edit form — the two surfaces use the same controls.
+**Web.** Detail view: `InlineRating` (`bookmarks.setRating`) + `VisitedToggle`
+(`bookmarks.toggleVisited`) for editors, read-only `StarRating` + badge for viewers. Add/edit form:
+`RatingInput` + `VisitedField` (matched pair). Notes textarea.
+**Mobile.** Shared `RatingStars` (tap-to-rate, optimistic `bookmarks.setRating`) + `VisitedPill`
+(optimistic `bookmarks.toggleVisited`) on the detail screen; the same two controls in the add/edit
+form (form now also exposes the visited toggle). Notes field.
 **Differences.** None.
 
 ### Sharing & permissions
@@ -541,6 +550,19 @@ redirects to `/` (cascade-deleted sessions log the user out).
 **Mobile.** "Danger zone" row in Settings → pushed `delete-account` screen with the type-to-confirm
 field; on success calls `account.delete`, clears the bearer token, and signs out (root layout
 returns to the login screen).
+**Differences.** UI only — same backend on both.
+
+### Send feedback
+**Description.** A signed-in user can send app feedback from **Settings → Send feedback**: pick a
+category (Bug / Idea / Other) and write a message. The client also attaches the platform + app
+version. Stored in a `Feedback` table, reviewed later via Prisma Studio (no admin UI).
+**Backend.** `core.submitFeedback` (`web/src/lib/core/feedback.ts`) validates the message (required,
+≤2000 chars) and normalizes the category, then creates a `Feedback` row. Exposed as `feedback.submit`
+(tRPC) and the `sendFeedback` server action.
+**Web.** Settings card → `/settings/feedback` page with `FeedbackForm` (category chips + textarea)
+posting to `sendFeedback`; toast + redirect back to Settings.
+**Mobile.** "Feedback" row in Settings → pushed `feedback` screen (category chips + multiline box);
+on submit calls `feedback.submit` with `platform: 'ios'` + app version, then toasts and goes back.
 **Differences.** UI only — same backend on both.
 
 ### Themes

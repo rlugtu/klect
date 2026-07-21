@@ -50,6 +50,18 @@ export default async function SettingsPage() {
       </PixelCard>
 
       <PixelCard>
+        <h2 className="text-sm mb-4">Feedback</h2>
+        <p className="text-muted mb-4 text-sm">
+          Found a bug or have an idea? We&apos;d love to hear it.
+        </p>
+        <Link href="/settings/feedback">
+          <PixelButton variant="secondary" size="sm">
+            Send feedback →
+          </PixelButton>
+        </Link>
+      </PixelCard>
+
+      <PixelCard>
         <h2 className="text-sm mb-4">Privacy</h2>
         <p className="text-muted mb-4 text-sm">
           Read how Klect collects, uses, and protects your data.
