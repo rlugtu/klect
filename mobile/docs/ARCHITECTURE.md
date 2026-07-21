@@ -282,7 +282,9 @@ modal with `router.back()` (or `router.dismissAll()` after leaving a list).
   row** — a left-justified **search box** (filters the feed by bookmark name, case-insensitive
   substring) that fills the remaining width, with a **Tags ▾** button on its right (only when the
   list has tags) that opens a `@gorhom/bottom-sheet` tag filter (multi-select **OR**, distinct tags
-  across the list). Name search, the tag filter, and the unvisited toggle combine with **AND**. Selected tags render below
+  across the list). In that sheet, **collaborators** get a trash icon per tag that removes it from
+  every bookmark in the list (`tags.removeFromList`, confirmed via `Alert` with the affected count).
+  Name search, the tag filter, and the unvisited toggle combine with **AND**. Selected tags render below
   as a removable `#hashtag` row (tap to remove); a **Clear all** control appears whenever a tag is selected **or** the
   search box has text, and clears **both**. Footer is the list `CommentsSection` (List tab only). Access comes from
   `lists.get` (`{ list, role, isMember }`): **non-members of a public list** get a read-only view —

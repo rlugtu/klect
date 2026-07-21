@@ -43,8 +43,7 @@ export default function PrivacyPage() {
         <ul className="text-muted text-sm flex flex-col gap-2 list-disc pl-5">
           <li>
             <span className="text-ink">Account details</span> — your email address, your unique
-            @handle, and anything you choose to add to your profile (name, birthday, avatar, and
-            theme).
+            @handle, and anything you choose to add to your profile (name, avatar, and theme).
           </li>
           <li>
             <span className="text-ink">Content you create</span> — your lists and bookmarks

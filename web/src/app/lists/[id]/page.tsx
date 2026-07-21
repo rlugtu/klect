@@ -14,6 +14,7 @@ import type { BookmarkCardData } from "@/lib/types";
 import { ListPageHeader } from "@/components/lists/ListPageHeader";
 import type { CreateBookmarkProps } from "@/components/lists/ListToolbar";
 import { createBookmark as createBookmarkAction } from "@/lib/actions/bookmarks";
+import { removeListTag } from "@/lib/actions/tags";
 import { PollsView } from "@/components/polls/PollsView";
 import { ConfirmDeleteButton } from "@/components/ui/ConfirmDeleteButton";
 import { ListBookmarks } from "@/components/bookmarks/ListBookmarks";
@@ -96,7 +97,12 @@ export default async function ListPage({
                 : "No bookmarks here yet."}
             </p>
           ) : (
-            <ListBookmarks listId={id} bookmarks={bookmarks} />
+            <ListBookmarks
+              listId={id}
+              bookmarks={bookmarks}
+              canManageTags={canEdit}
+              removeTagAction={removeListTag.bind(null, id)}
+            />
           )}
         </section>
 

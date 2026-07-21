@@ -61,9 +61,13 @@ reuses the same components/tokens without any layout change.
 Resolved during planning (most-recent context in parentheses):
 
 - **Tags** are **user-scoped** (shared across all of a user's lists) and filter with **OR**
-  matching (a bookmark matches if it has *any* selected tag).
+  matching (a bookmark matches if it has *any* selected tag). A **collaborator** can remove a tag
+  from a list via the tag filter — a **list-scoped** delete that strips it from every bookmark in
+  that list (across all members' tags by name) while the user-scoped `Tag` rows survive for other
+  lists.
 - **Auth**: Google OAuth **+** email/password. Passwords hashed by better-auth (never store
-  raw). `birthday` is optional, collected at onboarding.
+  raw). `birthday` is a nullable `User` column that is **currently hidden from the UI** (the input
+  was removed from onboarding/settings; the column + API plumbing stay for easy reversal).
 - **Comments** attach to **both lists and bookmarks** (`Comment` has nullable `listId` and
   `bookmarkId`; exactly one is set).
 - **Icons**: emoji picker for lists and bookmarks.
@@ -95,7 +99,8 @@ fields extend the user record; app entities below.
 
 ```
 User            id, email, handle (unique, lowercase; the public @handle),
-                firstName, lastName, birthday?, icon (emoji),
+                firstName, lastName, birthday? (nullable; currently hidden from the UI),
+                icon (emoji),
                 theme (Theme enum), createdAt
                 — handle is the sole public identity, shown as @handle everywhere a
                   user is mentioned (comments, members, friends, search, polls,
@@ -253,7 +258,7 @@ helper — never rely on UI gating alone. Read-only public access uses `assertCa
 | Route | Purpose |
 |---|---|
 | `/login` | Google + email/password (better-auth) |
-| `/onboarding` | First login only: handle (required, unique @handle), first/last name (optional), birthday (optional), icon, theme |
+| `/onboarding` | First login only: handle (required, unique @handle), first/last name (optional), icon, theme |
 | `/` | **Home**: all lists you own or belong to; reorderable (web: Framer Motion drag · mobile: long-press drag) + unified search bar; a **List requests** button above the search opens `/requests` |
 | `/requests` | **List requests**: all open incoming list-join (collab) requests, approve/reject (empty state when none) |
 | `/friends` | **Friends**: add friends by **@handle**; always-visible **Requests** link → `/friends/requests` and **Pending** link → `/friends/pending`; friends list — each row can **remove** the friend, open their **profile**, and **add** them to a multiselect of your lists + role → send join requests (mobile packs these into one tap-to-expand actions panel; web uses row controls) |
@@ -547,6 +552,7 @@ release builds don't reliably persist `Secure` cookies. `auth.api.getSession()` 
 | `profile.get` | query | `{ handleOrId }` | signed-in (public data only) | `getPublicProfile` — resolves by @handle or id; identity + public lists + friend count + viewer↔target friendship state |
 | `account.delete` | mutation | – | self | `core.deleteAccount` — permanently deletes the caller and everything they own; a single `prisma.user.delete` cascades to all owned rows (sessions, accounts, owned lists → bookmarks/comments/polls/chat, memberships, invites, tags, comments, polls, votes, friendships, DMs, list-chat). Idempotent. Irreversible |
 | `tags.mine` | query | – | user-scoped | `getUserTags` |
+| `tags.removeFromList` | mutation | `{ listId, name }` | collaborator | `core/tags.removeTagFromList` — list-scoped delete of every `BookmarkTag` for that tag name on the list's bookmarks (across all members); user-scoped `Tag` rows survive for other lists |
 | `nearby.find` | query | `{ lat, lon, radiusMiles, listIds }` | user-scoped | `core.findNearbyBookmarks` — each result carries `lat`/`lon` (for map pins) alongside `distanceMiles` |
 | `notifications.registerDevice` | mutation | `{ token, platform }` | self | `core/notifications.registerDeviceToken` — upserts the device's Expo push token (unique `token`; reassigns on re-auth) |
 | `notifications.unregisterDevice` | mutation | `{ token }` | self | `core/notifications.unregisterDeviceToken` — drops the token (sign-out / push disabled) |

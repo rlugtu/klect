@@ -5,7 +5,8 @@ description, multiple URLs (`urls[0]` = original source), extracted **photos** (
 notes, location, 0–5 rating, visited flag, and user-scoped **tags** (stored lowercase — casing
 variants are normalized on save so they can't duplicate — each auto-assigned a color at creation;
 web renders them as colored pills, mobile as uniform `#hashtags` where the `#` is display-only and
-never stored). Lists are drag-reorderable
+never stored; a **collaborator** can remove a tag from a list, a list-scoped delete that strips it
+from every bookmark in that list). Lists are drag-reorderable
 (per-user), searchable (name + OR tag filter), and shareable by inviting **viewers** (view +
 comment) or **collaborators** (edit + comment); the **owner** manages membership. Each list is
 **public or private** (owner-only toggle; **private by default**) — a public list is read-only

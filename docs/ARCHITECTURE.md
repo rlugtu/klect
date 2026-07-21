@@ -118,8 +118,9 @@ export async function updateList(listId, formData) {
 ```
 
 `core` contains **all** the business rules (validation, tag-color assignment, invite
-auto-linking, bookmark field normalization). It has no FormData, no `revalidatePath`/
-`redirect`, and no session lookup — those are transport concerns handled by the caller.
+auto-linking, bookmark field normalization, list-scoped tag removal in `core/tags.ts`). It has no
+FormData, no `revalidatePath`/`redirect`, and no session lookup — those are transport concerns
+handled by the caller.
 
 ### The tRPC API (`src/server/trpc`)
 

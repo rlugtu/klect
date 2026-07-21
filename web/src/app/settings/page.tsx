@@ -8,11 +8,6 @@ import { DeleteAccountSection } from "@/components/settings/DeleteAccountSection
 import { PixelCard } from "@/components/ui/PixelCard";
 import { PixelButton } from "@/components/ui/PixelButton";
 
-function toDateInput(value: Date | string | null | undefined): string | null {
-  if (!value) return null;
-  return new Date(value).toISOString().slice(0, 10);
-}
-
 export default async function SettingsPage() {
   const user = await requireOnboardedUser();
 
@@ -36,7 +31,6 @@ export default async function SettingsPage() {
             firstName: user.firstName ?? null,
             lastName: user.lastName ?? null,
             handle: user.handle ?? null,
-            birthday: toDateInput(user.birthday),
             icon: user.icon ?? null,
             theme: coerceTheme(user.theme),
           }}

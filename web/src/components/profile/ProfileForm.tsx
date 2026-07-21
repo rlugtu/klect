@@ -15,7 +15,6 @@ export type ProfileDefaults = {
   firstName: string | null;
   lastName: string | null;
   handle: string | null;
-  birthday: string | null; // yyyy-mm-dd
   icon: string | null;
   theme: Theme;
 };
@@ -86,15 +85,6 @@ export function ProfileForm({
           <PixelInput name="lastName" defaultValue={defaults.lastName ?? ""} />
         </label>
       </div>
-
-      <label className="flex flex-col gap-1.5">
-        <FieldLabel>Birthday</FieldLabel>
-        <PixelInput
-          type="date"
-          name="birthday"
-          defaultValue={defaults.birthday ?? ""}
-        />
-      </label>
 
       <div className="flex flex-col gap-2">
         <FieldLabel>Avatar</FieldLabel>

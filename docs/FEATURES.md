@@ -34,7 +34,7 @@ with a link or a location.
   TikTok, Instagram, and more).
 - **Organize with lists.** Group bookmarks into lists (e.g. "Tokyo trip," "Date night spots") and
   reorder them however you like.
-- **Tag and filter.** Add tags to bookmarks (shown as `#hashtags` on mobile) and filter to exactly what you're looking for.
+- **Tag and filter.** Add tags to bookmarks (shown as `#hashtags` on mobile) and filter to exactly what you're looking for. Collaborators can also clean a tag out of a whole list in one action.
 - **Search everything.** Find any list or bookmark fast.
 - **Share and collaborate.** Invite people to a list as a **viewer** (can look and comment) or a
   **collaborator** (can add and edit) — they get a **request** to accept, so nobody's added without
@@ -174,7 +174,7 @@ never trapped on the wrong screen.
 | Link metadata autofill | ✅ | ✅ | Paste URL → two-phase: self-fetch/LinkPreview extract (fast) then JSON-LD/LLM comprehension + geocode → clean name/description/tags/location/coords/images/video |
 | Location autocomplete + business autofill | ✅ | ✅ | Mapbox Search Box |
 | Video detection & player | ⚠️ | ⚠️ | Web iframe click-to-play · Mobile `expo-video` + WebView |
-| Tags (user-scoped, auto-colored, OR filter) | ✅ | ✅ | Per-list filter: web dropdown · mobile bottom sheet |
+| Tags (user-scoped, auto-colored, OR filter) | ✅ | ✅ | Per-list filter: web dropdown · mobile bottom sheet. Collaborators can remove a tag from the whole list (list-scoped, `tags.removeFromList`) |
 | Ratings / Visited / Notes | ✅ | ✅ | Visited also drives a **Show only unvisited** toggle on the list view (above the search row) |
 | Sharing & permissions | ✅ | ✅ | Owner / Collaborator / Viewer; **request-based** invites (invitee approves/rejects) |
 | Friends | ✅ | ✅ | Add by **@handle** (request + accept); bulk-add a friend to your lists |
@@ -209,8 +209,9 @@ session cookies; `?next=` redirect is same-origin-guarded.
 
 ### Onboarding
 **Description.** First-run profile setup for a new user: a unique **@handle** (required — the
-public identity used everywhere a user is mentioned), optional first/last name and birthday, an
-emoji avatar, and a starting theme. Handles are lowercase `a–z 0–9 _`, 3–20 chars, and unique.
+public identity used everywhere a user is mentioned), optional first/last name, an emoji avatar,
+and a starting theme. Handles are lowercase `a–z 0–9 _`, 3–20 chars, and unique. (A `birthday`
+column exists on `User` but its input is currently hidden across web + mobile.)
 **Web.** `/onboarding` → `ProfileForm`; `completeOnboarding` action. Gated by whether the user has a
 `handle`.
 **Mobile.** `src/components/onboarding-screen.tsx`, gated by the root layout; saves via
@@ -349,11 +350,17 @@ before mount.
 lowercases, trims, strips any leading `#`, and dedupes on save, so casing variants like `Coffee` /
 `coffee` never create duplicates), each auto-assigned a color at creation. Web renders them as colored
 pills; mobile renders them as uniform `#hashtags` (the `#` is display-only and never stored).
-Filtering is OR-based (a bookmark matches if it has any selected tag).
-**Web.** `TagInput` (suggestions + quick-add chips), per-list filter dropdown in `ListBookmarks`,
-color via `randomTagColor`. `tags.mine`, `bookmarks.byTags`.
+Filtering is OR-based (a bookmark matches if it has any selected tag). A **collaborator** can also
+**remove a tag from a list** straight from the tag filter (trash icon + confirm): a list-scoped
+delete that strips the tag from every bookmark in that list (across all members' identically-named
+tags) while the user-scoped `Tag` rows survive elsewhere. Backed by `tags.removeFromList` /
+`core/tags.removeTagFromList`, gated `COLLABORATOR`.
+**Web.** `TagInput` (suggestions + quick-add chips), per-list filter dropdown in `ListBookmarks`
+(trash-to-remove for collaborators), color via `randomTagColor`. `tags.mine`, `tags.removeFromList`,
+`bookmarks.byTags`.
 **Mobile.** `TagPill` component (`#hashtag` text); per-list tag filter via a `@gorhom/bottom-sheet`
-multi-select. The bookmark form strips a typed `#` and notes tags are saved lowercase.
+multi-select (trash icon per tag for collaborators). The bookmark form strips a typed `#` and notes
+tags are saved lowercase.
 **Differences.** Per-list filter UX differs (dropdown vs bottom sheet); web additionally exposes tag
 filtering on the home screen.
 
