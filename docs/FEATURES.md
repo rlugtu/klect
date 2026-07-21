@@ -561,9 +561,10 @@ filled out and saved **inside the share sheet**, without opening the app.
 share sheet (auto-autofill on mount, two-phase via `metadata.extract` + `metadata.comprehend`),
 saving through `bookmarks.createInLists`. Auth uses
 a bearer token read from the shared keychain; if none is present it prompts to open Klect and sign in.
-The drawer stays responsive throughout: on-mount autofill is **non-blocking** (an inline "Fetching
-link…" hint, the list picker stays tappable) and the picker **hydrates instantly** from a
-shared-keychain snapshot of your lists the app keeps mirrored, then refreshes in the background.
+The drawer stays responsive throughout: on-mount autofill is **non-blocking** — the loading state is
+scoped to the bookmark (the Bookmark section dims + shows an "Autofilling…" indicator while its
+fields are being filled) so the **list picker stays tappable** — and the picker **hydrates instantly**
+from a shared-keychain snapshot of your lists the app keeps mirrored, then refreshes in the background.
 Requires the custom dev build.
 **Setup help.** A short, illustrated **"Share to Klect"** walkthrough teaches users how to surface
 and favorite the extension in the iOS share sheet — four steps, one screenshot each. It's reachable

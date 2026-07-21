@@ -292,15 +292,29 @@ export default function BookmarkForm({
           <>
             {header}
             {/* Separate the list-picker section from the bookmark fields below, with the
-                "Bookmark" section header sharing the divider row. */}
+                "Bookmark" section header sharing the divider row. While the on-mount autofill
+                runs, the label carries an "Autofilling…" indicator and the fields below dim — so
+                the loading state reads as scoped to the bookmark, leaving the list picker live. */}
             <View className="my-1 flex-row items-center gap-3">
               <Text className="font-sans-medium text-sm uppercase text-muted">
                 Bookmark
               </Text>
+              {prefilling && (
+                <View className="flex-row items-center gap-1.5">
+                  <ActivityIndicator size="small" />
+                  <Text className="text-sm text-muted">Autofilling…</Text>
+                </View>
+              )}
               <View className="h-px flex-1 bg-border" />
             </View>
           </>
         ) : null}
+        {/* Bookmark fields — dimmed + touch-blocked while the on-mount autofill (prefilling) is in
+            flight, so the user can't edit values that are about to be overwritten. The list picker
+            (header, above) stays interactive. Phase-2 enhancing stays non-blocking (editable). */}
+        <View
+          pointerEvents={prefilling ? 'none' : 'auto'}
+          style={{ gap: 12, opacity: prefilling ? 0.5 : 1 }}>
         <View className="flex-row gap-2">
           <TextInput
             className="flex-1 rounded-skin border-skin border-border px-4 py-3 text-ink"
@@ -324,14 +338,8 @@ export default function BookmarkForm({
           </Pressable>
         </View>
 
-        {/* Non-blocking indicators — the form + list picker stay editable while these run.
-            phase 1 (on-mount fetch) then phase 2 (comprehension enrichment). */}
-        {prefilling && (
-          <View className="flex-row items-center gap-2">
-            <ActivityIndicator size="small" />
-            <Text className="text-sm text-muted">Fetching link…</Text>
-          </View>
-        )}
+        {/* Phase-2 comprehension enrichment — non-blocking, fields stay editable. (Phase-1
+            on-mount fetch surfaces as the "Autofilling…" indicator on the Bookmark divider.) */}
         {enhancing && (
           <View className="flex-row items-center gap-2">
             <ActivityIndicator size="small" />
@@ -351,7 +359,10 @@ export default function BookmarkForm({
             onAutofill={handleLocationAutofill}
           />
           <Text className="text-sm text-muted">
-            Pick a business to autofill its name, photos & details.
+            Pick a business to autofill its name & details.
+          </Text>
+          <Text className="text-sm text-muted">
+            Adding a location makes it findable on Near me.
           </Text>
         </View>
 
@@ -415,6 +426,7 @@ export default function BookmarkForm({
             <Text className="font-semibold text-primary-ink">{submitLabel}</Text>
           )}
         </Pressable>
+        </View>
       </ScrollView>
 
       {/* Full-screen blocking overlay while link data is fetched: dims the whole

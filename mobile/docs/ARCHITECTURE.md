@@ -378,8 +378,9 @@ modal with `router.back()` (or `router.dismissAll()` after leaving a list).
   present (e.g. an OAuth session never surfaced to the shared keychain, or signed out) it shows an
   "Open Klect" prompt (`openHostApp`), since the extension can't run the OAuth deep-link flow. Metro
   builds the extension as a second bundle via `withShareExtension`; requires the custom dev build.
-  For perceived speed the drawer never blocks: on-mount metadata autofill is **non-blocking** (the
-  list picker stays interactive while the link is fetched — see `BookmarkForm` below), and the list
+  For perceived speed the drawer never blocks: on-mount metadata autofill is **non-blocking** — its
+  loading state is scoped to the Bookmark section (which dims + shows an "Autofilling…" indicator)
+  so the list picker stays interactive while the link is fetched (see `BookmarkForm` below), and the list
   picker **hydrates instantly** from a snapshot the app write-mirrors into the shared keychain
   (`client/shared-lists-cache.ts`) before the live `lists.mine` refresh returns.
 
@@ -398,9 +399,11 @@ fields — visually splitting the drawer into its list and bookmark sections.
 `onSubmit(data)` is provided by each screen; throwing from it surfaces the message inline (used to
 enforce "pick at least one list"). A **manual** Autofill button press is blocking (a full-screen
 overlay while it overwrites the fields); `autofillOnMount` (guarded to run once, for a shared URL)
-is **non-blocking** instead — it shows only an inline "Fetching link…" indicator so the rest of the
-drawer (notably the list picker) stays usable, and it fills/refines name & description **without
-clobbering** anything the user hand-edited meanwhile (tracked via dirty refs). Tags are entered
+is **non-blocking** instead — while phase 1 runs it scopes the loading state to the **Bookmark
+section** (dimmed + touch-blocked, with an "Autofilling…" indicator on its divider row) so the rest
+of the drawer (notably the list picker header) stays usable, then leaves the fields editable for
+phase-2 comprehension (a subtle "✨ Enhancing details…" row). It fills/refines name & description
+**without clobbering** anything the user hand-edited meanwhile (tracked via dirty refs). Tags are entered
 comma-separated; a leading `#` is stripped on input
 (the `#` is display-only) and web's core lowercases + dedupes on save, so casing variants never
 create duplicate tags. The scroll view uses `automaticallyAdjustKeyboardInsets` (not a
