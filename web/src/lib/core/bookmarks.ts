@@ -59,7 +59,7 @@ function normalizeFields(input: BookmarkInput) {
   const images = [...new Set(input.images.map((u) => u.trim()).filter(Boolean))];
 
   const rating = Number.isFinite(input.rating)
-    ? Math.min(5, Math.max(0, Math.round(input.rating)))
+    ? Math.min(5, Math.max(0, Math.round(input.rating * 2) / 2)) // snap to half-steps
     : 0;
 
   // Video: keep only a trusted-host iframe embed or an https direct file.
@@ -363,7 +363,7 @@ export async function setRating(
   await assertRole(userId, bookmark.listId, "COLLABORATOR");
 
   const clamped = Number.isFinite(rating)
-    ? Math.min(5, Math.max(0, Math.round(rating)))
+    ? Math.min(5, Math.max(0, Math.round(rating * 2) / 2)) // snap to half-steps
     : 0;
   await prisma.bookmark.update({
     where: { id: bookmarkId },

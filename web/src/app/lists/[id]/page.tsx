@@ -12,6 +12,7 @@ import { addListComment } from "@/lib/actions/comments";
 import { CommentSection } from "@/components/comments/CommentSection";
 import type { BookmarkCardData } from "@/lib/types";
 import { ListPageHeader } from "@/components/lists/ListPageHeader";
+import { MembersPanel } from "@/components/sharing/MembersPanel";
 import type { CreateBookmarkProps } from "@/components/lists/ListToolbar";
 import { createBookmark as createBookmarkAction } from "@/lib/actions/bookmarks";
 import { removeListTag } from "@/lib/actions/tags";
@@ -35,14 +36,20 @@ export default async function ListPage({
 
   const { role, isMember } = access;
   const canEdit = isMember && roleAtLeast(role, "COLLABORATOR");
-  // Polls are members-only; a public viewer never sees the tab.
+  const isOwner = isMember && role === "OWNER";
+  // Members + Polls tabs are members-only; a public viewer never sees them.
   const showPolls = tab === "polls" && isMember;
+  const showMembers = tab === "members" && isMember;
 
   let content: ReactNode;
   // When set (collaborator+ on the List tab), the header shows a "New bookmark" button.
   let createBookmark: CreateBookmarkProps | undefined;
 
-  if (showPolls) {
+  if (showMembers) {
+    content = (
+      <MembersPanel listId={id} currentUserId={user.id} canManage={isOwner} />
+    );
+  } else if (showPolls) {
     const polls = await getListPolls(id);
     content = <PollsView listId={id} polls={polls} canCreate={canEdit} />;
   } else {
@@ -122,7 +129,7 @@ export default async function ListPage({
       <ListPageHeader
         access={access}
         userId={user.id}
-        activeKey={showPolls ? "polls" : "list"}
+        activeKey={showMembers ? "members" : showPolls ? "polls" : "list"}
         createBookmark={createBookmark}
       />
       {content}

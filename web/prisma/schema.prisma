@@ -343,7 +343,7 @@ model Bookmark {
   location    String   @default("")
   latitude    Float? // set when location is picked from autocomplete; null for free text / old rows
   longitude   Float?
-  rating      Int      @default(0) // 0–5
+  rating      Float    @default(0) // 0–5 in half-steps (0, 0.5, 1, … 5)
   visited     Boolean  @default(false)
   videoUrl    String   @default("") // detected playable video (embed src or media file)
   videoType   String   @default("") // "" | "iframe" | "file"

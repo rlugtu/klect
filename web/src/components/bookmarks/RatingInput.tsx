@@ -1,9 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import { cn } from "@/lib/utils";
+import { EditableStars } from "./EditableStars";
 
-/** Clickable 0–5 stars. Clicking the current rating again clears it to 0. */
+/** Clickable 0–5 stars (half steps). Clicking the current rating again clears it to 0. */
 export function RatingInput({
   name = "rating",
   defaultValue = 0,
@@ -12,28 +12,11 @@ export function RatingInput({
   defaultValue?: number;
 }) {
   const [value, setValue] = useState(defaultValue);
-  const [hover, setHover] = useState(0);
-  const shown = hover || value;
 
   return (
-    <div className="flex items-center gap-1">
+    <div className="flex items-center gap-2">
       <input type="hidden" name={name} value={value} />
-      {[1, 2, 3, 4, 5].map((n) => (
-        <button
-          key={n}
-          type="button"
-          aria-label={`${n} star${n === 1 ? "" : "s"}`}
-          onClick={() => setValue(n === value ? 0 : n)}
-          onMouseEnter={() => setHover(n)}
-          onMouseLeave={() => setHover(0)}
-          className={cn(
-            "cursor-pointer text-2xl leading-none transition-transform hover:scale-110",
-            n <= shown ? "text-warning" : "text-muted",
-          )}
-        >
-          {n <= shown ? "★" : "☆"}
-        </button>
-      ))}
+      <EditableStars value={value} onChange={setValue} />
       {value > 0 && (
         <button
           type="button"

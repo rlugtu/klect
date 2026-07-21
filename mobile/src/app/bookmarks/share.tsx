@@ -1,13 +1,16 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
+  Keyboard,
+  KeyboardAvoidingView,
+  Platform,
   Pressable,
   ScrollView,
   Text,
   TextInput,
   View,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { Stack, useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { useHeaderHeight } from '@react-navigation/elements';
@@ -31,6 +34,7 @@ export default function ShareBookmarkScreen() {
   const { theme } = useTheme();
   const t = THEME_TOKENS[theme];
   const headerHeight = useHeaderHeight();
+  const insets = useSafeAreaInsets();
   const router = useRouter();
   const { id } = useLocalSearchParams<{ id: string; name?: string }>();
 
@@ -39,6 +43,20 @@ export default function ShareBookmarkScreen() {
   const [selected, setSelected] = useState<string[]>([]);
   const [caption, setCaption] = useState('');
   const [sending, setSending] = useState(false);
+  // When the keyboard is up it already covers the home-indicator area, so the
+  // composer sits flush on it; the bottom inset is only needed when it's hidden.
+  const [keyboardShown, setKeyboardShown] = useState(false);
+
+  useEffect(() => {
+    const showEvt = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
+    const hideEvt = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
+    const show = Keyboard.addListener(showEvt, () => setKeyboardShown(true));
+    const hide = Keyboard.addListener(hideEvt, () => setKeyboardShown(false));
+    return () => {
+      show.remove();
+      hide.remove();
+    };
+  }, []);
 
   useFocusEffect(
     useCallback(() => {
@@ -86,14 +104,18 @@ export default function ShareBookmarkScreen() {
   return (
     <SafeAreaView style={{ flex: 1 }} edges={['left', 'right']} className="bg-bg">
       <Stack.Screen options={{ headerTitle: '' }} />
-      <ScrollView
-        keyboardShouldPersistTaps="handled"
-        contentContainerStyle={{
-          padding: 16,
-          paddingTop: headerHeight + 8,
-          paddingBottom: 40,
-          gap: 10,
-        }}>
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        keyboardVerticalOffset={0}>
+        <ScrollView
+          keyboardShouldPersistTaps="handled"
+          contentContainerStyle={{
+            padding: 16,
+            paddingTop: headerHeight + 8,
+            paddingBottom: 40,
+            gap: 10,
+          }}>
         <Text className="font-serif text-3xl text-ink">Send to…</Text>
 
         {loaded && friends.length === 0 && (
@@ -124,7 +146,7 @@ export default function ShareBookmarkScreen() {
 
       <View
         className="gap-2 border-t border-border px-4 py-3"
-        style={{ paddingBottom: 16 }}>
+        style={{ paddingBottom: 12 + (keyboardShown ? 0 : insets.bottom) }}>
         <TextInput
           className="rounded-skin border-skin border-border bg-panel px-4 py-2.5 font-sans text-ink"
           placeholder="Add a message… (optional)"
@@ -150,6 +172,7 @@ export default function ShareBookmarkScreen() {
           )}
         </Pressable>
       </View>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }

@@ -6,22 +6,30 @@ import { ConfirmDeleteButton } from "@/components/ui/ConfirmDeleteButton";
 import { PixelBadge } from "@/components/ui/PixelBadge";
 import { atHandle } from "@/lib/handle";
 
-/** Owner-only sharing controls: invite, list members, manage roles, pending invites. */
+const ROLE_LABEL = { OWNER: "Owner", COLLABORATOR: "Collaborator", VIEWER: "Viewer" };
+
+/**
+ * List members roster. Visible to every member: the roster + roles are read-only
+ * for everyone; when `canManage` (owner) the invite form, per-row role/remove
+ * controls, and pending-request list are shown.
+ */
 export async function MembersPanel({
   listId,
   currentUserId,
+  canManage,
 }: {
   listId: string;
   currentUserId: string;
+  canManage: boolean;
 }) {
   const [members, invites] = await Promise.all([
     getListMembers(listId),
-    getPendingInvites(listId),
+    canManage ? getPendingInvites(listId) : Promise.resolve([]),
   ]);
 
   return (
     <div className="flex flex-col gap-5">
-      <InviteForm listId={listId} />
+      {canManage && <InviteForm listId={listId} />}
 
       <div className="flex flex-col gap-2">
         <h3 className="font-pixel text-muted text-sm uppercase">Members</h3>
@@ -37,27 +45,25 @@ export async function MembersPanel({
                 <span className="text-muted text-sm">(you)</span>
               )}
             </span>
-            {m.role === "OWNER" ? (
-              <PixelBadge tone="accent">Owner</PixelBadge>
-            ) : (
+            {canManage && m.role !== "OWNER" ? (
               <span className="flex shrink-0 items-center gap-2">
-                <RoleSelect
-                  listId={listId}
-                  userId={m.userId}
-                  role={m.role}
-                />
+                <RoleSelect listId={listId} userId={m.userId} role={m.role} />
                 <ConfirmDeleteButton
                   action={removeMember.bind(null, listId, m.userId)}
                   label="Remove"
                   confirmText="Remove?"
                 />
               </span>
+            ) : (
+              <PixelBadge tone={m.role === "OWNER" ? "accent" : "default"}>
+                {ROLE_LABEL[m.role]}
+              </PixelBadge>
             )}
           </div>
         ))}
       </div>
 
-      {invites.length > 0 && (
+      {canManage && invites.length > 0 && (
         <div className="flex flex-col gap-2">
           <h3 className="font-pixel text-muted text-sm uppercase">
             Pending requests

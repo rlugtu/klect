@@ -137,11 +137,11 @@ Stack's `screenOptions` in `_layout.tsx`, so it's the default for **every** rout
 registered, unregistered, or added later). It *must* be a string: native-stack derives the native
 title bar text via `getHeaderTitle({ title, headerTitle }, route.name)`, which only uses `headerTitle`
 when it's a string — a **function** value (e.g. `() => null`) is ignored and it falls back to
-`route.name`, so the raw segment (`lists/[id]`, `lists/members`, …) leaks through as the title. An
+`route.name`, so the raw segment (`lists/[id]`, `lists/actions`, …) leaks through as the title. An
 empty string resolves to a blank native title. Only the back chevron + any header-right button appear
 to *float*.
 The page name instead lives in the **scrolling page body** (a `font-serif text-3xl` heading at the
-top of the content — screens whose name was header-only, like list detail / members / polls / settings
+top of the content — screens whose name was header-only, like list detail / polls / settings
 / the three request views, gained one; bookmark detail, poll detail, and profiles already rendered
 theirs). The back button is chevron-only (`headerBackButtonDisplayMode: 'minimal'` — no route-name
 text) and the tint (back chevron) is `primary`. Because the header is transparent, each full-screen
@@ -185,7 +185,7 @@ a centered title anywhere in the app**.
   light/dark by theme) lives in the root `AppStack`. Full-screen **pushed** screens get the same look
   via the transparent navigation header described above (same `header-blur-background` surface), so every
   page's top bar is consistent.
-- **Stack screens**: `lists/[id]` (list detail), `lists/members`, `bookmarks/[id]` (detail),
+- **Stack screens**: `lists/[id]` (list detail), `bookmarks/[id]` (detail),
   `users/[id]` (another user's profile, pushed from friend rows), `requests` (incoming list-join
   requests), `friend-requests` (incoming friend requests), `pending-requests` (outgoing friend
   requests you've sent — cancel to withdraw), `dm/[conversationId]` (a DM chat thread) and `dm/new`
@@ -271,13 +271,16 @@ modal with `router.back()` (or `router.dismissAll()` after leaving a list).
   YouTube poster (`videoPosterUrl`) then a no-key page screenshot (`screenshotThumbUrl`, WordPress
   mShots), both in `lib/video-embed.ts`. The nav header holds a single **flat Add** button (a
   borderless primary-colored **＋** glyph, no filled pill → `bookmarks/new?listId=`, editors); the **⋮** button — opening a `@gorhom/bottom-sheet` **actions
-  menu** (Edit list → `lists/edit`, owner Members → `lists/members`, Duplicate list → `lists/actions`,
+  menu** (Edit list → `lists/edit`, Duplicate list → `lists/actions`,
   owner destructive Clear list → native confirm → `lists.clearBookmarks`) — now sits on the
   **list-name row**, right-justified beside the title. Below the identity block, in the `FlatList`
-  header: a **center-aligned** rounded-pill **List | Polls** segmented control (echoes the floating nav bar). Polls
-  render **inline** — tapping the tab swaps the feed to the list's polls (`polls.forList`, via the
-  shared `components/poll-row.tsx`) with a **Create poll** button (editors), no route push, so the
-  header/details/tab bar stay mounted; poll detail/create stay their own pushed routes. On the **List**
+  header: a **center-aligned** rounded-pill **List | Members | Polls** segmented control (echoes the floating nav bar), all members-only. **Members** and **Polls**
+  render **inline** — tapping the tab swaps the feed, no route push, so the
+  header/details/tab bar stay mounted. **Members** renders `components/list-members.tsx` (the roster
+  is read-only for everyone; the owner also gets the invite form + per-row role/remove controls +
+  pending-request list; non-owners get a **Leave list** button); **Polls** renders the list's polls
+  (`polls.forList`, via the shared `components/poll-row.tsx`) with a **Create poll** button (editors);
+  poll detail/create stay their own pushed routes. On the **List**
   tab, below the tabs: a **Show only unvisited** toggle, then a **filter
   row** — a left-justified **search box** (filters the feed by bookmark name, case-insensitive
   substring) that fills the remaining width, with a **Tags ▾** button on its right (only when the
@@ -419,6 +422,26 @@ off-screen. Because the multiline **Description** keeps Enter as a newline (no r
 the scroll view sets `keyboardDismissMode` (`interactive` on iOS / `on-drag` on Android) so a
 downward drag closes the keyboard, and the Description field wires an iOS `InputAccessoryView` "Done"
 bar above the keyboard as an explicit dismiss affordance.
+
+### Keyboard avoidance (convention — read before adding any text input)
+
+Every screen with a text input **must** keep that input visible above the keyboard. There are two
+canonical patterns; pick by layout and copy an existing example rather than inventing a third:
+
+- **Fixed bottom composer** (a text input pinned to the bottom, content scrolling above it) → wrap
+  the scroll region **and** the composer in a `KeyboardAvoidingView`
+  (`behavior={Platform.OS === 'ios' ? 'padding' : undefined}`, `keyboardVerticalOffset={0}`), drop
+  the `bottom` safe-area edge on the `SafeAreaView`, and add the home-indicator inset to the
+  composer **only when the keyboard is hidden** (a `Keyboard` show/hide listener toggles a
+  `keyboardShown` flag; `paddingBottom: base + (keyboardShown ? 0 : insets.bottom)`) so the input
+  sits flush on the keyboard while typing. Reference: `app/dm/[conversationId].tsx` (DM thread) —
+  also used by `app/bookmarks/share.tsx` (share-to-DM composer) and the list-chat bottom sheet.
+- **Scroll-driven form** (fields inside a scroll view, no pinned composer) → set
+  `automaticallyAdjustKeyboardInsets` on the `ScrollView`/`FlatList` (not a `KeyboardAvoidingView`).
+  Reference: `bookmark-form.tsx`, the list screen's `FlatList`, comments.
+
+The recurring bug is a fixed composer rendered outside any avoider (so the keyboard covers it) — if
+you add a bottom input, use the `KeyboardAvoidingView` pattern above.
 
 - **`LocationInput`** (`components/location-input.tsx`) — Mapbox Search Box autocomplete via web's
   `places.search` / `places.retrieve` procedures (token stays server-side). Carries a **"Location"**

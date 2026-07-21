@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { List, Vote, type LucideIcon } from "lucide-react";
+import { List, Users, Vote, type LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 type TabDef = {
@@ -25,6 +25,14 @@ const TABS: TabDef[] = [
     icon: List,
     href: (id) => `/lists/${id}`,
     show: () => true,
+  },
+  {
+    key: "members",
+    label: "Members",
+    icon: Users,
+    href: (id) => `/lists/${id}?tab=members`,
+    // The roster is members-only (read-only for non-owners).
+    show: ({ isMember }) => isMember,
   },
   {
     key: "polls",

@@ -1,23 +1,8 @@
 import { useCallback, useState } from 'react';
-import {
-  ActivityIndicator,
-  Alert,
-  Pressable,
-  ScrollView,
-  Text,
-  TextInput,
-  View,
-} from 'react-native';
-import {
-  Stack,
-  useFocusEffect,
-  useLocalSearchParams,
-  useRouter,
-} from 'expo-router';
-import { useHeaderHeight } from '@react-navigation/elements';
+import { ActivityIndicator, Alert, Pressable, Text, TextInput, View } from 'react-native';
+import { useFocusEffect } from 'expo-router';
 
 import { trpc } from '@/client/api';
-import { authClient } from '@/client/auth';
 import { atHandle } from '@/lib/handle';
 import { useTheme } from '@/theme/theme-provider';
 import { THEME_TOKENS } from '@/theme/tokens';
@@ -26,14 +11,23 @@ type Members = Awaited<ReturnType<typeof trpc.sharing.members.query>>;
 type Invites = Awaited<ReturnType<typeof trpc.sharing.pendingInvites.query>>;
 type InviteRole = 'VIEWER' | 'COLLABORATOR';
 
-export default function MembersScreen() {
-  const router = useRouter();
-  const { id } = useLocalSearchParams<{ id: string; name?: string }>();
-  const { data: session } = authClient.useSession();
-  const myId = session?.user?.id;
+/**
+ * The list's member roster. Rendered as the Members tab on the list screen and
+ * shown to every member: the roster + roles are read-only for everyone, while
+ * the invite form, per-row role/remove controls, and pending-request list are
+ * owner-only. Non-owners get a "Leave list" action instead.
+ */
+export default function ListMembers({
+  listId,
+  isOwner,
+  onLeave,
+}: {
+  listId: string;
+  isOwner: boolean;
+  onLeave?: () => void;
+}) {
   const { theme } = useTheme();
   const muted = THEME_TOKENS[theme].muted;
-  const headerHeight = useHeaderHeight();
 
   const [members, setMembers] = useState<Members>([]);
   const [invites, setInvites] = useState<Invites>([]);
@@ -44,29 +38,27 @@ export default function MembersScreen() {
   const [busy, setBusy] = useState(false);
   const [loaded, setLoaded] = useState(false);
 
-  const isOwner = members.find((m) => m.user.id === myId)?.role === 'OWNER';
-
   const load = useCallback(() => {
-    if (!id) return;
-    trpc.sharing.members.query({ listId: id }).then(setMembers).catch(() => {});
+    if (!listId) return;
+    trpc.sharing.members.query({ listId }).then(setMembers).catch(() => {});
     // Owner-only; ignore the 403 for non-owners.
     trpc.sharing.pendingInvites
-      .query({ listId: id })
+      .query({ listId })
       .then(setInvites)
       .catch(() => setInvites([]))
       .finally(() => setLoaded(true));
-  }, [id]);
+  }, [listId]);
 
   useFocusEffect(useCallback(() => load(), [load]));
 
   async function invite() {
-    if (!id || !handle.trim()) return;
+    if (!listId || !handle.trim()) return;
     setBusy(true);
     setMsg(null);
     setOfferFriend(null);
     try {
       const res = await trpc.sharing.invite.mutate({
-        listId: id,
+        listId,
         handle: handle.trim(),
         role: inviteRole,
       });
@@ -91,9 +83,9 @@ export default function MembersScreen() {
   }
 
   async function toggleRole(userId: string, role: InviteRole) {
-    if (!id) return;
+    if (!listId) return;
     await trpc.sharing.changeRole.mutate({
-      listId: id,
+      listId,
       userId,
       role: role === 'VIEWER' ? 'COLLABORATOR' : 'VIEWER',
     });
@@ -101,8 +93,8 @@ export default function MembersScreen() {
   }
 
   async function remove(userId: string) {
-    if (!id) return;
-    await trpc.sharing.removeMember.mutate({ listId: id, userId });
+    if (!listId) return;
+    await trpc.sharing.removeMember.mutate({ listId, userId });
     load();
   }
 
@@ -118,22 +110,16 @@ export default function MembersScreen() {
         text: 'Leave',
         style: 'destructive',
         onPress: async () => {
-          if (!id) return;
-          await trpc.sharing.leave.mutate({ listId: id });
-          router.dismissAll();
+          if (!listId) return;
+          await trpc.sharing.leave.mutate({ listId });
+          onLeave?.();
         },
       },
     ]);
   }
 
   return (
-    <ScrollView
-      className="flex-1 bg-bg"
-      contentContainerStyle={{ padding: 16, paddingTop: headerHeight + 8, gap: 20 }}>
-      <Stack.Screen options={{ headerTitle: '' }} />
-
-      <Text className="font-serif text-3xl text-ink">Members</Text>
-
+    <View className="gap-5">
       {!loaded && <ActivityIndicator />}
 
       {isOwner && (
@@ -156,8 +142,7 @@ export default function MembersScreen() {
                 className={`flex-1 items-center rounded-skin border py-2 ${
                   inviteRole === r ? 'border-primary bg-primary' : 'border-border'
                 }`}>
-                <Text
-                  className={inviteRole === r ? 'text-primary-ink' : 'text-ink'}>
+                <Text className={inviteRole === r ? 'text-primary-ink' : 'text-ink'}>
                   {r === 'VIEWER' ? 'Viewer' : 'Collaborator'}
                 </Text>
               </Pressable>
@@ -241,6 +226,6 @@ export default function MembersScreen() {
           <Text className="font-semibold text-danger">Leave list</Text>
         </Pressable>
       )}
-    </ScrollView>
+    </View>
   );
 }

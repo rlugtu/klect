@@ -16,9 +16,9 @@ import { PixelCard } from "@/components/ui/PixelCard";
 import { PixelInput } from "@/components/ui/PixelInput";
 import { FieldLabel } from "@/components/ui/FieldLabel";
 import { SubmitButton } from "@/components/ui/SubmitButton";
-import { Copy, EllipsisVertical, Pencil, Plus, Trash2, Users } from "lucide-react";
+import { Copy, EllipsisVertical, Pencil, Plus, Trash2 } from "lucide-react";
 
-type Panel = "create" | "edit" | "duplicate" | "members" | "clear" | null;
+type Panel = "create" | "edit" | "duplicate" | "clear" | null;
 
 /** Bookmark-create data threaded to the toolbar's "New bookmark" panel (collaborator+). */
 export type CreateBookmarkProps = {
@@ -32,8 +32,6 @@ type ToolbarProps = {
   sourceName: string;
   /** Collaborator+ — may edit list details. */
   canEdit: boolean;
-  /** Owner — may manage members. */
-  canManageMembers: boolean;
   /** Owner — may clear all bookmarks. */
   canClear: boolean;
   editAction: (formData: FormData) => void | Promise<void>;
@@ -43,7 +41,6 @@ type ToolbarProps = {
   clearAction: (formData: FormData) => void | Promise<void>;
   /** Owner-only public/private control, rendered inside the edit panel. */
   visibilityChildren?: ReactNode;
-  membersChildren?: ReactNode;
   /** Collaborator+ — new-bookmark form data; when set, a louder "New bookmark" trigger shows. */
   createBookmark?: CreateBookmarkProps;
 };
@@ -64,7 +61,7 @@ function useToolbar() {
 
 /**
  * Provider for the single-list toolbar. Renders {@link ListToolbarTriggers}
- * (the Members button + ⋮ menu — placed beside the title) and
+ * (the New bookmark button + ⋮ menu — placed beside the title) and
  * {@link ListToolbarPanels} (the full-width expanding panels) as separate slots
  * sharing one open/close state, so the menu can sit inline while its panels
  * flow full width. Consolidates the former ListControls + ListActions.
@@ -87,12 +84,11 @@ export function ListToolbar({
 
 /**
  * The toolbar trigger row placed beside the list title: a louder "New bookmark" button
- * (collaborator+), an optional caller-supplied slot (the chat launcher), then Members + ⋮.
- * The New bookmark button comes first, before the actions menu.
+ * (collaborator+), an optional caller-supplied slot (the chat launcher), then the ⋮ menu.
+ * The New bookmark button comes first, before the actions menu. (Members moved to a tab.)
  */
 export function ListToolbarTriggers({ slot }: { slot?: ReactNode } = {}) {
-  const { canEdit, canManageMembers, canClear, createBookmark, panel, openPanel } =
-    useToolbar();
+  const { canEdit, canClear, createBookmark, panel, openPanel } = useToolbar();
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
@@ -139,19 +135,6 @@ export function ListToolbarTriggers({ slot }: { slot?: ReactNode } = {}) {
       )}
 
       {slot}
-
-      {canManageMembers && (
-        <PixelButton
-          variant="secondary"
-          size="xs"
-          aria-label="Members"
-          aria-expanded={panel === "members"}
-          onClick={() => openPanel("members")}
-        >
-          <Users size={14} aria-hidden />
-          Members
-        </PixelButton>
-      )}
 
       <div className="relative" ref={menuRef}>
         <PixelButton
@@ -238,7 +221,6 @@ export function ListToolbarPanels() {
     duplicateAction,
     clearAction,
     visibilityChildren,
-    membersChildren,
     createBookmark,
     closePanel,
   } = useToolbar();
@@ -326,13 +308,6 @@ export function ListToolbarPanels() {
             label="Clear all bookmarks"
             confirmText="Delete all bookmarks in this list?"
           />
-        </PixelCard>
-      )}
-
-      {panel === "members" && membersChildren && (
-        <PixelCard className="flex flex-col gap-5">
-          <PanelHeader title="Members" />
-          {membersChildren}
         </PixelCard>
       )}
     </div>

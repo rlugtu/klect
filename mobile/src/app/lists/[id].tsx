@@ -25,7 +25,9 @@ import CommentsSection, { type CommentItem } from '@/components/comments-section
 import { ListChatSheet } from '@/components/list-chat/list-chat-sheet';
 import PhotoCard from '@/components/photo-card';
 import PollRow from '@/components/poll-row';
+import RatingStars from '@/components/rating-stars';
 import TagPill from '@/components/tag-pill';
+import ListMembers from '@/components/list-members';
 import { screenshotThumbUrl, videoPosterUrl } from '@/lib/video-embed';
 import { useTheme } from '@/theme/theme-provider';
 import { THEME_TOKENS } from '@/theme/tokens';
@@ -53,9 +55,9 @@ export default function ListScreen() {
   const [query, setQuery] = useState('');
   // Off by default → all bookmarks; on → only those the user hasn't visited.
   const [hideVisited, setHideVisited] = useState(false);
-  // Which face of the list view is showing — bookmarks or its polls. Rendered
-  // inline (no route change) so the header/details/tabs stay put.
-  const [tab, setTab] = useState<'list' | 'polls'>('list');
+  // Which face of the list view is showing — bookmarks, members, or its polls.
+  // Rendered inline (no route change) so the header/details/tabs stay put.
+  const [tab, setTab] = useState<'list' | 'members' | 'polls'>('list');
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -258,7 +260,7 @@ export default function ListScreen() {
         keyboardShouldPersistTaps="handled"
         automaticallyAdjustKeyboardInsets
         data={
-          (tab === 'list' ? shown : polls) as (
+          (tab === 'list' ? shown : tab === 'polls' ? polls : []) as (
             | Bookmarks[number]
             | Polls[number]
           )[]
@@ -340,6 +342,25 @@ export default function ListScreen() {
                         : 'font-sans text-muted'
                     }>
                     List
+                  </Text>
+                </Pressable>
+                <Pressable
+                  onPress={() => setTab('members')}
+                  className={`flex-row items-center gap-1.5 rounded-full px-4 py-1.5 ${
+                    tab === 'members' ? 'bg-primary' : ''
+                  }`}>
+                  <Ionicons
+                    name="people"
+                    size={16}
+                    color={tab === 'members' ? t.primaryInk : t.muted}
+                  />
+                  <Text
+                    className={
+                      tab === 'members'
+                        ? 'font-sans-semibold text-primary-ink'
+                        : 'font-sans text-muted'
+                    }>
+                    Members
                   </Text>
                 </Pressable>
                 <Pressable
@@ -426,6 +447,12 @@ export default function ListScreen() {
                   </Text>
                 )}
               </>
+            ) : tab === 'members' ? (
+              <ListMembers
+                listId={id}
+                isOwner={isOwner}
+                onLeave={() => router.dismissAll()}
+              />
             ) : (
               <>
                 {canEdit && (
@@ -511,9 +538,9 @@ export default function ListScreen() {
               ) : null}
               <View className="mt-1 flex-row flex-wrap items-center gap-1">
                 {b.rating > 0 && (
-                  <Text className="mr-1 text-sm text-accent">
-                    {'★'.repeat(b.rating)}
-                  </Text>
+                  <View className="mr-1">
+                    <RatingStars value={b.rating} size="sm" />
+                  </View>
                 )}
                 {b.tags.map((bt) => (
                   <TagPill key={bt.tag.id} name={bt.tag.name} color={bt.tag.color} />
@@ -574,17 +601,6 @@ export default function ListScreen() {
               className="flex-row items-center gap-3 border-b border-border py-3.5">
               <Ionicons name="create-outline" size={20} color={t.ink} />
               <Text className="font-sans text-ink">Edit list</Text>
-            </Pressable>
-          )}
-          {isOwner && (
-            <Pressable
-              onPress={() => {
-                actionsSheetRef.current?.dismiss();
-                router.push({ pathname: '/lists/members', params: { id, name } });
-              }}
-              className="flex-row items-center gap-3 border-b border-border py-3.5">
-              <Ionicons name="people-outline" size={20} color={t.ink} />
-              <Text className="font-sans text-ink">Members</Text>
             </Pressable>
           )}
           <Pressable
