@@ -1,4 +1,3 @@
-import Link from "next/link";
 import Image from "next/image";
 import { Plus_Jakarta_Sans } from "next/font/google";
 import { Reveal } from "./Reveal";
@@ -303,19 +302,12 @@ export function LandingPage() {
     <div
       className={`${jakarta.className} min-h-screen w-full overflow-x-hidden bg-[#FFFEFB] text-[#15141A]`}
     >
-      {/* NAV — the source design shows only the mark; we keep a Log in link so
-          returning users have an entry point from the marketing page. */}
+      {/* NAV — the source design shows only the mark. */}
       <div className="sticky top-0 z-50 flex items-center justify-between border-b border-[#EEEAE2] bg-[#FFFEFB]/85 px-6 py-4 backdrop-blur-md sm:px-10">
         <div className="flex items-center gap-2.5">
           <Logo />
           <span className="text-[21px] font-extrabold tracking-[-0.02em]">Klect</span>
         </div>
-        <Link
-          href="/login"
-          className="text-[15px] font-semibold text-[#514F5C] transition-colors hover:text-[#15141A]"
-        >
-          Log in
-        </Link>
       </div>
 
       {/* HERO */}
