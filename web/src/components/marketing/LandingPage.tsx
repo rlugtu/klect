@@ -327,17 +327,21 @@ export function LandingPage() {
           <WaitlistForm variant="hero" />
           <span className="text-sm text-[#8A8796]">iOS · Android · Web</span>
         </div>
-        <div className="hidden min-w-[280px] flex-[1_1_380px] justify-center md:flex">
-          <GradientFrame
-            image="hero"
-            alt="Klect lists screen"
-            w={1350}
-            h={2760}
-            gradient={HERO_GRADIENT}
-            maxW={380}
-            rotate
-            priority
-          />
+        <div className="flex min-w-[280px] flex-[1_1_380px] justify-center">
+          {/* Cap the tall phone mockup smaller on mobile so it doesn't dominate
+              the viewport; GradientFrame's own maxW governs from md up. */}
+          <div className="w-full max-w-[260px] md:max-w-[380px]">
+            <GradientFrame
+              image="hero"
+              alt="Klect lists screen"
+              w={1350}
+              h={2760}
+              gradient={HERO_GRADIENT}
+              maxW={380}
+              rotate
+              priority
+            />
+          </div>
         </div>
       </div>
 
