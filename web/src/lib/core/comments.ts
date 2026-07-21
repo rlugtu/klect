@@ -1,6 +1,7 @@
 import "server-only";
 import { prisma } from "@/lib/db";
 import { assertRole, getMembership } from "@/lib/permissions";
+import { sendPushToListMembers } from "@/lib/core/push";
 
 function normalizeValue(value: string): string {
   const v = (value ?? "").trim();
@@ -8,12 +9,35 @@ function normalizeValue(value: string): string {
   return v;
 }
 
+/** Notify the rest of a list's members that `authorId` left a comment. */
+async function notifyComment(
+  authorId: string,
+  listId: string,
+  value: string,
+  route: string,
+) {
+  const [author, list] = await Promise.all([
+    prisma.user.findUnique({
+      where: { id: authorId },
+      select: { handle: true },
+    }),
+    prisma.list.findUnique({ where: { id: listId }, select: { name: true } }),
+  ]);
+  await sendPushToListMembers(listId, authorId, "comments", {
+    title: `New comment in ${list?.name ?? "a list"}`,
+    body: `@${author?.handle ?? "Someone"}: ${value}`,
+    data: { route },
+  });
+}
+
 /** Any member (viewer+) can comment on a list. */
 export async function addListComment(userId: string, listId: string, value: string) {
   await assertRole(userId, listId, "VIEWER");
+  const clean = normalizeValue(value);
   await prisma.comment.create({
-    data: { listId, authorId: userId, value: normalizeValue(value) },
+    data: { listId, authorId: userId, value: clean },
   });
+  await notifyComment(userId, listId, clean, `/lists/${listId}`);
 }
 
 /** Any member (viewer+) can comment on a bookmark. Returns the bookmark's list. */
@@ -25,9 +49,11 @@ export async function addBookmarkComment(userId: string, bookmarkId: string, val
   if (!bookmark) throw new Error("Bookmark not found.");
   await assertRole(userId, bookmark.listId, "VIEWER");
 
+  const clean = normalizeValue(value);
   await prisma.comment.create({
-    data: { bookmarkId, authorId: userId, value: normalizeValue(value) },
+    data: { bookmarkId, authorId: userId, value: clean },
   });
+  await notifyComment(userId, bookmark.listId, clean, `/bookmarks/${bookmarkId}`);
   return { listId: bookmark.listId };
 }
 

@@ -10,6 +10,7 @@ import { AppState } from 'react-native';
 
 import { trpc } from '@/client/api';
 import { authClient } from '@/client/auth';
+import { setBadgeCount } from '@/client/push';
 import { realtimeEnabled, subscribeDm } from '@/client/realtime';
 
 type Attention = {
@@ -42,6 +43,12 @@ export function AttentionProvider({ children }: { children: ReactNode }) {
     trpc.friends.list
       .query()
       .then((d) => setFriendRequests(d.incoming.length))
+      .catch(() => {});
+    // Keep the iOS app-icon badge in sync with the server-authoritative count (unread DMs
+    // + friend requests + pending list invites) — the same value pushes carry.
+    trpc.notifications.badgeCount
+      .query()
+      .then(setBadgeCount)
       .catch(() => {});
   }, []);
 

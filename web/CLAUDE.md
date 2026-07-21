@@ -112,3 +112,13 @@ Run these from `web/` (the app no longer lives at the repo root).
   per list, shared by all members (owner/collab/viewer); reads/posts require membership; **owner-only
   clear hard-deletes** every message (`ListChatMessage`); per-member unread via
   `ListMembership.chatLastReadAt`.
+- **Mobile push notifications** (`core/push.ts`, `core/notifications.ts`): the lockscreen/badge
+  counterpart to the realtime ping. `sendPushToUsers` / `sendPushToListMembers` are called
+  **fire-and-forget right next to the `broadcast*Activity` pings** inside the core write functions
+  (`dms`, `list-chat`, `friends`, `sharing`, `comments`, `polls`), so backend logic stays written
+  once. Uses `expo-server-sdk` (optional `EXPO_ACCESS_TOKEN`); filters recipients by their
+  `NotificationPreference` category (absent row = all-on), attaches a server-computed `badge`
+  (`computeBadgeCount`) + a `data.route` deep link, and prunes tokens returning `DeviceNotRegistered`.
+  Everything is best-effort/try-catch and **no-ops when no devices are registered**, so web + CI are
+  unaffected. Device registration + per-category prefs live behind the `notifications.*` tRPC router.
+  Mobile-only (web has no device push).

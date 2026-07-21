@@ -34,6 +34,15 @@ mobile-specific implementation only.
   polling** when unset. DM UI: an in-screen Friends|DMs segmented switch on `(tabs)/friends.tsx`
   (`components/dms/dm-inbox.tsx`) + pushed thread screens `src/app/dm/[conversationId].tsx` &
   `src/app/dm/new.tsx`.
+- **Push notifications** (`src/client/push.ts`, iOS): `expo-notifications`. The device registers its
+  Expo push token after sign-in (`registerForPushNotificationsAsync` → `notifications.registerDevice`,
+  called from the authenticated branch of `_layout.tsx`) and unregisters on sign-out
+  (`settings.tsx`). A tapped notification deep-links via its `data.route` (`useLastNotificationResponse`
+  in `_layout.tsx`). The app-icon badge is kept in sync from `notifications.badgeCount` in
+  `client/notifications.tsx` (`AttentionProvider`). **Settings → Notifications** = permission prompt +
+  a per-category toggle each (`notifications.getPreferences` / `updatePreferences`). The send side lives
+  once in web (`web/src/lib/core/push.ts`); this app is registration + tap-routing + prefs UI only.
+  Requires the custom dev build + an APNs key set up on first push-enabled `eas build`.
 - Never add business logic or direct DB access here — new backend work lands once in `web/` (see the
   per-feature workflow in `../CLAUDE.md`), then you build the screen consuming the procedure.
 

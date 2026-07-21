@@ -1,7 +1,8 @@
 import '@/global.css';
 
 import { useEffect } from 'react';
-import { Stack } from 'expo-router';
+import { Stack, useRouter } from 'expo-router';
+import * as Notifications from 'expo-notifications';
 import { StatusBar } from 'expo-status-bar';
 import {
   DarkTheme,
@@ -35,8 +36,18 @@ import OnboardingScreen from '@/components/onboarding-screen';
 import ShareNudgePopup from '@/components/share-nudge-popup';
 import ToastHost from '@/components/toast/ToastHost';
 import { authClient } from '@/client/auth';
+import { registerForPushNotificationsAsync } from '@/client/push';
 import { ThemeProvider as AppThemeProvider, useTheme } from '@/theme/theme-provider';
 import { fontFor, THEME_TOKENS } from '@/theme/tokens';
+
+/** Navigate to a notification's deep-link target, if it carries a `route`. */
+function routeFromNotification(
+  response: Notifications.NotificationResponse | null,
+  go: (path: string) => void,
+) {
+  const route = response?.notification.request.content.data?.route;
+  if (typeof route === 'string' && route.startsWith('/')) go(route);
+}
 
 SplashScreen.preventAutoHideAsync();
 
@@ -48,6 +59,22 @@ SplashScreen.preventAutoHideAsync();
 function AppStack() {
   const theme = useTheme().theme;
   const t = THEME_TOKENS[theme];
+  const router = useRouter();
+  // The most recent notification tap — covers both cold start (app killed) and warm taps.
+  const lastResponse = Notifications.useLastNotificationResponse();
+
+  // Register this device for push once the user is signed in with a handle (this component
+  // only mounts in that state).
+  useEffect(() => {
+    registerForPushNotificationsAsync();
+  }, []);
+
+  // Deep-link to a tapped notification's target route.
+  useEffect(() => {
+    routeFromNotification(lastResponse ?? null, (path) =>
+      router.push(path as never),
+    );
+  }, [lastResponse, router]);
   // No page shows a centered header title — the page name lives in the scrolling
   // content instead. This blank title applies everywhere (pushed pages AND modals).
   const blankTitle = { headerTitle: '' };

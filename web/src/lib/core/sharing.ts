@@ -3,6 +3,7 @@ import { prisma } from "@/lib/db";
 import { assertRole } from "@/lib/permissions";
 import { areFriends } from "@/lib/friends";
 import { sendFriendRequestById } from "@/lib/core/friends";
+import { sendPushToUsers } from "@/lib/core/push";
 
 export type InviteRole = "VIEWER" | "COLLABORATOR";
 export type InviteState = {
@@ -41,6 +42,22 @@ async function requestListJoin(
     update: { role, status: "PENDING" },
     create: { listId, email, role, invitedById },
   });
+
+  if (invitee) {
+    const [inviter, list] = await Promise.all([
+      prisma.user.findUnique({
+        where: { id: invitedById },
+        select: { handle: true },
+      }),
+      prisma.list.findUnique({ where: { id: listId }, select: { name: true } }),
+    ]);
+    await sendPushToUsers([invitee.id], "lists", {
+      title: "List invitation",
+      body: `@${inviter?.handle ?? "Someone"} invited you to ${list?.name ?? "a list"}`,
+      data: { route: "/requests" },
+    });
+  }
+
   return { invitee, status: "requested" as const };
 }
 
@@ -151,6 +168,20 @@ export async function approveRequest(
     where: { id: invite.id },
     data: { status: "ACCEPTED" },
   });
+
+  const [approver, list] = await Promise.all([
+    prisma.user.findUnique({ where: { id: userId }, select: { handle: true } }),
+    prisma.list.findUnique({
+      where: { id: invite.listId },
+      select: { name: true },
+    }),
+  ]);
+  await sendPushToUsers([invite.invitedById], "lists", {
+    title: "List request approved",
+    body: `@${approver?.handle ?? "Someone"} joined ${list?.name ?? "your list"}`,
+    data: { route: `/lists/${invite.listId}` },
+  });
+
   return { listId: invite.listId };
 }
 

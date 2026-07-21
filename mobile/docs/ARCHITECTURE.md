@@ -107,6 +107,19 @@ Everything else hot-reloads normally against the dev client.
     the in-app browser — so the user lands on the web app rather than back in the native app.
     Because web + mobile share that redirect URI, a Google failure that happens *only on mobile*
     (prod web Google works) is **not** a Google Cloud Console issue — look at token capture above.
+- **Push notifications (iOS).** `src/client/push.ts` (`expo-notifications`). After sign-in the
+  authenticated branch of `app/_layout.tsx` calls `registerForPushNotificationsAsync()` — guards
+  `Device.isDevice`, requests permission, mints an Expo push token (`getExpoPushTokenAsync`, EAS
+  `projectId` from `expo-constants`) and registers it via `notifications.registerDevice` (cached in
+  `expo-secure-store` to skip redundant re-registration). Notification **taps deep-link** through
+  `Notifications.useLastNotificationResponse()` in `_layout.tsx`, routing to the payload's
+  `data.route` (covers cold-start + warm). The **app-icon badge** is set from
+  `notifications.badgeCount` inside `client/notifications.tsx` (`AttentionProvider`). **Settings →
+  Notifications** shows a permission prompt (or iOS-Settings deep link when denied) + a `Switch` per
+  category bound to `notifications.getPreferences` / `updatePreferences`; sign-out calls
+  `unregisterPushNotificationsAsync()` before clearing the bearer token. Send logic lives once in web
+  (`web/src/lib/core/push.ts`); requires the custom dev build + an APNs key on first push-enabled
+  `eas build`.
 
 ## Navigation
 

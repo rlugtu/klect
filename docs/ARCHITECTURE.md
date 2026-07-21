@@ -314,6 +314,7 @@ mobile-first** (see `mobile/docs/design.md`). Only palette/skin/font differ per 
 | Microlink | Fallback unfurler when LinkPreview key is unset or fails | `core/metadata.ts` | free tier is IP-rate-limited |
 | Anthropic | Autofill comprehension + caption → structured bookmark fields | `core/comprehend.ts` | `ANTHROPIC_API_KEY`; best-effort, degrades to raw metadata |
 | Supabase Realtime | Near-real-time direct-message **and list-chatroom** delivery | server: `core/dm-realtime.ts` + `core/list-chat-realtime.ts` (broadcast); clients: `web` `lib/realtime/client.ts` + `mobile` `client/realtime.ts` (`subscribeDm` / `subscribeListChat`) | Content-free "refetch" ping only (`dm:*` / `chat:list:<id>`); data still flows over tRPC. `SUPABASE_*` / `NEXT_PUBLIC_SUPABASE_*` / `EXPO_PUBLIC_SUPABASE_*`; **degrades to polling** if unset |
+| Expo push (APNs) | **Mobile** device notifications — lockscreen alerts + app-icon badge | server: `core/push.ts` (`expo-server-sdk`), sent alongside the realtime pings; client: `mobile` `client/push.ts` (register/tap-route) + `notifications.*` tRPC router | Per-category `NotificationPreference` toggles; server-computed `badge`; dead tokens pruned on `DeviceNotRegistered`. iOS needs an APNs key in EAS; optional `EXPO_ACCESS_TOKEN`. **No-ops when no devices registered** |
 
 Most are reachable from mobile via their tRPC procedures — no keys leave web. The exception is
 Supabase Realtime: the server sends broadcasts (server key), but clients also **subscribe directly**

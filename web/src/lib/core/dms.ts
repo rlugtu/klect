@@ -2,6 +2,7 @@ import "server-only";
 import { prisma } from "@/lib/db";
 import { areFriends } from "@/lib/friends";
 import { broadcastDmActivity } from "@/lib/core/dm-realtime";
+import { sendPushToUsers } from "@/lib/core/push";
 
 export type SendMessageResult =
   | { error: string; message?: undefined }
@@ -83,6 +84,18 @@ export async function sendMessage(
   ]);
 
   await broadcastDmActivity(conversationId, other.userId);
+
+  const sender = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { handle: true },
+  });
+  await sendPushToUsers([other.userId], "directMessages", {
+    title: `@${sender?.handle ?? "someone"}`,
+    body,
+    data: { route: `/dm/${conversationId}` },
+    threadId: `dm:${conversationId}`,
+  });
+
   return { message };
 }
 

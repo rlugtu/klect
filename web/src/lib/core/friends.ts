@@ -1,6 +1,7 @@
 import "server-only";
 import { prisma } from "@/lib/db";
 import { areFriends } from "@/lib/friends";
+import { sendPushToUsers } from "@/lib/core/push";
 
 export type FriendState = { error?: string; success?: string };
 
@@ -27,6 +28,17 @@ export async function sendFriendRequestById(
   await prisma.friendship.create({
     data: { requesterId, addresseeId: targetUserId },
   });
+
+  const requester = await prisma.user.findUnique({
+    where: { id: requesterId },
+    select: { handle: true },
+  });
+  await sendPushToUsers([targetUserId], "friends", {
+    title: "New friend request",
+    body: `@${requester?.handle ?? "Someone"} wants to be friends`,
+    data: { route: "/friend-requests" },
+  });
+
   return true;
 }
 
@@ -58,6 +70,16 @@ export async function acceptFriendRequest(userId: string, friendshipId: string) 
   await prisma.friendship.update({
     where: { id: friendshipId },
     data: { status: "ACCEPTED" },
+  });
+
+  const accepter = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { handle: true },
+  });
+  await sendPushToUsers([req.requesterId], "friends", {
+    title: "Friend request accepted",
+    body: `@${accepter?.handle ?? "Someone"} accepted your friend request`,
+    data: { route: "/friends" },
   });
 }
 

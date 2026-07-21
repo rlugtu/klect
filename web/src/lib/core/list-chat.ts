@@ -2,6 +2,7 @@ import "server-only";
 import { prisma } from "@/lib/db";
 import { assertRole, getViewerAccess } from "@/lib/permissions";
 import { broadcastListChatActivity } from "@/lib/core/list-chat-realtime";
+import { sendPushToListMembers } from "@/lib/core/push";
 
 export type SendChatResult =
   | { error: string; message?: undefined }
@@ -42,6 +43,18 @@ export async function sendChatMessage(
   ]);
 
   await broadcastListChatActivity(listId);
+
+  const [sender, list] = await Promise.all([
+    prisma.user.findUnique({ where: { id: userId }, select: { handle: true } }),
+    prisma.list.findUnique({ where: { id: listId }, select: { name: true } }),
+  ]);
+  await sendPushToListMembers(listId, userId, "listChat", {
+    title: list?.name ?? "List chat",
+    body: `@${sender?.handle ?? "someone"}: ${body}`,
+    data: { route: `/lists/${listId}` },
+    threadId: `list:${listId}`,
+  });
+
   return { message };
 }
 

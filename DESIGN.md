@@ -203,6 +203,12 @@ PollVote        id, pollId, optionId, userId — unique per (optionId, userId); 
   is still stored (it enforces one-vote-per-user, `maxVotes`, and revote rules), but
   `getPollForUser` strips voter identity from the payload so **no one** — creator or owner
   included — sees who voted for what. Per-option vote **counts stay visible**.
+- **Push notifications** (`DeviceToken`, `NotificationPreference`): mobile-only device push
+  (iOS lockscreen alerts + app-icon badge). `DeviceToken` holds one Expo push token per
+  device (unique `token`, so register upserts and a device that re-auths is reassigned;
+  stale tokens are pruned on `DeviceNotRegistered`). `NotificationPreference` is a 1:1
+  per-user row of category toggles (`directMessages`, `listChat`, `friends`, `lists`,
+  `comments`, `polls`) — **absent row = all on**. Both cascade on user delete.
 
 ---
 
@@ -542,6 +548,11 @@ release builds don't reliably persist `Secure` cookies. `auth.api.getSession()` 
 | `account.delete` | mutation | – | self | `core.deleteAccount` — permanently deletes the caller and everything they own; a single `prisma.user.delete` cascades to all owned rows (sessions, accounts, owned lists → bookmarks/comments/polls/chat, memberships, invites, tags, comments, polls, votes, friendships, DMs, list-chat). Idempotent. Irreversible |
 | `tags.mine` | query | – | user-scoped | `getUserTags` |
 | `nearby.find` | query | `{ lat, lon, radiusMiles, listIds }` | user-scoped | `core.findNearbyBookmarks` — each result carries `lat`/`lon` (for map pins) alongside `distanceMiles` |
+| `notifications.registerDevice` | mutation | `{ token, platform }` | self | `core/notifications.registerDeviceToken` — upserts the device's Expo push token (unique `token`; reassigns on re-auth) |
+| `notifications.unregisterDevice` | mutation | `{ token }` | self | `core/notifications.unregisterDeviceToken` — drops the token (sign-out / push disabled) |
+| `notifications.getPreferences` | query | – | self | `core/notifications.getNotificationPreferences` — per-category toggles, defaults all-on |
+| `notifications.updatePreferences` | mutation | `{ directMessages?, listChat?, friends?, lists?, comments?, polls? }` | self | `core/notifications.updateNotificationPreferences` — upserts a subset, returns the full set |
+| `notifications.badgeCount` | query | – | self | `core/notifications.computeBadgeCount` — unread DMs + incoming friend requests + pending list invites (the app-icon badge source) |
 | `places.search` | query | `{ text, sessionToken }` | signed-in | `core/places.searchPlaces` |
 | `places.retrieve` | query | `{ id, sessionToken }` | signed-in | `core/places.retrievePlace` |
 | `places.reverseGeocode` | query | `{ lat, lon }` | signed-in | `core/places.reverseGeocode` |
@@ -563,6 +574,19 @@ hold sockets) and better-auth (not Supabase Auth). The server posts a tiny **con
 message content rides the socket and a spoofed/missed ping is harmless. The whole path **degrades to
 polling** when the Supabase env vars are unset (`SUPABASE_URL` / `SUPABASE_ANON_KEY` server-side;
 `NEXT_PUBLIC_SUPABASE_*` / `EXPO_PUBLIC_SUPABASE_*` on the clients).
+
+**Push notifications (mobile only):** the lockscreen/badge counterpart to the realtime ping. The
+server sends an **Expo push** (`expo-server-sdk`, `core/push.ts`) alongside each content-free ping,
+inside the same core write functions — so delivery logic stays written once and both channels stay in
+lockstep. Triggers: new DM, new list-chat message, friend request received/accepted, list
+invite/approval, new comment, new poll — each mapped to a `NotificationPreference` category a user can
+mute (`notifications.updatePreferences`); recipients who muted the category, or whose token is
+`DeviceNotRegistered`, are filtered/pruned. Every push carries a server-computed `badge`
+(`computeBadgeCount`) and a `data.route` deep link that the mobile tap handler routes to. The mobile
+client registers its Expo token after auth (`client/push.ts` → `notifications.registerDevice`),
+keeps the app-icon badge in sync from `notifications.badgeCount`, and unregisters on sign-out. iOS
+requires an **APNs key** in EAS credentials (set up on first push-enabled `eas build`); the whole path
+no-ops cleanly when no devices are registered, so web and CI are unaffected.
 
 ---
 

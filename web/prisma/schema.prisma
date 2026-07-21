@@ -73,6 +73,10 @@ model User {
   messagesSent  Message[]                 @relation("MessagesSent")
 
   listChatSent ListChatMessage[] @relation("ListChatSent")
+
+  // Push notifications (mobile): one row per device + per-user category prefs.
+  deviceTokens           DeviceToken[]
+  notificationPreference NotificationPreference?
 }
 
 // A friendship between two users. Directed request (requester -> addressee) that
@@ -253,6 +257,38 @@ model ListInvite {
 
   @@unique([listId, email])
   @@index([email])
+}
+
+// ---- Push notifications (mobile) ----
+// One row per registered device. `token` is the Expo push token
+// (ExponentPushToken[...]); its unique constraint lets register upsert idempotently
+// and reassign a device that signs into a different account. Best-effort: rows with
+// tokens that come back DeviceNotRegistered are pruned on send (see core/push.ts).
+model DeviceToken {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  token     String   @unique
+  platform  String // "ios" | "android"
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+}
+
+// Per-user push category toggles. Absent row = everything on (defaults below); a row
+// is created lazily the first time the user changes a toggle (see core/notifications.ts).
+model NotificationPreference {
+  id             String   @id @default(uuid())
+  userId         String   @unique
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  directMessages Boolean  @default(true)
+  listChat       Boolean  @default(true)
+  friends        Boolean  @default(true)
+  lists          Boolean  @default(true)
+  comments       Boolean  @default(true)
+  polls          Boolean  @default(true)
+  updatedAt      DateTime @updatedAt
 }
 
 // Marketing waitlist / beta early-access signups from the logged-out landing page.

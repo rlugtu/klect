@@ -1,6 +1,7 @@
 import "server-only";
 import { prisma } from "@/lib/db";
 import { assertRole, getMembership } from "@/lib/permissions";
+import { sendPushToListMembers } from "@/lib/core/push";
 
 /**
  * Poll mutations, transport-agnostic (web server action + mobile tRPC share these).
@@ -82,7 +83,7 @@ export async function createPoll(userId: string, listId: string, input: PollInpu
   const fields = normalizePollFields(input);
   const bookmarkIds = await validOptionBookmarkIds(listId, input.bookmarkIds);
 
-  return prisma.poll.create({
+  const poll = await prisma.poll.create({
     data: {
       ...fields,
       isAnonymous: input.isAnonymous ?? false,
@@ -92,6 +93,18 @@ export async function createPoll(userId: string, listId: string, input: PollInpu
     },
     select: { id: true, listId: true },
   });
+
+  const list = await prisma.list.findUnique({
+    where: { id: listId },
+    select: { name: true },
+  });
+  await sendPushToListMembers(listId, userId, "polls", {
+    title: `New poll in ${list?.name ?? "a list"}`,
+    body: fields.name,
+    data: { route: `/polls/${poll.id}` },
+  });
+
+  return poll;
 }
 
 /**

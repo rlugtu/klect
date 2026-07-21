@@ -64,6 +64,10 @@ with a link or a location.
 - **Add a bookmark to several lists at once.** Save something to multiple lists in a single step.
 - **Make it yours.** Choose from six themes across three looks — **Pixel** (retro 8-bit), **Modern**
   (clean and minimal), and **Journal** (warm scrapbook) — each in light and dark.
+- **Get notified.** On the mobile app, Klect sends you a notification when a friend messages you,
+  someone posts in a list chat, you get a friend request or list invite, or a comment or poll lands —
+  right on your lock screen, with a count on the app icon. Mute any category you don't care about in
+  Settings.
 - **Use it anywhere.** Available as a web app (installable to your home screen) and a mobile app —
   where you can also **share links straight into Klect** from any other app.
 - **Stay in control of your data.** A plain-language privacy policy explains what's collected, and
@@ -183,6 +187,7 @@ never trapped on the wrong screen.
 | Profile & settings | ✅ | ✅ | Theme picker (all 6 themes) |
 | Themes | ✅ | ✅ | All 6 both; **default differs** (web Modern Light · mobile Journal Light) |
 | Native share extension | ➖ | ✅ | Mobile-only, iOS (save a bookmark inside the OS share sheet) |
+| Push notifications | ➖ | ✅ | Mobile-only, iOS — lockscreen alerts + app-icon badge; per-category toggles in Settings |
 | "Share to Klect" how-to | ✅ | ✅ | Illustrated setup walkthrough in Settings (mobile entry iOS-only) |
 | Privacy policy | ✅ | ✅ | Public `/privacy` page; linked from Settings (mobile opens it in an in-app browser) |
 | Account deletion | ✅ | ✅ | Settings "Danger zone"; type-to-confirm; permanently deletes the user + all owned data (`account.delete`) |
@@ -559,6 +564,22 @@ launch until acknowledged (persisted locally). Mobile-only, iOS-only.
 served on web for discovery.
 **Differences.** The extension is **mobile-only (iOS)**; the how-to page exists on both. Android
 share-to-app is not currently supported.
+
+### Push notifications
+**Description.** Device notifications (iOS lockscreen alerts + app-icon badge) for the things worth
+interrupting a user for — new direct messages, new list-chat messages, friend requests
+received/accepted, list invites & approvals, new comments, and new polls.
+**Mobile.** `expo-notifications`; the device registers its Expo push token after sign-in
+(`src/client/push.ts` → `notifications.registerDevice`) and unregisters on sign-out. Tapping a
+notification deep-links to the relevant thread/list/screen. The app-icon badge tracks the
+server-computed attention count (unread DMs + friend requests + pending list invites) via
+`notifications.badgeCount`. **Settings → Notifications** exposes a per-category toggle for each trigger
+(stored server-side in `NotificationPreference`) plus a permission prompt / iOS-Settings deep link.
+Requires the custom dev build + an APNs key in EAS.
+**Web.** ➖ No device push (a browser Web Push path is future work).
+**Differences.** **Mobile-only (iOS this pass).** Backend send logic lives once in web
+(`web/src/lib/core/push.ts`), fired alongside the existing realtime pings, so it serves any future
+client.
 
 ### PWA install
 **Description.** Install the web app to the home screen with an offline fallback page.
