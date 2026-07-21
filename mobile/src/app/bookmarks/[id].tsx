@@ -199,6 +199,21 @@ export default function BookmarkScreen() {
 
           <Text className="font-serif text-3xl text-ink">{b.name}</Text>
 
+          {/* Instagram-style action row — sits above the rating/visited row. */}
+          <View className="flex-row items-center gap-4 border-b border-border pb-3">
+            <Pressable
+              accessibilityLabel="Send to a friend"
+              hitSlop={8}
+              onPress={() =>
+                router.push({
+                  pathname: '/bookmarks/share',
+                  params: { id, name: b.name },
+                })
+              }>
+              <Ionicons name="paper-plane-outline" size={24} color={t.ink} />
+            </Pressable>
+          </View>
+
           <View className="flex-row items-center justify-between">
             <RatingStars value={b.rating} onChange={setRating} />
             <VisitedPill visited={b.visited} onToggle={toggleVisited} size="md" />

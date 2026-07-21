@@ -27,6 +27,13 @@ enum FriendStatus {
   ACCEPTED
 }
 
+// Kind of DM message: a plain text message, or a shared bookmark card (which
+// carries a self-contained JSON snapshot in Message.sharedBookmark).
+enum MessageType {
+  TEXT
+  BOOKMARK
+}
+
 enum Theme {
   PIXEL_LIGHT
   PIXEL_DARK
@@ -136,6 +143,10 @@ model Message {
   senderId       String
   sender         User         @relation("MessagesSent", fields: [senderId], references: [id], onDelete: Cascade)
   body           String
+  // For a TEXT message `body` is the text; for a BOOKMARK message `body` is an optional
+  // caption ("" = none) and `sharedBookmark` holds the SharedBookmarkSnapshot JSON.
+  type           MessageType  @default(TEXT)
+  sharedBookmark Json?
   createdAt      DateTime     @default(now())
 
   @@index([conversationId, createdAt])

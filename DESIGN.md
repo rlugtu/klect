@@ -137,8 +137,15 @@ ConversationParticipant
                   at/before it from that user (drives clear + delete; the thread reappears
                   on newer activity). lastReadAt drives the unread flag. unique per
                   (conversationId, userId).
-Message         id, conversationId, senderId, body, createdAt
+Message         id, conversationId, senderId, body, type, sharedBookmark?, createdAt
                 — indexed on (conversationId, createdAt) for keyset pagination.
+                  type is TEXT (default) or BOOKMARK. For a BOOKMARK message, body is an
+                  optional caption ("" = none) and sharedBookmark holds a self-contained JSON
+                  snapshot of the shared bookmark (name, description, urls, images, notes,
+                  location, lat/lng, video, tagNames — no rating/visited). The snapshot is a
+                  copy, not a live reference: the shared card renders + saves even if the
+                  source bookmark/list is later deleted or made private, and never leaks a
+                  private list's contents.
 
 ListChatMessage id, listId, senderId, body, createdAt
                 — a message in a list's group chatroom (shared by all the list's members;
@@ -189,6 +196,14 @@ PollVote        id, pollId, optionId, userId — unique per (optionId, userId); 
   (a.k.a. deleting) a chat sets the user's `clearedAt`, hiding it + its past messages from **them
   only**; a later message reappears the thread showing only messages after the clear. History
   **paginates** via a keyset cursor on `(createdAt, id)`.
+- **Share a bookmark over DM** (Instagram-style): from a bookmark's detail view a **Send** action
+  opens a friend picker (multi-select) + optional caption; the bookmark is sent as a `type=BOOKMARK`
+  message (a JSON snapshot, see `Message`) into each chosen friend's thread. The recipient sees a
+  bookmark **card with a preview toggle and a Save action**; Save opens the multi-list picker and
+  writes an **independent copy** into each selected list via `createBookmarkInLists` (personal
+  fields `rating`/`visited` reset to defaults; tags recreated as the saver's own). Recipients are
+  friends only (reuses the friend-gated DM path); sending is partial-failure tolerant (a recipient
+  who is no longer a friend is reported, never aborting the batch).
 - **List chatrooms** (`ListChatMessage`): every list has one group chatroom shared by all its
   members (owner + collaborators + viewers). Reading and posting both require **membership** —
   a public list's non-member viewers get no chat. Each message shows the sender's @handle with a
@@ -236,6 +251,8 @@ PollVote        id, pollId, optionId, userId — unique per (optionId, userId); 
 | Add/accept/remove friends; add a friend to your lists | any signed-in user (self) | | |
 | Start a chat / send a DM | current friends only (live friendship re-checked per message) | | |
 | Read DM history / clear (delete) a chat | either participant (clear affects only you) | | |
+| Share a bookmark over DM | sender must be able to view the bookmark; recipients = current friends | | |
+| Save a bookmark shared with you | recipient (conversation participant) → into their own lists | | |
 | Read & post in the list chatroom | ✓ | ✓ | ✓ |
 | Clear the list chatroom (hard-delete all messages) | ✓ | — | — |
 | Delete a comment | own + any on their list | own only | own only |
@@ -270,11 +287,11 @@ helper — never rely on UI gating alone. Read-only public access uses `assertCa
 | `/friends/pending` | **Pending requests**: outgoing friend requests you've sent, withdraw each (empty state when none) |
 | `/friends/dms` | **Messages**: the DM inbox — a Friends \| Messages tab switch tops both pages; lists conversations (unread dot + last-message preview), each deletable (clears it for you); **New chat** starts one with a friend. The Messages tab shows an unread-count attention badge. |
 | `/friends/dms/new` | **New chat**: pick a friend to open (or resume) a 1:1 conversation |
-| `/friends/dms/[conversationId]` | **Chat thread**: message history (older loads on demand via keyset cursor) + composer; composer is disabled with a note when you're no longer friends. Mobile equivalents: the DMs view is an in-screen tab on the Friends screen; threads are `/dm/[conversationId]` and `/dm/new`. |
+| `/friends/dms/[conversationId]` | **Chat thread**: message history (older loads on demand via keyset cursor) + composer; composer is disabled with a note when you're no longer friends. A shared bookmark renders as a **card with a preview toggle + Save** (Save opens the multi-list picker). Mobile equivalents: the DMs view is an in-screen tab on the Friends screen; threads are `/dm/[conversationId]` and `/dm/new`. |
 | `/nearby` | **Near me**: find geocoded bookmarks within a chosen radius of your current location, closest→farthest |
 | `/bookmarks/new` | **New bookmark**: standalone create flow; pick/create one or more target lists and add the bookmark independently to each. Reached from a **＋ Bookmark** item in the primary nav (web home header · mobile tab bar) |
 | `/lists/[id]` | Bookmarks in a list; filter/search within (incl. a **Show only unvisited** toggle above the search row); list-level comments; a rounded-pill **List \| Polls** tab bar (the Polls face renders inline at `?tab=polls` — header/details/tabs stay mounted). The list-name row carries a louder **New bookmark** button (collaborator+, before the actions) + owner **Members** button + a **⋮ actions menu** (Edit / Duplicate / Clear). A **chat icon** in the top header (with an unread badge) opens the **list chatroom** — a slide-up drawer (web) / 70%-height bottom sheet (mobile) with a DM-style group chat: members read + post (each message tagged with the sender's @handle + soft role suffix), owner can clear all history. |
-| `/lists/[id]/bookmarks/[bid]` | Bookmark detail: 8-bit layout, tag pills, comments newest-first; **← Back** returns to the previous page (list / nearby / search), falling back to the list on direct load |
+| `/lists/[id]/bookmarks/[bid]` | Bookmark detail: 8-bit layout, tag pills, comments newest-first; an **action row** (Instagram-style, above the rating/visited row) holds a **Send** button that opens the friend picker to share the bookmark over DM; **← Back** returns to the previous page (list / nearby / search), falling back to the list on direct load. Mobile: same, plus a `/bookmarks/share` recipient-picker screen. |
 | `/lists/[id]?tab=polls` | Polls in a list (newest first, with status + counts); **New poll** for collaborators+; the **Polls** tab of the list view, rendered inline so `/lists/[id]`'s header/details/tab bar stay mounted. The legacy `/lists/[id]/polls` route redirects here. |
 | `/lists/[id]/polls/new` | Create a poll: fields + a searchable/tag-filterable bookmark option picker (≥2) |
 | `/lists/[id]/polls/[pollId]` | Poll detail: **Vote**/**Results** toggle; edit/delete for the creator or list owner |
@@ -363,6 +380,13 @@ The capabilities the app ships today. Product-level coverage (and web/mobile par
   disable the composer when you're no longer friends (history stays readable), and deliver new
   messages in near-real-time (Supabase Realtime broadcast, polling fallback). Clearing/deleting a
   chat only affects you; it reappears on the next incoming message showing only newer messages.
+- **Share a bookmark over DM** — from a bookmark's detail view, a **Send** action (in an
+  Instagram-style action row above the rating/visited controls) opens a **multi-select friend
+  picker** + optional caption and sends the bookmark into each friend's DM as a card. The recipient
+  sees a **bookmark card with a preview toggle and a Save button**; Save opens the multi-list picker
+  and copies the bookmark **independently into each chosen list** (rating/visited reset; tags become
+  the saver's own). It's a self-contained snapshot, so it survives the original being deleted/made
+  private and never exposes a private list.
 - **List chatrooms** — every list has one **group chat** shared by all its members. A chat icon in
   the list header (with an unread badge) opens a slide-up drawer (web) / 70%-height bottom sheet
   (mobile) with a DM-style thread: members read + post, each message tagged with the sender's @handle
@@ -548,6 +572,8 @@ release builds don't reliably persist `Secure` cookies. `auth.api.getSession()` 
 | `dms.send` | mutation | `{ conversationId, body }` | participant + **live friendship** (in core) | `core/dms.sendMessage` — returns `{ message }` or `{ error }`; bumps `lastMessageAt`, fires a realtime ping |
 | `dms.clear` | mutation | `{ conversationId }` | participant (self only) | `core/dms.clearConversation` — clears/deletes the thread for the caller |
 | `dms.markRead` | mutation | `{ conversationId }` | participant (self only) | `core/dms.markRead` |
+| `dms.shareBookmark` | mutation | `{ bookmarkId, recipientUserIds[], caption }` | sender can view the bookmark + **friends only** per recipient (in core) | `core/dms.shareBookmark` — snapshots the bookmark once, then get-or-creates each recipient's thread + sends a `type=BOOKMARK` message; returns `{ results: {userId, ok, error?}[] }` (partial-failure tolerant) |
+| `dms.saveSharedBookmark` | mutation | `{ messageId, existingListIds[], newListNames[], newListsPublic? }` | participant of the message's conversation (in core) | `core/bookmarks.saveSharedBookmark` — reloads the snapshot server-side, then `createBookmarkInLists` (independent copy per list, rating/visited reset); returns `{ targetIds }` |
 | `listChat.messages` | query | `{ listId, cursor?, limit? }` | member (in data access) | `getChatMessages` — keyset page (oldest→newest) + `nextCursor` + `canSend`; each message carries the sender's identity + role |
 | `listChat.unread` | query | `{ listId }` | member (0 for non-members) | `getChatUnreadCount` — drives the chat-icon badge |
 | `listChat.send` | mutation | `{ listId, body }` | **member** (in core) | `core/list-chat.sendChatMessage` — returns `{ message }` or `{ error }`; bumps sender read state, fires a realtime ping |

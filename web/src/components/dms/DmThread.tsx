@@ -8,7 +8,9 @@ import {
   sendMessage,
   markRead,
   type MessagesPage,
+  type SharedBookmarkSnapshot,
 } from "@/lib/actions/dms";
+import { SharedBookmarkCard } from "@/components/dms/SharedBookmarkCard";
 import { subscribeDm, realtimeEnabled } from "@/lib/realtime/client";
 
 type Message = MessagesPage["messages"][number];
@@ -128,6 +130,35 @@ export function DmThread({
         )}
         {messages.map((m) => {
           const mine = m.senderId === myId;
+          if (m.type === "BOOKMARK") {
+            return (
+              <div
+                key={m.id}
+                className={cn(
+                  "flex max-w-full flex-col gap-1",
+                  mine ? "items-end self-end" : "items-start self-start",
+                )}
+              >
+                {m.body && (
+                  <div
+                    className={cn(
+                      "max-w-[85%] px-3 py-2 text-sm break-words",
+                      mine
+                        ? "bg-primary text-primary-ink"
+                        : "bg-panel text-ink border-border border-2",
+                    )}
+                  >
+                    {m.body}
+                  </div>
+                )}
+                <SharedBookmarkCard
+                  messageId={m.id}
+                  snapshot={m.sharedBookmark as unknown as SharedBookmarkSnapshot}
+                  mine={mine}
+                />
+              </div>
+            );
+          }
           return (
             <div
               key={m.id}

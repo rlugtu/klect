@@ -3,9 +3,11 @@ import { requireOnboardedUser } from "@/lib/session";
 import { getBookmarkForUser } from "@/lib/bookmarks";
 import { getBookmarkComments } from "@/lib/comments";
 import { getUserTags } from "@/lib/tags";
+import { getFriends } from "@/lib/friends";
 import { roleAtLeast } from "@/lib/permissions";
 import { deleteBookmark } from "@/lib/actions/bookmarks";
 import { addBookmarkComment } from "@/lib/actions/comments";
+import { ShareBookmarkSheet } from "@/components/bookmarks/ShareBookmarkSheet";
 import { CommentSection } from "@/components/comments/CommentSection";
 import { StarRating } from "@/components/bookmarks/StarRating";
 import { VisitedToggle } from "@/components/bookmarks/VisitedToggle";
@@ -38,11 +40,12 @@ export default async function BookmarkPage({
   const tagNames = bookmark.tags.map((bt) => bt.tag.name);
   const [primaryUrl, ...otherUrls] = bookmark.urls;
 
-  const [userTags, comments] = await Promise.all([
+  const [userTags, comments, friends] = await Promise.all([
     canEdit
       ? getUserTags(user.id)
       : Promise.resolve<{ name: string; color: string }[]>([]),
     getBookmarkComments(bid),
+    getFriends(user.id),
   ]);
   const tagSuggestions = userTags.map((t) => t.name);
   const tagColors = Object.fromEntries(userTags.map((t) => [t.name, t.color]));
@@ -78,7 +81,16 @@ export default async function BookmarkPage({
       <PixelCard className="flex flex-col gap-4">
         <div>
           <h1 className="text-xl text-primary break-words">{bookmark.name}</h1>
-          <div className="mt-2 flex flex-wrap items-center justify-between gap-3">
+
+          {/* Action row (Instagram-style) — sits above the rating/visited row. */}
+          <div className="border-border mt-3 flex items-center gap-3 border-b-2 pb-4">
+            <ShareBookmarkSheet
+              bookmarkId={bookmark.id}
+              friends={friends.map((f) => f.friend)}
+            />
+          </div>
+
+          <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
             {canEdit ? (
               <>
                 <InlineRating bookmarkId={bookmark.id} value={bookmark.rating} />

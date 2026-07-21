@@ -1,5 +1,6 @@
 import "server-only";
 import { prisma } from "@/lib/db";
+import { getBookmarkForUser } from "@/lib/bookmarks";
 import { assertRole } from "@/lib/permissions";
 import { createListRecord } from "@/lib/lists";
 import { LIST_NAME_MAX } from "@/lib/core/lists";
@@ -22,6 +23,28 @@ export type BookmarkInput = {
   longitude: number | null;
   rating: number;
   visited: boolean;
+  videoUrl: string;
+  videoType: string;
+  tagNames: string[];
+};
+
+/**
+ * A self-contained snapshot of a bookmark, captured at the moment it's shared over a DM
+ * and stored on the message. It carries only the fields that make sense to copy — the
+ * personal signals `rating`/`visited` are deliberately omitted (they reset on save). Being
+ * a snapshot (not a live reference) means the shared card renders + saves even if the
+ * source bookmark or its list is later deleted or made private, and never leaks a private
+ * list's contents.
+ */
+export type SharedBookmarkSnapshot = {
+  name: string;
+  description: string;
+  urls: string[];
+  images: string[];
+  notes: string;
+  location: string;
+  latitude: number | null;
+  longitude: number | null;
   videoUrl: string;
   videoType: string;
   tagNames: string[];
@@ -208,6 +231,80 @@ export async function createBookmarkInLists(
   }
 
   return { targetIds };
+}
+
+/**
+ * Build a shareable snapshot from a bookmark the acting user can view. Reads through
+ * `getBookmarkForUser`, which enforces the sender's access to the source list (returns
+ * null → throws here). Tags come across by name only (they're recreated as the saver's
+ * own on save). Omits rating/visited — those are personal and reset on save.
+ */
+export async function buildBookmarkSnapshot(
+  userId: string,
+  bookmarkId: string,
+): Promise<SharedBookmarkSnapshot> {
+  const result = await getBookmarkForUser(userId, bookmarkId);
+  if (!result) throw new Error("Bookmark not found.");
+  const b = result.bookmark;
+  return {
+    name: b.name,
+    description: b.description,
+    urls: b.urls,
+    images: b.images,
+    notes: b.notes,
+    location: b.location,
+    latitude: b.latitude,
+    longitude: b.longitude,
+    videoUrl: b.videoUrl,
+    videoType: b.videoType,
+    tagNames: b.tags.map((bt) => bt.tag.name),
+  };
+}
+
+/**
+ * Turn a shared snapshot into a `BookmarkInput` for the copy the recipient saves. The
+ * personal fields `rating`/`visited` are reset to their defaults here — this is the single
+ * place that reset lives.
+ */
+export function snapshotToInput(s: SharedBookmarkSnapshot): BookmarkInput {
+  return { ...s, rating: 0, visited: false };
+}
+
+/**
+ * Save a bookmark shared over DM into the recipient's own lists. Reloads the snapshot
+ * server-side from the message (never trusts a client-supplied copy) after verifying the
+ * message is a BOOKMARK share and the caller is a participant of its conversation, then
+ * reuses `createBookmarkInLists` to write one independent copy per target list.
+ */
+export async function saveSharedBookmark(
+  userId: string,
+  messageId: string,
+  existingListIds: string[],
+  newListNames: string[],
+  newListsPublic = false,
+) {
+  const message = await prisma.message.findUnique({
+    where: { id: messageId },
+    select: { type: true, sharedBookmark: true, conversationId: true },
+  });
+  if (!message || message.type !== "BOOKMARK" || !message.sharedBookmark) {
+    throw new Error("Shared bookmark not found.");
+  }
+
+  const participant = await prisma.conversationParticipant.findUnique({
+    where: { conversationId_userId: { conversationId: message.conversationId, userId } },
+    select: { id: true },
+  });
+  if (!participant) throw new Error("Shared bookmark not found.");
+
+  const snapshot = message.sharedBookmark as unknown as SharedBookmarkSnapshot;
+  return createBookmarkInLists(
+    userId,
+    existingListIds,
+    newListNames,
+    snapshotToInput(snapshot),
+    newListsPublic,
+  );
 }
 
 /** Edit a bookmark — requires COLLABORATOR. Returns its list. */

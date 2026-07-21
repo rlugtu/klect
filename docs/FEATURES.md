@@ -47,6 +47,10 @@ with a link or a location.
   your friends list, with an inbox that flags unread chats. Conversations load instantly and new
   messages arrive in real time. Delete a chat to clear it from your side; if the friendship ends the
   history stays readable but you can't send until you're friends again.
+- **Send a bookmark to a friend.** Found something they'd love? Tap **Send** on any bookmark, pick one
+  or more friends (add a note if you like), and it lands in their DMs as a card. They can preview it
+  and **save their own copy** into whichever of their lists they choose — just like sharing a post on
+  Instagram.
 - **Chat inside a list.** Every list has its own **group chatroom** — tap the chat icon in the list
   header (it shows a badge when there's something new) to open a live thread where everyone on the list
   can talk. Each message shows who sent it and their role, so you know at a glance who's a collaborator
@@ -181,6 +185,7 @@ never trapped on the wrong screen.
 | Sharing & permissions | ✅ | ✅ | Owner / Collaborator / Viewer; **request-based** invites (invitee approves/rejects) |
 | Friends | ✅ | ✅ | Add by **@handle** (request + accept); bulk-add a friend to your lists |
 | Direct messages | ✅ | ✅ | Friends-only 1:1 chat; Friends\|Messages tab switch + unread badge; paginated history; near-real-time (Supabase Realtime, polling fallback); per-user clear/delete; unfriend keeps history but blocks sending (`dms.*`) |
+| Share a bookmark over DM | ✅ | ✅ | Instagram-style: **Send** action on a bookmark → multi-select friend picker + optional caption; renders as a bookmark **card with preview toggle + Save** in the thread; Save copies it independently into the recipient's chosen lists (rating/visited reset, tags become theirs). Self-contained snapshot (survives source deletion, no private-list leak); partial-failure tolerant (`dms.shareBookmark` / `dms.saveSharedBookmark`) |
 | List chatrooms | ✅ | ✅ | Per-list group chat for all members; header chat icon + unread badge → slide-up drawer (web) / 70% bottom sheet (mobile); sender @handle + soft role suffix; near-real-time (`chat:list:<id>`, polling fallback); paginated history; members-only, owner-only clear = hard-delete (`listChat.*`) |
 | User profiles | ✅ | ✅ | `/users/[handle]` (web) · Profile tab + `users/[handle]` (mobile), resolvable by @handle or id; identity + stats + public lists + add-friend (`profile.get`) |
 | Comments (lists & bookmarks) | ✅ | ✅ | |

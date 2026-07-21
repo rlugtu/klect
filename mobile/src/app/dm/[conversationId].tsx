@@ -18,6 +18,9 @@ import { useHeaderHeight } from '@react-navigation/elements';
 import { trpc } from '@/client/api';
 import { subscribeDm, realtimeEnabled } from '@/client/realtime';
 import { authClient } from '@/client/auth';
+import SharedBookmarkCard, {
+  type SharedBookmarkSnapshot,
+} from '@/components/dms/shared-bookmark-card';
 import { useTheme } from '@/theme/theme-provider';
 import { THEME_TOKENS } from '@/theme/tokens';
 
@@ -182,6 +185,29 @@ export default function DmThreadScreen() {
           }
           renderItem={({ item }) => {
             const mine = item.senderId === myId;
+            if (item.type === 'BOOKMARK') {
+              return (
+                <View className={mine ? 'items-end' : 'items-start'}>
+                  {item.body ? (
+                    <View
+                      className={`mb-1 max-w-[78%] rounded-skin px-3 py-2 ${
+                        mine
+                          ? 'self-end bg-primary'
+                          : 'self-start border-skin border-border bg-panel'
+                      }`}>
+                      <Text className={mine ? 'text-primary-ink' : 'text-ink'}>
+                        {item.body}
+                      </Text>
+                    </View>
+                  ) : null}
+                  <SharedBookmarkCard
+                    messageId={item.id}
+                    snapshot={item.sharedBookmark as unknown as SharedBookmarkSnapshot}
+                    mine={mine}
+                  />
+                </View>
+              );
+            }
             return (
               <View
                 className={`max-w-[78%] rounded-skin px-3 py-2 ${

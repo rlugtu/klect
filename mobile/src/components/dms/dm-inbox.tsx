@@ -151,7 +151,9 @@ export function DmInbox({
                 className={item.unread ? 'text-sm text-ink' : 'text-sm text-muted'}
                 numberOfLines={1}>
                 {mine ? 'You: ' : ''}
-                {item.lastMessage.body}
+                {item.lastMessage.type === 'BOOKMARK'
+                  ? item.lastMessage.body || 'Shared a bookmark'
+                  : item.lastMessage.body}
               </Text>
             </View>
             <Pressable hitSlop={8} onPress={() => confirmDelete(item.conversationId)}>

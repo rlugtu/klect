@@ -108,7 +108,9 @@ function DmRow({
             }
           >
             {mine && "You: "}
-            {convo.lastMessage.body}
+            {convo.lastMessage.type === "BOOKMARK"
+              ? convo.lastMessage.body || "Shared a bookmark"
+              : convo.lastMessage.body}
           </span>
         </span>
       </Link>

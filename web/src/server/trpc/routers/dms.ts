@@ -6,6 +6,7 @@ import {
   getUnreadConversationCount,
 } from "@/lib/dms";
 import * as core from "@/lib/core/dms";
+import { saveSharedBookmark } from "@/lib/core/bookmarks";
 
 export const dmsRouter = router({
   // The current user's conversation inbox (newest activity first, cleared-empty omitted).
@@ -55,5 +56,43 @@ export const dmsRouter = router({
     .input(z.object({ conversationId: z.string() }))
     .mutation(({ ctx, input }) =>
       core.markRead(ctx.user.id, input.conversationId),
+    ),
+
+  // Share a bookmark to one or more friends over DM (partial-failure tolerant).
+  shareBookmark: protectedProcedure
+    .input(
+      z.object({
+        bookmarkId: z.string(),
+        recipientUserIds: z.array(z.string()).min(1),
+        caption: z.string(),
+      }),
+    )
+    .mutation(({ ctx, input }) =>
+      core.shareBookmark(
+        ctx.user.id,
+        input.bookmarkId,
+        input.recipientUserIds,
+        input.caption,
+      ),
+    ),
+
+  // Save a bookmark shared over DM into the recipient's own lists (independent copies).
+  saveSharedBookmark: protectedProcedure
+    .input(
+      z.object({
+        messageId: z.string(),
+        existingListIds: z.array(z.string()),
+        newListNames: z.array(z.string()),
+        newListsPublic: z.boolean().optional(),
+      }),
+    )
+    .mutation(({ ctx, input }) =>
+      saveSharedBookmark(
+        ctx.user.id,
+        input.messageId,
+        input.existingListIds,
+        input.newListNames,
+        input.newListsPublic,
+      ),
     ),
 });

@@ -1,6 +1,7 @@
 import "server-only";
 import { prisma } from "@/lib/db";
 import { areFriends } from "@/lib/friends";
+import { type SharedBookmarkSnapshot } from "@/lib/core/bookmarks";
 
 // Minimal public identity — same shape the friends data access exposes.
 const otherUserSelect = { id: true, handle: true, icon: true } as const;
@@ -38,7 +39,7 @@ export async function getConversations(userId: string) {
           messages: {
             orderBy: { createdAt: "desc" },
             take: 1,
-            select: { body: true, createdAt: true, senderId: true },
+            select: { body: true, type: true, createdAt: true, senderId: true },
           },
         },
       },
@@ -98,7 +99,7 @@ export async function getMessages(
     orderBy: [{ createdAt: "desc" }, { id: "desc" }],
     take: limit + 1,
     ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
-    select: { id: true, body: true, createdAt: true, senderId: true },
+    select: { id: true, body: true, type: true, sharedBookmark: true, createdAt: true, senderId: true },
   });
 
   let nextCursor: string | null = null;
@@ -107,8 +108,16 @@ export async function getMessages(
     rows.length = limit;
   }
 
+  // Narrow `sharedBookmark` from Prisma's recursive JsonValue to the concrete snapshot so the
+  // tRPC wire type stays shallow (the JsonValue type otherwise blows up the mobile client's
+  // type inference — "excessively deep"). Only BOOKMARK messages carry a snapshot.
+  const messages = rows.reverse().map((m) => ({
+    ...m,
+    sharedBookmark: m.sharedBookmark as unknown as SharedBookmarkSnapshot | null,
+  }));
+
   return {
-    messages: rows.reverse(), // ascending for display
+    messages, // ascending for display
     nextCursor,
     other: other?.user ?? null,
     canSend: other ? await areFriends(userId, other.user.id) : false,
