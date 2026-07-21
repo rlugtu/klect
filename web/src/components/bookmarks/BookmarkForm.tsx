@@ -7,6 +7,7 @@ import { PixelButton } from "@/components/ui/PixelButton";
 import { SubmitButton } from "@/components/ui/SubmitButton";
 import { FieldLabel } from "@/components/ui/FieldLabel";
 import { RatingInput } from "./RatingInput";
+import { VisitedField } from "./VisitedField";
 import { TagInput } from "./TagInput";
 import { LocationInput } from "./LocationInput";
 import { fetchLinkExtraction, fetchLinkComprehension } from "@/lib/actions/metadata";
@@ -352,15 +353,10 @@ export function BookmarkForm({
               <FieldLabel>Rating</FieldLabel>
               <RatingInput defaultValue={defaults?.rating ?? 0} />
             </div>
-            <label className="flex cursor-pointer items-center gap-2">
-              <input
-                type="checkbox"
-                name="visited"
-                defaultChecked={defaults?.visited ?? false}
-                className="accent-primary h-5 w-5"
-              />
+            <div className="flex flex-col gap-1.5">
               <FieldLabel>Visited</FieldLabel>
-            </label>
+              <VisitedField defaultChecked={defaults?.visited ?? false} />
+            </div>
           </div>
 
           <Field label="Description">

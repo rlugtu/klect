@@ -87,3 +87,12 @@ export async function toggleVisited(bookmarkId: string) {
   revalidatePath(`/lists/${listId}`);
   revalidatePath(`/lists/${listId}/bookmarks/${bookmarkId}`);
 }
+
+/** Quick inline set of the 0–5 rating from the detail view. */
+export async function setRating(bookmarkId: string, rating: number) {
+  const user = await requireUser();
+  const { listId } = await core.setRating(user.id, bookmarkId, rating);
+
+  revalidatePath(`/lists/${listId}`);
+  revalidatePath(`/lists/${listId}/bookmarks/${bookmarkId}`);
+}

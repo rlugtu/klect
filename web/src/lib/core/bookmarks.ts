@@ -252,6 +252,29 @@ export async function toggleVisited(userId: string, bookmarkId: string) {
   return { listId: bookmark.listId };
 }
 
+/** Set the 0–5 rating (clamped) — requires COLLABORATOR. Returns its list. */
+export async function setRating(
+  userId: string,
+  bookmarkId: string,
+  rating: number,
+) {
+  const bookmark = await prisma.bookmark.findUnique({
+    where: { id: bookmarkId },
+    select: { listId: true },
+  });
+  if (!bookmark) throw new Error("Bookmark not found.");
+  await assertRole(userId, bookmark.listId, "COLLABORATOR");
+
+  const clamped = Number.isFinite(rating)
+    ? Math.min(5, Math.max(0, Math.round(rating)))
+    : 0;
+  await prisma.bookmark.update({
+    where: { id: bookmarkId },
+    data: { rating: clamped },
+  });
+  return { listId: bookmark.listId };
+}
+
 /**
  * Duplicate a list into a brand-new list owned by the acting user — requires
  * membership (VIEWER+) on the source. The copy is fully independent: only the

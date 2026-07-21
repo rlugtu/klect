@@ -13,6 +13,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { trpc } from '@/client/api';
 import { LocationInput } from '@/components/location-input';
+import RatingStars from '@/components/rating-stars';
+import VisitedPill from '@/components/visited-pill';
 import { useTheme } from '@/theme/theme-provider';
 import { THEME_TOKENS } from '@/theme/tokens';
 import type { RetrievedPlace } from '@web/lib/core/places';
@@ -72,6 +74,7 @@ export default function BookmarkForm({
   const [description, setDescription] = useState(initial.description);
   const [tagsText, setTagsText] = useState(initial.tagNames.join(', '));
   const [rating, setRating] = useState(initial.rating);
+  const [visited, setVisited] = useState(initial.visited);
   const [images, setImages] = useState<string[]>(initial.images);
   const [location, setLocation] = useState(initial.location);
   const [latitude, setLatitude] = useState<number | null>(initial.latitude);
@@ -260,6 +263,7 @@ export default function BookmarkForm({
         latitude,
         longitude,
         rating,
+        visited,
         videoUrl,
         videoType,
         tagNames: tagsText.split(',').map((t) => t.trim()).filter(Boolean),
@@ -403,15 +407,15 @@ export default function BookmarkForm({
           </Text>
         </View>
 
-        <View className="flex-row items-center gap-2">
-          <Text className="text-muted">Rating</Text>
-          {[1, 2, 3, 4, 5].map((n) => (
-            <Pressable key={n} onPress={() => setRating(n === rating ? 0 : n)}>
-              <Text className={`text-2xl ${n <= rating ? 'text-accent' : 'text-muted'}`}>
-                {n <= rating ? '★' : '☆'}
-              </Text>
-            </Pressable>
-          ))}
+        <View className="flex-row items-center justify-between gap-3">
+          <View className="flex-row items-center gap-2">
+            <Text className="text-muted">Rating</Text>
+            <RatingStars value={rating} onChange={setRating} />
+          </View>
+          <View className="flex-row items-center gap-2">
+            <Text className="text-muted">Visited</Text>
+            <VisitedPill visited={visited} onToggle={() => setVisited((v) => !v)} />
+          </View>
         </View>
 
         {error && <Text className="text-danger">{error}</Text>}

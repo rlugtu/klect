@@ -255,6 +255,8 @@ export default function ListScreen() {
       />
 
       <FlatList
+        keyboardShouldPersistTaps="handled"
+        automaticallyAdjustKeyboardInsets
         data={
           (tab === 'list' ? shown : polls) as (
             | Bookmarks[number]

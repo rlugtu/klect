@@ -9,6 +9,7 @@ import { addBookmarkComment } from "@/lib/actions/comments";
 import { CommentSection } from "@/components/comments/CommentSection";
 import { StarRating } from "@/components/bookmarks/StarRating";
 import { VisitedToggle } from "@/components/bookmarks/VisitedToggle";
+import { InlineRating } from "@/components/bookmarks/InlineRating";
 import { BookmarkHeader } from "@/components/bookmarks/BookmarkHeader";
 import { BookmarkVideo } from "@/components/bookmarks/BookmarkVideo";
 import { LocationLink } from "@/components/bookmarks/LocationLink";
@@ -78,10 +79,22 @@ export default async function BookmarkPage({
         <div>
           <h1 className="text-xl text-primary break-words">{bookmark.name}</h1>
           <div className="mt-2 flex flex-wrap items-center gap-3">
-            {bookmark.rating > 0 && <StarRating value={bookmark.rating} />}
-            <PixelBadge tone={bookmark.visited ? "success" : "default"}>
-              {bookmark.visited ? "✔ Visited" : "Not visited"}
-            </PixelBadge>
+            {canEdit ? (
+              <>
+                <InlineRating bookmarkId={bookmark.id} value={bookmark.rating} />
+                <VisitedToggle
+                  bookmarkId={bookmark.id}
+                  visited={bookmark.visited}
+                />
+              </>
+            ) : (
+              <>
+                {bookmark.rating > 0 && <StarRating value={bookmark.rating} />}
+                <PixelBadge tone={bookmark.visited ? "success" : "default"}>
+                  {bookmark.visited ? "✔ Visited" : "Not visited"}
+                </PixelBadge>
+              </>
+            )}
           </div>
         </div>
 
@@ -169,8 +182,7 @@ export default async function BookmarkPage({
       )}
 
       {canEdit && (
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <VisitedToggle bookmarkId={bookmark.id} visited={bookmark.visited} />
+        <div className="flex flex-wrap items-center justify-end gap-3">
           <ConfirmDeleteButton
             action={deleteBookmark.bind(null, bookmark.id)}
             label="Delete"

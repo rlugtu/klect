@@ -341,7 +341,11 @@ modal with `router.back()` (or `router.dismissAll()` after leaving a list).
 - **Settings** (`settings.tsx`, a pushed stack route reached via the Profile gear) — account summary
   (name/email from the session); **theme picker** (all six themes, four-swatch preview + check); an
   iOS-only **"Add Klect to your Share Sheet"** row (gated on `Platform.OS === 'ios'`) that pushes the
-  help screen; sign out.
+  help screen; a **"Send feedback"** row that pushes the feedback screen; sign out.
+- **Send feedback** (`feedback.tsx`, a pushed stack route from Settings) — a category chip row
+  (Bug / Idea / Other) + a multiline message box; on submit calls `feedback.submit` with the
+  platform + app version (`expo-constants`), toasts, and pops back. Keyboard-inset scroll so the box
+  stays visible while typing.
 - **Share to Klect** (`share-help.tsx`, a pushed stack route from Settings) — a static, illustrated
   walkthrough for surfacing/favoriting the share extension in the iOS share sheet: four steps, one
   screenshot each (`assets/images/share-help/step-1..4.png`, the same PNGs the web help page serves).
