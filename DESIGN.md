@@ -13,8 +13,8 @@
 
 Klect is a bookmarking app where bookmarks live inside **lists** that can be shared with other
 people. A bookmark is richer than a URL — it has a name, description, multiple URLs (the first is
-the original source), extracted **photos**, free-form notes, a location, a 0–5 rating, a
-visited flag, and user-scoped **tags**. Lists can be organized (per-user drag-reorder) and
+the original source), extracted **photos**, free-form notes, a location, a 0–5 rating (in
+half-star steps), a visited flag, and user-scoped **tags**. Lists can be organized (per-user drag-reorder) and
 searched (by name, and by tag with OR filtering), and each is **public or private** (owner-only
 toggle, private by default). Lists are shared by inviting people as **viewers** (view + comment) or
 **collaborators** (full edit + comment); the **owner** manages membership, and invites are
@@ -76,11 +76,13 @@ Resolved during planning (most-recent context in parentheses):
   home page independently.
 - **Sharing admin**: **owner-only** — only the owner invites, changes roles, removes members,
   and deletes the list. Collaborators have full bookmark/list-metadata edit + comment. Viewers
-  view + comment only.
+  view + comment only. The **member roster is viewable by every member** (a read-only Members
+  tab); only the owner sees the invite/role/remove controls.
 - **Bookmark URLs**: **multiple** (`urls: string[]`); the first is the primary "open" target.
 
 ### Defaults (low-stakes; change freely)
-- **Rating**: 0–5 stars (pixel-art stars).
+- **Rating**: 0–5 stars in **half-star steps** (0, 0.5, 1, … 5). Stored as a `Float`; both apps
+  render partial fills and let you set halves by tapping the left/right half of a star.
 - **Search bar**: one unified control on the home page handles both list-name and tag search
   (no separate list-name filter box).
 - **`location`**: address/business type-ahead via Mapbox Search Box (server-proxied); stores the display
@@ -156,7 +158,7 @@ ListChatMessage id, listId, senderId, body, createdAt
 
 Bookmark        id, listId, name, description, urls (string[]),
                 images (string[]), notes, location, latitude?, longitude?,
-                rating (0–5), visited (bool), videoUrl, videoType,
+                rating (0–5 Float, half-steps), visited (bool), videoUrl, videoType,
                 createdAt, updatedAt
                 -- no icon (removed); urls[0] = original source link;
                 -- images = extracted photo URLs;
@@ -241,6 +243,7 @@ PollVote        id, pollId, optionId, userId — unique per (optionId, userId); 
 | Action | Owner | Collaborator | Viewer |
 |---|:---:|:---:|:---:|
 | View list & bookmarks | ✓ | ✓ | ✓ |
+| View member roster (read-only Members tab) | ✓ | ✓ | ✓ |
 | Comment (list & bookmark) | ✓ | ✓ | ✓ |
 | Toggle list visibility (public/private) | ✓ | — | — |
 | Create/edit/delete bookmarks | ✓ | ✓ | — |
@@ -290,7 +293,7 @@ helper — never rely on UI gating alone. Read-only public access uses `assertCa
 | `/friends/dms/[conversationId]` | **Chat thread**: message history (older loads on demand via keyset cursor) + composer; composer is disabled with a note when you're no longer friends. A shared bookmark renders as a **card with a preview toggle + Save** (Save opens the multi-list picker). Mobile equivalents: the DMs view is an in-screen tab on the Friends screen; threads are `/dm/[conversationId]` and `/dm/new`. |
 | `/nearby` | **Near me**: find geocoded bookmarks within a chosen radius of your current location, closest→farthest |
 | `/bookmarks/new` | **New bookmark**: standalone create flow; pick/create one or more target lists and add the bookmark independently to each. Reached from a **＋ Bookmark** item in the primary nav (web home header · mobile tab bar) |
-| `/lists/[id]` | Bookmarks in a list; filter/search within (incl. a **Show only unvisited** toggle above the search row); list-level comments; a rounded-pill **List \| Polls** tab bar (the Polls face renders inline at `?tab=polls` — header/details/tabs stay mounted). The list-name row carries a louder **New bookmark** button (collaborator+, before the actions) + owner **Members** button + a **⋮ actions menu** (Edit / Duplicate / Clear). A **chat icon** in the top header (with an unread badge) opens the **list chatroom** — a slide-up drawer (web) / 70%-height bottom sheet (mobile) with a DM-style group chat: members read + post (each message tagged with the sender's @handle + soft role suffix), owner can clear all history. |
+| `/lists/[id]` | Bookmarks in a list; filter/search within (incl. a **Show only unvisited** toggle above the search row); list-level comments; a rounded-pill **List \| Members \| Polls** tab bar (Members + Polls faces render inline at `?tab=members`/`?tab=polls` — header/details/tabs stay mounted; both members-only). The **Members** tab shows the roster to every member (read-only) with the owner's invite/role/remove controls. The list-name row carries a louder **New bookmark** button (collaborator+, before the actions) + a **⋮ actions menu** (Edit / Duplicate / Clear). A **chat icon** in the top header (with an unread badge) opens the **list chatroom** — a slide-up drawer (web) / 70%-height bottom sheet (mobile) with a DM-style group chat: members read + post (each message tagged with the sender's @handle + soft role suffix), owner can clear all history. |
 | `/lists/[id]/bookmarks/[bid]` | Bookmark detail: 8-bit layout, tag pills, comments newest-first; an **action row** (Instagram-style, above the rating/visited row) holds a **Send** button that opens the friend picker to share the bookmark over DM; **← Back** returns to the previous page (list / nearby / search), falling back to the list on direct load. Mobile: same, plus a `/bookmarks/share` recipient-picker screen. |
 | `/lists/[id]?tab=polls` | Polls in a list (newest first, with status + counts); **New poll** for collaborators+; the **Polls** tab of the list view, rendered inline so `/lists/[id]`'s header/details/tab bar stay mounted. The legacy `/lists/[id]/polls` route redirects here. |
 | `/lists/[id]/polls/new` | Create a poll: fields + a searchable/tag-filterable bookmark option picker (≥2) |
@@ -533,7 +536,7 @@ release builds don't reliably persist `Secure` cookies. `auth.api.getSession()` 
 | `bookmarks.update` | mutation | `{ bookmarkId, data: BookmarkInput }` | COLLABORATOR (in core) | `core.updateBookmark` |
 | `bookmarks.delete` | mutation | `{ bookmarkId }` | COLLABORATOR (in core) | `core.deleteBookmark` |
 | `bookmarks.toggleVisited` | mutation | `{ bookmarkId }` | COLLABORATOR (in core) | `core.toggleVisited` |
-| `bookmarks.setRating` | mutation | `{ bookmarkId, rating: 0–5 }` | COLLABORATOR (in core) | `core.setRating` — inline single-field rating update from the detail view (clamped 0–5); avoids resending the whole `BookmarkInput` |
+| `bookmarks.setRating` | mutation | `{ bookmarkId, rating: 0–5 (`.multipleOf(0.5)`) }` | COLLABORATOR (in core) | `core.setRating` — inline single-field rating update from the detail view (clamped 0–5, snapped to half-steps); avoids resending the whole `BookmarkInput` |
 | `comments.forList` | query | `{ listId }` | `assertCanView` (member **or** public list) | `getListComments` |
 | `comments.forBookmark` | query | `{ bookmarkId }` | membership check | `getBookmarkComments` |
 | `comments.addToList` | mutation | `{ listId, value }` | VIEWER (in core) | `core.addListComment` |

@@ -10,7 +10,6 @@ import {
   duplicateList,
   clearListBookmarks,
 } from "@/lib/actions/lists";
-import { MembersPanel } from "@/components/sharing/MembersPanel";
 import {
   ListToolbar,
   ListToolbarTriggers,
@@ -140,7 +139,6 @@ export async function ListPageHeader({
     <ListToolbar
       sourceName={list.name}
       canEdit={canEdit}
-      canManageMembers={isOwner}
       canClear={isOwner}
       editAction={updateList.bind(null, id)}
       defaults={{
@@ -155,11 +153,6 @@ export async function ListPageHeader({
       visibilityChildren={
         isOwner ? (
           <ListVisibilityToggle listId={id} isPublic={list.isPublic} />
-        ) : undefined
-      }
-      membersChildren={
-        isOwner ? (
-          <MembersPanel listId={id} currentUserId={userId} />
         ) : undefined
       }
       createBookmark={createBookmark}

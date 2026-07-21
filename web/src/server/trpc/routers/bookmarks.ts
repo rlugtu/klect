@@ -72,7 +72,12 @@ export const bookmarksRouter = router({
     ),
 
   setRating: protectedProcedure
-    .input(z.object({ bookmarkId: z.string(), rating: z.number().min(0).max(5) }))
+    .input(
+      z.object({
+        bookmarkId: z.string(),
+        rating: z.number().min(0).max(5).multipleOf(0.5),
+      }),
+    )
     .mutation(({ ctx, input }) =>
       core.setRating(ctx.user.id, input.bookmarkId, input.rating),
     ),

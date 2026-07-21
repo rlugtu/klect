@@ -119,7 +119,6 @@ function AppStack() {
       }}>
       <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
       <Stack.Screen name="lists/[id]" options={{ ...blankTitle }} />
-      <Stack.Screen name="lists/members" options={{ ...blankTitle }} />
       <Stack.Screen name="lists/actions" options={{ ...blankTitle }} />
       <Stack.Screen name="lists/new" options={{ ...opaqueModal }} />
       <Stack.Screen name="lists/edit" options={{ ...opaqueModal }} />

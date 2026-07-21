@@ -23,7 +23,7 @@ export const bookmarkInput = z.object({
   location: z.string(),
   latitude: z.number().nullable(),
   longitude: z.number().nullable(),
-  rating: z.number(),
+  rating: z.number().min(0).max(5).multipleOf(0.5),
   visited: z.boolean(),
   videoUrl: z.string(),
   videoType: z.string(),
