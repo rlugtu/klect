@@ -28,6 +28,12 @@ import { close, openHostApp, type InitialProps } from 'expo-share-extension';
 
 import { trpc } from '@/client/api';
 import { readStoredBearerToken } from '@/client/bearer-store';
+import {
+  type ListOption,
+  readSharedLists,
+  toListOptions,
+  writeSharedLists,
+} from '@/client/shared-lists-cache';
 import BookmarkForm, { EMPTY_BOOKMARK } from '@/components/bookmark-form';
 import { ListPicker } from '@/components/list-picker';
 import {
@@ -37,9 +43,6 @@ import {
   isThemeName,
 } from '@/theme/theme-provider';
 import type { ThemeName } from '@/theme/tokens';
-
-// Inferred straight from web's tRPC procedure — no hand-written DTOs.
-type Memberships = Awaited<ReturnType<typeof trpc.lists.mine.query>>;
 
 /** Compact header bar with a Cancel that dismisses the share sheet (no expo-router here). */
 function TopBar({ title }: { title: string }) {
@@ -69,10 +72,17 @@ function SaveScreen({ url, text }: InitialProps) {
     : EMPTY_BOOKMARK;
 
   const [auth, setAuth] = useState<'checking' | 'in' | 'out'>('checking');
-  const [lists, setLists] = useState<Memberships>([]);
+  const [lists, setLists] = useState<ListOption[]>([]);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [newListNames, setNewListNames] = useState<string[]>([]);
   const [newListsPublic, setNewListsPublic] = useState(false);
+
+  // Hydrate the picker instantly from the last snapshot the app write-mirrored into the shared
+  // keychain — this cold extension process would otherwise show an empty picker until the network
+  // round-trip below returns. Independent of auth so it paints as early as possible.
+  useEffect(() => {
+    readSharedLists().then((cached) => cached && setLists(cached));
+  }, []);
 
   // The extension can't run the OAuth deep-link flow, so signing in has to happen in the app. Gate
   // on the shared-keychain token the app persisted; if it's missing, point the user to the app.
@@ -84,7 +94,14 @@ function SaveScreen({ url, text }: InitialProps) {
           return;
         }
         setAuth('in');
-        trpc.lists.mine.query().then(setLists).catch(() => {});
+        // Refresh the picker + the cache in the background; the cached snapshot already shows.
+        trpc.lists.mine
+          .query()
+          .then((m) => {
+            setLists(toListOptions(m));
+            writeSharedLists(m);
+          })
+          .catch(() => {});
       })
       .catch(() => setAuth('out'));
   }, []);

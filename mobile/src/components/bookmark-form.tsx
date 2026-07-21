@@ -78,10 +78,17 @@ export default function BookmarkForm({
   const [longitude, setLongitude] = useState<number | null>(initial.longitude);
   const [videoUrl, setVideoUrl] = useState(initial.videoUrl);
   const [videoType, setVideoType] = useState(initial.videoType);
-  const [autofilling, setAutofilling] = useState(false); // phase 1 (blocking)
+  const [autofilling, setAutofilling] = useState(false); // phase 1, manual (blocking overlay)
+  const [prefilling, setPrefilling] = useState(false); // phase 1, on-mount (non-blocking)
   const [enhancing, setEnhancing] = useState(false); // phase 2 (non-blocking)
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Track whether the user has hand-edited name/description. On-mount (non-blocking) autofill uses
+  // this to fill/refine those fields *without* clobbering anything typed while the fetch was in
+  // flight; the manual Autofill button ignores it (that press is an explicit overwrite).
+  const nameDirty = useRef(false);
+  const descDirty = useRef(false);
 
   // Phase 2 — comprehension. Its own abort/timeout; returns null on failure so the
   // fast fields from phase 1 stand.
@@ -100,14 +107,18 @@ export default function BookmarkForm({
     }
   }
 
-  async function autofill() {
+  // `blocking` (manual Autofill button) drops the full-screen overlay and overwrites the fields
+  // unconditionally. Non-blocking (on-mount, e.g. a shared URL) keeps the whole drawer — notably
+  // the list picker — interactive: it shows only an inline indicator and respects hand-edits.
+  async function autofill(blocking = true) {
     const target = url.trim();
     if (!target) return;
-    // Drop the keyboard the instant the (blocking) fetch begins.
-    Keyboard.dismiss();
-    setAutofilling(true);
+    const respectDirty = !blocking;
+    // Drop the keyboard the instant a blocking fetch begins (on-mount there's no keyboard up yet).
+    if (blocking) Keyboard.dismiss();
+    (blocking ? setAutofilling : setPrefilling)(true);
     setError(null);
-    // Phase 1 — fast extraction under the blocking overlay. Always resolve — cap it.
+    // Phase 1 — fast extraction. Always resolve — cap it.
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), AUTOFILL_TIMEOUT_MS);
     try {
@@ -116,11 +127,12 @@ export default function BookmarkForm({
         { signal: controller.signal },
       );
       if (res.ok) {
-        if (res.data.title) setName(res.data.title);
-        if (res.data.description) setDescription(res.data.description);
-        if (res.data.images.length) setImages(res.data.images);
-        setVideoUrl(res.data.video?.url ?? '');
-        setVideoType(res.data.video?.type ?? '');
+        const { title, description: desc, images: imgs, video } = res.data;
+        if (title && (!respectDirty || !nameDirty.current)) setName(title);
+        if (desc && (!respectDirty || !descDirty.current)) setDescription(desc);
+        if (imgs.length) setImages(imgs);
+        setVideoUrl(video?.url ?? '');
+        setVideoType(video?.type ?? '');
       } else {
         setError(res.error);
         return; // extraction failed — skip phase 2
@@ -136,16 +148,16 @@ export default function BookmarkForm({
       return;
     } finally {
       clearTimeout(timer);
-      setAutofilling(false);
+      (blocking ? setAutofilling : setPrefilling)(false);
     }
 
-    // Phase 2 — comprehension, non-blocking (form stays editable). Refined
-    // title/description win; tags/location fill only when still empty.
+    // Phase 2 — comprehension, non-blocking (form stays editable). Refined title/description win
+    // (unless the user has hand-edited them); tags/location fill only when still empty.
     setEnhancing(true);
     const c = await comprehendUrl(target);
     if (c) {
-      if (c.title) setName(c.title);
-      if (c.description) setDescription(c.description);
+      if (c.title && (!respectDirty || !nameDirty.current)) setName(c.title);
+      if (c.description && (!respectDirty || !descDirty.current)) setDescription(c.description);
       if (c.tags.length && !tagsText.trim()) setTagsText(c.tags.join(', '));
       if (c.location && !location.trim()) {
         setLocation(c.location);
@@ -162,7 +174,7 @@ export default function BookmarkForm({
   useEffect(() => {
     if (autofillOnMount && !didAutofill.current && url.trim()) {
       didAutofill.current = true;
-      autofill();
+      autofill(false); // non-blocking — keep the list picker + form live while metadata loads
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [autofillOnMount]);
@@ -302,8 +314,8 @@ export default function BookmarkForm({
           />
           <Pressable
             className="items-center justify-center rounded-skin border-skin border-border px-3"
-            disabled={autofilling || enhancing}
-            onPress={autofill}>
+            disabled={autofilling || prefilling || enhancing}
+            onPress={() => autofill(true)}>
             {autofilling ? (
               <ActivityIndicator />
             ) : (
@@ -312,7 +324,14 @@ export default function BookmarkForm({
           </Pressable>
         </View>
 
-        {/* Non-blocking phase-2 indicator — the form stays editable while it runs. */}
+        {/* Non-blocking indicators — the form + list picker stay editable while these run.
+            phase 1 (on-mount fetch) then phase 2 (comprehension enrichment). */}
+        {prefilling && (
+          <View className="flex-row items-center gap-2">
+            <ActivityIndicator size="small" />
+            <Text className="text-sm text-muted">Fetching link…</Text>
+          </View>
+        )}
         {enhancing && (
           <View className="flex-row items-center gap-2">
             <ActivityIndicator size="small" />
@@ -341,7 +360,10 @@ export default function BookmarkForm({
           placeholder="Name"
           placeholderTextColor={muted}
           value={name}
-          onChangeText={setName}
+          onChangeText={(text) => {
+            nameDirty.current = true;
+            setName(text);
+          }}
         />
         <TextInput
           className="rounded-skin border-skin border-border px-4 py-3 text-ink"
@@ -349,7 +371,10 @@ export default function BookmarkForm({
           placeholderTextColor={muted}
           multiline
           value={description}
-          onChangeText={setDescription}
+          onChangeText={(text) => {
+            descDirty.current = true;
+            setDescription(text);
+          }}
         />
         <View className="gap-1">
           <TextInput

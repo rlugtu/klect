@@ -4,6 +4,7 @@ import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 
 import { trpc } from '@/client/api';
 import { toast } from '@/client/toast';
+import { toListOptions } from '@/client/shared-lists-cache';
 import BookmarkForm, { EMPTY_BOOKMARK } from '@/components/bookmark-form';
 import { ListPicker } from '@/components/list-picker';
 
@@ -73,7 +74,7 @@ export default function NewBookmarkScreen() {
       submitLabel="Save bookmark"
       header={
         <ListPicker
-          lists={lists}
+          lists={toListOptions(lists)}
           selectedIds={selectedIds}
           onToggle={(id) =>
             setSelectedIds((prev) =>

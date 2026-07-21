@@ -86,7 +86,10 @@ EAS the map ships blank; the secret download token stays in local `.env`, suppli
 `expo-secure-store`,
 **`expo-share-extension`** (native iOS share extension — reuses `BookmarkForm` to save a shared URL
 as a bookmark *inside the share sheet*, authenticating via a shared-keychain bearer token; entry is
-`index.share.js` → `src/share-extension.tsx`; requires the custom dev build noted above),
+`index.share.js` → `src/share-extension.tsx`; requires the custom dev build noted above. On-mount
+autofill is **non-blocking** so the list picker stays live, and the picker hydrates instantly from a
+shared-keychain lists snapshot the app write-mirrors — `client/shared-lists-cache.ts`, the third
+item in the App-Group keychain alongside the bearer token + `klect.theme.shared`),
 **`expo-video` + `react-native-webview`** (bookmark
 detail video player — `expo-video` for direct media files, a WebView-hosted iframe for
 YouTube/Vimeo/TikTok/Instagram embeds; both also need the custom dev build).

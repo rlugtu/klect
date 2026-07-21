@@ -299,7 +299,9 @@ a **Public/Private toggle** (default private) sets those new lists' visibility �
 **Web.** `/bookmarks/new` → `CreateBookmarkFlow` (pick/create lists + new-list visibility toggle) →
 `bookmarks.createInLists`.
 **Mobile.** `bookmarks/new.tsx` with no `listId` param → `ListPicker` (with the new-list visibility
-toggle) → `bookmarks.createInLists`.
+toggle) → `bookmarks.createInLists`. The picker is **compact**: the form shows only the *selected*
+lists as chips plus an **"Add to a list"** button that opens a **searchable** modal of your editable
+lists (so a long list of lists never floods the form). Same picker is reused by the share extension.
 **Differences.** None — same procedure, same behavior.
 
 ### Link metadata autofill
@@ -329,7 +331,9 @@ and description (and unfurls the site for images/video).
 **Web.** `LocationInput` + `places.search` / `places.retrieve` (Mapbox Search Box), Mapbox session
 tokens for billing. Degrades to plain text if no Mapbox token.
 **Mobile.** `src/components/bookmark-form.tsx` location search, same procedures, rotating session
-tokens; free typing clears coordinates. A business pick fills name/description/URL/photos **only when
+tokens; free typing clears coordinates. The field carries a **"Location"** label and a *"Search an
+address or business…"* placeholder so it's clear you can add an address (which is what makes a
+bookmark show up on Near me). A business pick fills name/description/URL/photos **only when
 those fields are empty** (the location/address + coordinates always overwrite), so it never clobbers
 what the user already typed.
 **Differences.** Mobile's business autofill is empty-field-only; web still overwrites those fields on
@@ -557,6 +561,9 @@ filled out and saved **inside the share sheet**, without opening the app.
 share sheet (auto-autofill on mount, two-phase via `metadata.extract` + `metadata.comprehend`),
 saving through `bookmarks.createInLists`. Auth uses
 a bearer token read from the shared keychain; if none is present it prompts to open Klect and sign in.
+The drawer stays responsive throughout: on-mount autofill is **non-blocking** (an inline "Fetching
+link…" hint, the list picker stays tappable) and the picker **hydrates instantly** from a
+shared-keychain snapshot of your lists the app keeps mirrored, then refreshes in the background.
 Requires the custom dev build.
 **Setup help.** A short, illustrated **"Share to Klect"** walkthrough teaches users how to surface
 and favorite the extension in the iOS share sheet — four steps, one screenshot each. It's reachable

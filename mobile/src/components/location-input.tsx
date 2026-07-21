@@ -29,10 +29,13 @@ function uuid(): string {
  */
 export function LocationInput({
   initialLocation = '',
+  label = 'Location',
   onLocationChange,
   onAutofill,
 }: {
   initialLocation?: string;
+  // Section label above the field so it's clear you can search/add an address (powers Near me).
+  label?: string;
   // Fired on free typing so the parent can update its location text and clear stale coordinates.
   onLocationChange?: (text: string) => void;
   // Fired after a successful retrieve so the parent can set coords + autofill from a picked business.
@@ -127,10 +130,13 @@ export function LocationInput({
     (suggestions.length > 0 || !!error);
 
   return (
-    <View>
+    <View className="gap-1.5">
+      {label ? (
+        <Text className="font-sans-medium text-sm uppercase text-muted">{label}</Text>
+      ) : null}
       <TextInput
         className="rounded-skin border-skin border-border px-4 py-3 text-ink"
-        placeholder="Search a place or business…"
+        placeholder="Search an address or business…"
         placeholderTextColor={muted}
         autoCapitalize="none"
         autoCorrect={false}

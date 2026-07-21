@@ -378,6 +378,10 @@ modal with `router.back()` (or `router.dismissAll()` after leaving a list).
   present (e.g. an OAuth session never surfaced to the shared keychain, or signed out) it shows an
   "Open Klect" prompt (`openHostApp`), since the extension can't run the OAuth deep-link flow. Metro
   builds the extension as a second bundle via `withShareExtension`; requires the custom dev build.
+  For perceived speed the drawer never blocks: on-mount metadata autofill is **non-blocking** (the
+  list picker stays interactive while the link is fetched — see `BookmarkForm` below), and the list
+  picker **hydrates instantly** from a snapshot the app write-mirrors into the shared keychain
+  (`client/shared-lists-cache.ts`) before the live `lists.mine` refresh returns.
 
 ### The shared `BookmarkForm` (`components/bookmark-form.tsx`)
 
@@ -392,8 +396,12 @@ When a `header` is present the two areas are labelled with matching uppercase se
 **"Add to lists"** header over the picker and a **"Bookmark"** header sharing the divider row above the
 fields — visually splitting the drawer into its list and bookmark sections.
 `onSubmit(data)` is provided by each screen; throwing from it surfaces the message inline (used to
-enforce "pick at least one list"). `autofillOnMount` (guarded to run once) fetches metadata when the
-form opens with a shared URL. Tags are entered comma-separated; a leading `#` is stripped on input
+enforce "pick at least one list"). A **manual** Autofill button press is blocking (a full-screen
+overlay while it overwrites the fields); `autofillOnMount` (guarded to run once, for a shared URL)
+is **non-blocking** instead — it shows only an inline "Fetching link…" indicator so the rest of the
+drawer (notably the list picker) stays usable, and it fills/refines name & description **without
+clobbering** anything the user hand-edited meanwhile (tracked via dirty refs). Tags are entered
+comma-separated; a leading `#` is stripped on input
 (the `#` is display-only) and web's core lowercases + dedupes on save, so casing variants never
 create duplicate tags. The scroll view uses `automaticallyAdjustKeyboardInsets` (not a
 `KeyboardAvoidingView`) so the focused field always sits above the keyboard — this is what keeps the
@@ -401,16 +409,23 @@ form visible inside the fixed-height iOS share sheet, where the old padding-base
 off-screen.
 
 - **`LocationInput`** (`components/location-input.tsx`) — Mapbox Search Box autocomplete via web's
-  `places.search` / `places.retrieve` procedures (token stays server-side). Debounced suggest
+  `places.search` / `places.retrieve` procedures (token stays server-side). Carries a **"Location"**
+  section label and a *"Search an address or business…"* placeholder so it's clear you can add an
+  address (geocoding a bookmark is what surfaces it on **Near me**). Debounced suggest
   (≥3 chars, 350 ms) → pick → `retrieve` coordinates, with request-id guarding against stale
   responses and a rotating session token for Mapbox billing. Free typing clears the parent's
   coordinates (text no longer matches the pin); picking a **business** (POI) autofills
   name/description/URL/images **only into empty fields** (and unfurls its website for the same empty
   fields), while location + coordinates always overwrite; a plain address sets location + coordinates
   only.
-- **`ListPicker`** (`components/list-picker.tsx`) — standalone-flow multi-list target picker: toggle
-  chips for editable lists (OWNER/COLLABORATOR) + inline new-list creation (dismissible "(new)"
-  badges, committed on submit/blur).
+- **`ListPicker`** (`components/list-picker.tsx`) — multi-list target picker (standalone + share
+  flows). **Compact by design:** the form body shows only the *selected* lists as chips plus an
+  **"Add to a list"** button; the full, **searchable** list of editable lists (OWNER/COLLABORATOR)
+  lives behind a bottom-anchored picker — a plain RN `<Modal>` (not `@gorhom/bottom-sheet`, which has
+  no provider in the share-extension process), with inline new-list creation (dismissible "(new)"
+  badges, committed on submit/blur). Consumes a minimal `ListOption[]` (`{ id, name, icon, role }`,
+  from `client/shared-lists-cache.ts`) rather than full membership rows, so it renders identically
+  from the network or from the shared-keychain cache.
 
 ### `BookmarkVideo` (`components/bookmark-video.tsx`)
 
@@ -447,6 +462,9 @@ differ, screen structure is shared.
   Extension's separate process can render in the user's real theme. The extension reads that mirror
   and passes it as `initialTheme`; if it's absent/unreadable (e.g. the app hasn't run since the
   feature shipped, or a brand-new user), the provider falls back to system light/dark → **Modern**.
+  The same App-Group-keychain mirror pattern backs the share extension's instant list picker —
+  `client/shared-lists-cache.ts` write-mirrors the user's lists (`klect.lists.shared`) so the
+  extension hydrates them without waiting on the network.
 - **`tailwind.config.js`** — maps the semantic classes to the CSS vars and registers the skin
   utilities + per-weight font families.
 - **Styling** — semantic NativeWind classes only: `bg-bg` / `bg-panel` / `text-ink` / `text-muted` /

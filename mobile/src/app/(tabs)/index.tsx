@@ -9,6 +9,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect, useRouter } from 'expo-router';
 
 import { trpc } from '@/client/api';
+import { writeSharedLists } from '@/client/shared-lists-cache';
 import FloatingStatusBar from '@/components/floating-status-bar';
 import { useTheme } from '@/theme/theme-provider';
 import { THEME_TOKENS } from '@/theme/tokens';
@@ -108,7 +109,12 @@ export default function HomeScreen() {
   const load = useCallback(() => {
     trpc.lists.mine
       .query()
-      .then(setLists)
+      .then((next) => {
+        setLists(next);
+        // Keep the share extension's instant-hydration snapshot fresh (it's a cold, separate
+        // process that can only read the shared keychain). This is the single choke point.
+        writeSharedLists(next);
+      })
       .catch((e) => setError(e instanceof Error ? e.message : 'Request failed'))
       .finally(() => setLoading(false));
     trpc.sharing.incomingRequests
