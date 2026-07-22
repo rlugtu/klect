@@ -1,6 +1,7 @@
-import { createTRPCClient, httpBatchLink } from "@trpc/client";
+import { createTRPCClient, httpBatchLink, type TRPCLink } from "@trpc/client";
+import { observable } from "@trpc/server/observable";
 import type { AppRouter } from "@web/server/trpc/router";
-import { readStoredBearerToken, API_URL } from "./bearer-store";
+import { readStoredBearerToken, API_URL, clearBearerToken } from "./bearer-store";
 
 /**
  * Live (cookie/session-aware) token resolver, injected by `./auth` at app startup via
@@ -15,6 +16,29 @@ export function setLiveTokenResolver(fn: () => string | null) {
 }
 
 /**
+ * Drop a server-rejected bearer token so the next request re-resolves from the fresh cookie/keychain
+ * instead of resending the dead one — the tRPC counterpart to the auth client's onError 401 hook
+ * (the two clients don't share an interceptor). Deliberately imports only `clearBearerToken` from
+ * `./bearer-store` (never `./auth`), so the Share Extension's tRPC client stays better-auth-free.
+ */
+const clearBearerOnUnauthorized: TRPCLink<AppRouter> = () => {
+  return ({ op, next }) =>
+    observable((observer) =>
+      next(op).subscribe({
+        next: (v) => observer.next(v),
+        error: (err) => {
+          const status =
+            (err.data as { httpStatus?: number } | undefined)?.httpStatus ??
+            (err.meta?.response as Response | undefined)?.status;
+          if (status === 401) clearBearerToken();
+          observer.error(err);
+        },
+        complete: () => observer.complete(),
+      }),
+    );
+};
+
+/**
  * Typed tRPC client for web's API. `AppRouter` is a **type-only** import from
  * web/src (erased at compile time — no runtime dependency on web), giving
  * end-to-end type safety against the exact procedures web exposes.
@@ -26,6 +50,7 @@ export function setLiveTokenResolver(fn: () => string | null) {
  */
 export const trpc = createTRPCClient<AppRouter>({
   links: [
+    clearBearerOnUnauthorized,
     httpBatchLink({
       url: `${API_URL}/api/trpc`,
       async headers() {

@@ -210,10 +210,16 @@ export default function SettingsScreen() {
         <Pressable
           className="items-center rounded-skin border-skin border-border py-3"
           onPress={async () => {
-            // Unregister the device while the bearer token is still valid, then sign out.
-            await unregisterPushNotificationsAsync();
-            clearBearerToken();
-            authClient.signOut();
+            // Order matters: unregister the device and sign out while the bearer token is still
+            // valid (signOut() authenticates with the cached bearer to invalidate the server session
+            // and clear the expo cookie store), then wipe local token state last. `finally`
+            // guarantees the local wipe even if the network sign-out fails (offline / dead token).
+            try {
+              await unregisterPushNotificationsAsync();
+              await authClient.signOut();
+            } finally {
+              clearBearerToken();
+            }
           }}>
           <Text className="font-semibold text-danger">Sign out</Text>
         </Pressable>

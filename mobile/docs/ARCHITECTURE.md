@@ -78,6 +78,21 @@ Everything else hot-reloads normally against the dev client.
     `cookie` query param on the `klect://` deep-link redirect — so the resolver falls back to the
     session-token value parsed out of `authClient.getCookie()` (the stored cookie), which the
     `bearer()` plugin accepts (incl. URL-encoded). Both paths must stay covered.
+  - **Self-heal on a rejected token (don't get stuck on a dead session).** `resolveBearerToken()`
+    returns the cached token first, and the cache re-hydrates from the keychain on cold start — so a
+    token the **server** has invalidated (a sign-out on another device, expiry) would otherwise be
+    resent forever, dropping the app to `<LoginScreen>` with no way back in (a Google re-login stores
+    a fresh cookie but the stale cache shadows it). Two guards prevent that lockout: (1) both clients
+    clear the bearer (in-memory + shared keychain, via `clearBearerToken()`) on an **HTTP 401** — the
+    `authClient` `fetchOptions.onError` hook (covers `useSession()`/the gate) and a tRPC
+    `clearBearerOnUnauthorized` link in `api.ts` (the two clients don't share an interceptor); and
+    (2) each sign-in handler in `login-screen.tsx` calls `clearBearerToken()` **before** signing in,
+    so the fresh cookie/`set-auth-token` wins over any stale cache. Sign-out
+    (`settings.tsx`/`delete-account.tsx`) awaits `authClient.signOut()` **first** (invalidates the
+    server session + clears the expo cookie store while the bearer is still valid), then
+    `clearBearerToken()` last (in a `finally`, so local state wipes even offline). The tRPC 401 link
+    imports only `clearBearerToken` from `bearer-store` — never the auth client — so the share
+    extension's bundle stays better-auth-free.
   - **Shared-keychain token for the share extension.** `klect_bearer` is stored/read with
     `SecureStore`'s `accessGroup: "group.com.klect.app"` (`SHARED_KEYCHAIN_ACCESS_GROUP` in
     `client/bearer-store.ts`) — an App Group iOS also treats as a keychain access group — so the share

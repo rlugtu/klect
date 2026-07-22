@@ -8,7 +8,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { authClient } from '@/client/auth';
+import { authClient, clearBearerToken } from '@/client/auth';
 import { useTheme } from '@/theme/theme-provider';
 import { THEME_TOKENS } from '@/theme/tokens';
 
@@ -45,6 +45,9 @@ export default function LoginScreen() {
     }
     setBusy(true);
     setError(null);
+    // Start from a clean slate: drop any stale bearer token so this sign-in's fresh token
+    // (set-auth-token header for email/password) wins instead of a dead cached one.
+    clearBearerToken();
     const res =
       mode === 'signin'
         ? await authClient.signIn.email({ email: email.trim(), password })
@@ -62,6 +65,9 @@ export default function LoginScreen() {
   async function signInGoogle() {
     setBusy(true);
     setError(null);
+    // Start from a clean slate: drop any stale bearer token so resolveBearerToken() reads this
+    // sign-in's fresh OAuth cookie instead of short-circuiting on a dead cached token (the lockout).
+    clearBearerToken();
     try {
       await authClient.signIn.social({ provider: 'google', callbackURL: '/' });
     } catch (e) {

@@ -26,7 +26,11 @@ mobile-specific implementation only.
   builds swallow (`Secure` Set-Cookie is intercepted by native networking before the client can
   store it, so it only breaks in TestFlight/store builds, not dev). Two capture paths, both required:
   email/password → the `set-auth-token` response header; Google OAuth → parsed from the stored
-  cookie (`getCookie()`). **Don't revert to a `Cookie` header.** Full rationale: `docs/ARCHITECTURE.md` Auth.
+  cookie (`getCookie()`). **Don't revert to a `Cookie` header.** The bearer is **self-healing**: it's
+  cleared on any **HTTP 401** (auth-client `onError` hook + a tRPC `clearBearerOnUnauthorized` link)
+  and at the start of every sign-in, so a session invalidated on another device can't lock the app
+  into resending a dead token; sign-out awaits `signOut()` first, then `clearBearerToken()` last.
+  Full rationale: `docs/ARCHITECTURE.md` Auth.
 - **Realtime (DMs)**: `src/client/realtime.ts` uses **`@supabase/supabase-js`** to subscribe to
   Supabase Realtime broadcast channels (`dm:user:<id>` / `dm:conv:<id>`) purely as a "refetch now"
   signal — no message content on the socket; actual DM data comes over the `dms.*` tRPC procedures.

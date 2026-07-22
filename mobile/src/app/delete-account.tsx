@@ -30,8 +30,10 @@ export default function DeleteAccountScreen() {
     setBusy(true);
     try {
       await trpc.account.delete.mutate();
-      clearBearerToken();
+      // Sign out (clears the expo cookie store) before wiping the local bearer, matching the
+      // settings sign-out order so there's one teardown mental model.
       await authClient.signOut();
+      clearBearerToken();
       // Root layout re-reads the (now empty) session and shows the login screen.
     } catch (e) {
       setBusy(false);

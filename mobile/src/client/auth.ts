@@ -3,7 +3,7 @@ import { expoClient } from "@better-auth/expo/client";
 import { inferAdditionalFields } from "better-auth/client/plugins";
 import * as SecureStore from "expo-secure-store";
 
-import { API_URL, getCachedToken, persistBearer } from "./bearer-store";
+import { API_URL, getCachedToken, persistBearer, clearBearerToken } from "./bearer-store";
 import { setLiveTokenResolver } from "./api";
 
 // Re-exported so existing importers of `@/client/auth` keep working; the storage itself now lives in
@@ -52,6 +52,14 @@ export const authClient = createAuthClient({
     onSuccess(ctx) {
       const token = ctx.response.headers.get("set-auth-token");
       if (token) persistBearer(token);
+    },
+    // Self-heal from a server-side session invalidation (a sign-out on another device, expiry).
+    // Once the server rejects our bearer token, drop it (in-memory cache + shared keychain) so the
+    // next resolveBearerToken() falls through to the fresh OAuth cookie instead of resending the
+    // dead token forever — which otherwise survives cold restart via the keychain and locks the app
+    // onto the login screen with no way to re-authenticate. Covers useSession()/the _layout gate.
+    onError(ctx) {
+      if (ctx.response?.status === 401) clearBearerToken();
     },
     // Authenticate the auth client's own requests (e.g. /get-session, the onboarding gate in
     // app/_layout.tsx) with the bearer token too, so useSession reflects live server state in

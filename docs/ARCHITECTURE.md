@@ -178,6 +178,12 @@ birthday, icon, theme). The unique `handle` is the public identity and the onboa
   the client falls back to the session-token value parsed out of the stored cookie (which the
   `bearer()` plugin accepts). Miss the Google fallback and Google users sign in but hit *"Sign in
   required"* on every list/bookmark call.
+- **The mobile bearer is self-healing** so a session invalidated server-side (a sign-out on another
+  device, expiry) can't lock the app onto a dead token: both mobile clients clear the token on an
+  **HTTP 401** (auth-client `onError` + a tRPC link), and each sign-in clears it first so the fresh
+  token wins over a stale cache. Without this, a Google re-login stores a fresh cookie but the cached
+  dead token shadows it, stranding the user on the login screen (see `docs/ARCHITECTURE.md` mobile
+  Auth for the full flow).
 - **Google on mobile** goes *through* the web server: the app opens the server's OAuth URL,
   the server runs Google with its existing web client, then deep-links back to the app's
   `klect://` scheme. This needs the `expo()` **server** plugin and
