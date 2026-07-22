@@ -195,13 +195,31 @@ export default function SettingsScreen() {
         </View>
 
         <View className="gap-2">
-          <Text className="text-sm uppercase text-muted">Privacy</Text>
+          <Text className="text-sm uppercase text-muted">Safety &amp; privacy</Text>
+          <Pressable
+            onPress={() => router.push('/blocked')}
+            className="flex-row items-center justify-between rounded-skin border-skin border-border bg-panel p-3">
+            <View className="flex-row items-center gap-3">
+              <Ionicons name="ban-outline" size={22} color={t.primary} />
+              <Text className="text-base text-ink">Blocked users</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={18} color={t.muted} />
+          </Pressable>
           <Pressable
             onPress={() => WebBrowser.openBrowserAsync(`${API_URL}/privacy`)}
             className="flex-row items-center justify-between rounded-skin border-skin border-border bg-panel p-3">
             <View className="flex-row items-center gap-3">
               <Ionicons name="lock-closed-outline" size={22} color={t.primary} />
               <Text className="text-base text-ink">Privacy Policy</Text>
+            </View>
+            <Ionicons name="open-outline" size={18} color={t.muted} />
+          </Pressable>
+          <Pressable
+            onPress={() => WebBrowser.openBrowserAsync(`${API_URL}/terms`)}
+            className="flex-row items-center justify-between rounded-skin border-skin border-border bg-panel p-3">
+            <View className="flex-row items-center gap-3">
+              <Ionicons name="document-text-outline" size={22} color={t.primary} />
+              <Text className="text-base text-ink">Terms of Use</Text>
             </View>
             <Ionicons name="open-outline" size={18} color={t.muted} />
           </Pressable>

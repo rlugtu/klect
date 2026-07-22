@@ -3,6 +3,7 @@ import { prisma } from "@/lib/db";
 import { Prisma } from "@/generated/prisma/client";
 import { type MessageType } from "@/generated/prisma/enums";
 import { areFriends } from "@/lib/friends";
+import { isBlockedEitherWay } from "@/lib/blocks";
 import { broadcastDmActivity } from "@/lib/core/dm-realtime";
 import { sendPushToUsers } from "@/lib/core/push";
 import {
@@ -51,6 +52,9 @@ function pairKeyFor(a: string, b: string) {
  */
 export async function startConversation(userId: string, otherUserId: string) {
   if (userId === otherUserId) throw new Error("You can't message yourself.");
+  if (await isBlockedEitherWay(userId, otherUserId)) {
+    throw new Error("You can't message this user.");
+  }
   if (!(await areFriends(userId, otherUserId))) {
     throw new Error("You can only message friends.");
   }
@@ -91,6 +95,9 @@ async function deliverMessage(
     }),
   ]);
   if (!me || !other) throw new Error("Conversation not found.");
+  if (await isBlockedEitherWay(userId, other.userId)) {
+    return { error: "You can't message this user." };
+  }
   if (!(await areFriends(userId, other.userId))) {
     return { error: "You can no longer message this user." };
   }

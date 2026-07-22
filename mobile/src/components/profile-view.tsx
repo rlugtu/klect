@@ -1,5 +1,5 @@
 import { useCallback, useState } from 'react';
-import { Pressable, Text, View } from 'react-native';
+import { Alert, Pressable, Text, View } from 'react-native';
 import { Image } from 'expo-image';
 import Animated from 'react-native-reanimated';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -7,6 +7,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect, useRouter } from 'expo-router';
 
 import { trpc } from '@/client/api';
+import { toast, errorMessage } from '@/client/toast';
+import { ReportSheet } from '@/components/report-sheet';
 import { atHandle } from '@/lib/handle';
 import FloatingStatusBar from '@/components/floating-status-bar';
 import { cardShadow } from '@/theme/shadows';
@@ -47,6 +49,8 @@ export default function ProfileView({
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [requested, setRequested] = useState(false);
+  const [reportVisible, setReportVisible] = useState(false);
+  const [busy, setBusy] = useState(false);
   const onScroll = useTabBarScrollHandler();
 
   const load = useCallback(() => {
@@ -69,6 +73,49 @@ export default function ProfileView({
       await trpc.friends.requestByUser.mutate({ userId: targetId });
     } catch {
       setRequested(false);
+    }
+  }
+
+  function confirmBlock() {
+    const targetId = profile?.user.id;
+    if (!targetId) return;
+    Alert.alert(
+      'Block this user?',
+      'They won’t be able to message you or send you a friend request, and you won’t see their content. You can unblock later.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Block',
+          style: 'destructive',
+          onPress: async () => {
+            setBusy(true);
+            try {
+              await trpc.moderation.block.mutate({ userId: targetId });
+              toast.success('User blocked.');
+              load();
+            } catch (e) {
+              toast.error(errorMessage(e, "Couldn't block."));
+            } finally {
+              setBusy(false);
+            }
+          },
+        },
+      ],
+    );
+  }
+
+  async function unblock() {
+    const targetId = profile?.user.id;
+    if (!targetId) return;
+    setBusy(true);
+    try {
+      await trpc.moderation.unblock.mutate({ userId: targetId });
+      toast.success('User unblocked.');
+      load();
+    } catch (e) {
+      toast.error(errorMessage(e, "Couldn't unblock."));
+    } finally {
+      setBusy(false);
     }
   }
 
@@ -147,7 +194,50 @@ export default function ProfileView({
               </View>
             )}
 
+            {profile.friendship === 'blocked' && (
+              <View className="items-center gap-2 rounded-skin border-skin border-border py-4">
+                <Text className="font-sans text-danger">
+                  You blocked this user
+                </Text>
+                <Pressable
+                  disabled={busy}
+                  onPress={unblock}
+                  className="rounded-skin border-skin border-border px-4 py-2">
+                  <Text className="font-sans-semibold text-ink">Unblock</Text>
+                </Pressable>
+              </View>
+            )}
+
+            {/* Block / report — any other user (not self, not already blocked) */}
+            {profile.friendship !== 'self' &&
+              profile.friendship !== 'blocked' && (
+                <View className="flex-row justify-center gap-4">
+                  <Pressable
+                    disabled={busy}
+                    onPress={confirmBlock}
+                    className="flex-row items-center gap-1.5">
+                    <Ionicons
+                      name="ban-outline"
+                      size={16}
+                      color={THEME_TOKENS[theme].muted}
+                    />
+                    <Text className="font-sans text-sm text-muted">Block</Text>
+                  </Pressable>
+                  <Pressable
+                    onPress={() => setReportVisible(true)}
+                    className="flex-row items-center gap-1.5">
+                    <Ionicons
+                      name="flag-outline"
+                      size={16}
+                      color={THEME_TOKENS[theme].muted}
+                    />
+                    <Text className="font-sans text-sm text-muted">Report</Text>
+                  </Pressable>
+                </View>
+              )}
+
             {/* Public lists */}
+            {profile.friendship !== 'blocked' && (
             <View className="gap-3">
               <Text className="font-sans-medium text-sm uppercase text-muted">
                 Public lists
@@ -180,6 +270,7 @@ export default function ProfileView({
                 ))
               )}
             </View>
+            )}
           </>
         )}
       </Animated.ScrollView>
@@ -207,6 +298,15 @@ export default function ProfileView({
       {/* Both the own-profile tab and the pushed friend profile (transparent header)
           take their gradual blur from the status component, home-style. */}
       <FloatingStatusBar />
+      {profile && (
+        <ReportSheet
+          visible={reportVisible}
+          onClose={() => setReportVisible(false)}
+          targetType="USER"
+          targetId={profile.user.id}
+          title={`Report ${atHandle(profile.user.handle)}`}
+        />
+      )}
     </SafeAreaView>
   );
 }

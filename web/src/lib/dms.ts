@@ -1,6 +1,7 @@
 import "server-only";
 import { prisma } from "@/lib/db";
 import { areFriends } from "@/lib/friends";
+import { isBlockedEitherWay, getBlockedUserIds } from "@/lib/blocks";
 import { type SharedBookmarkSnapshot } from "@/lib/core/bookmarks";
 
 // Minimal public identity — same shape the friends data access exposes.
@@ -46,6 +47,7 @@ export async function getConversations(userId: string) {
     },
   });
 
+  const blocked = new Set(await getBlockedUserIds(userId));
   const summaries = [];
   for (const p of parts) {
     const conv = p.conversation;
@@ -54,6 +56,7 @@ export async function getConversations(userId: string) {
     if (p.clearedAt && last.createdAt <= p.clearedAt) continue; // fully cleared
     const other = conv.participants[0]?.user;
     if (!other) continue; // orphaned (other account deleted)
+    if (blocked.has(other.id)) continue; // hide threads with blocked users
     const unread =
       last.senderId !== userId &&
       (!p.lastReadAt || last.createdAt > p.lastReadAt);
@@ -120,7 +123,10 @@ export async function getMessages(
     messages, // ascending for display
     nextCursor,
     other: other?.user ?? null,
-    canSend: other ? await areFriends(userId, other.user.id) : false,
+    canSend: other
+      ? !(await isBlockedEitherWay(userId, other.user.id)) &&
+        (await areFriends(userId, other.user.id))
+      : false,
   };
 }
 

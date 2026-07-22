@@ -235,6 +235,17 @@ PollVote        id, pollId, optionId, userId — unique per (optionId, userId); 
   feedback). One row per submission — `category` (`bug` | `idea` | `other`), `message`, optional
   `platform` (`ios` | `web`) + `appVersion`, `createdAt`. No admin UI; reviewed via Prisma Studio.
   Cascades on user delete.
+- **Moderation** (`Block`, `Report`): the UGC-safety controls (Apple Guideline 1.2). `Block` is a
+  directional `blockerId → blockedId` row (unique per pair); a block is enforced **symmetrically**
+  everywhere via `isBlockedEitherWay` / `getBlockedUserIds` (`lib/blocks.ts`). A **full block**
+  (`blockUser` in `core/moderation.ts`) also deletes any friendship/pending request between the two
+  in the same transaction, and content-level read paths (comments, list chat, DM inbox/thread,
+  public profile) filter out blocked users — so DMs and friend requests are refused both ways and
+  each user disappears from the other's view. `Report` stores one row per user submission —
+  `targetType` (`USER` | `COMMENT` | `MESSAGE` | `LIST_CHAT_MESSAGE`), `targetId`, denormalized
+  `targetUserId` (author/owner, for triage), `reason` (spam | harassment | hate | sexual | violence
+  | other), optional `note`, `status` (open | actioned | dismissed). No admin UI; reviewed + acted
+  on via Prisma Studio within the window stated in `/terms`. Both cascade on user delete.
 
 ---
 
@@ -252,6 +263,7 @@ PollVote        id, pollId, optionId, userId — unique per (optionId, userId); 
 | Approve / reject a join request addressed to you | invitee only | invitee only | invitee only |
 | Delete list | ✓ | — | — |
 | Add/accept/remove friends; add a friend to your lists | any signed-in user (self) | | |
+| Block / unblock a user; report a user or a piece of content | any signed-in user (self) | | |
 | Start a chat / send a DM | current friends only (live friendship re-checked per message) | | |
 | Read DM history / clear (delete) a chat | either participant (clear affects only you) | | |
 | Share a bookmark over DM | sender must be able to view the bookmark; recipients = current friends | | |
@@ -299,8 +311,10 @@ helper — never rely on UI gating alone. Read-only public access uses `assertCa
 | `/lists/[id]/polls/new` | Create a poll: fields + a searchable/tag-filterable bookmark option picker (≥2) |
 | `/lists/[id]/polls/[pollId]` | Poll detail: **Vote**/**Results** toggle; edit/delete for the creator or list owner |
 | `/lists/[id]/polls/[pollId]/edit` | Edit a poll (creator or list owner); reconciles options |
-| `/users/[handle]` | **Profile** (reachable by @handle or id): a user's identity (avatar/icon, @handle, member-since), stats (public lists · friends), their **public lists**, and an Add-friend action on others' profiles. Your own profile is linked from a **Profile** item in the primary nav; on your own profile a **settings gear** opens `/settings`. |
-| `/settings` | Edit profile/theme/icon; manage/leave shared lists; pending requests. Reached via the **gear icon on your own profile** (no longer a primary-nav item). Links to the share-sheet how-to and the privacy policy; hosts the **Danger zone** (delete account). |
+| `/users/[handle]` | **Profile** (reachable by @handle or id): a user's identity (avatar/icon, @handle, member-since), stats (public lists · friends), their **public lists**, and an Add-friend action on others' profiles. Others' profiles also carry **Block** + **Report user** actions; a blocked profile collapses to a "blocked" state (lists hidden) with an **Unblock**. Your own profile is linked from a **Profile** item in the primary nav; on your own profile a **settings gear** opens `/settings`. |
+| `/settings` | Edit profile/theme/icon; manage/leave shared lists; pending requests. Reached via the **gear icon on your own profile** (no longer a primary-nav item). Links to the share-sheet how-to, the privacy policy, the **Terms of Use**, and a **Blocked users** manager (list + unblock; mobile pushes `/blocked`); hosts the **Danger zone** (delete account). |
+| `/terms` | **Terms of Use / EULA** — public (no auth), the App Store license-agreement URL. States the **zero-tolerance** policy for objectionable content + abusive users and the report/block/24-hour-moderation process. Linked from Settings + the sign-in screen on both apps. |
+| `/privacy` | **Privacy Policy** — public (no auth), the App Store privacy URL; cross-links `/terms`. |
 | `/settings/share-extension` | **"Share to Klect"** — a static, illustrated how-to for adding the iOS share extension to the system share sheet (four steps). Mirrored on mobile as the pushed `share-help` screen (iOS-only entry). |
 | `/privacy` | **Privacy policy** — a plain-language static page (data collected, use, sharing, retention/deletion, contact). **Public: no auth guard**, so it doubles as the App Store Connect privacy-policy URL. Mobile opens this same URL in an in-app browser from Settings. |
 | `/invite/[token]` | Accept an invite |
@@ -594,6 +608,10 @@ release builds don't reliably persist `Secure` cookies. `auth.api.getSession()` 
 | `notifications.updatePreferences` | mutation | `{ directMessages?, listChat?, friends?, lists?, comments?, polls? }` | self | `core/notifications.updateNotificationPreferences` — upserts a subset, returns the full set |
 | `notifications.badgeCount` | query | – | self | `core/notifications.computeBadgeCount` — unread DMs + incoming friend requests + pending list invites (the app-icon badge source) |
 | `feedback.submit` | mutation | `{ category, message, platform?, appVersion? }` | self | `core.submitFeedback` — stores in-app feedback (category normalized to bug/idea/other; message required, ≤2000 chars); reviewed via Prisma Studio |
+| `moderation.blockedList` | query | – | self | `blocks.getBlockedUsers` — users you've blocked (Blocked-users manager) |
+| `moderation.block` | mutation | `{ userId }` | self | `core.blockUser` — full block: creates the row + deletes any friendship/pending request; DMs, friend requests, and content reads are then filtered both ways |
+| `moderation.unblock` | mutation | `{ userId }` | self | `core.unblockUser` — removes the block |
+| `moderation.report` | mutation | `{ targetType (USER\|COMMENT\|MESSAGE\|LIST_CHAT_MESSAGE), targetId, reason, note? }` | self | `core.submitReport` — stores a report (reason from the allow-list, note ≤2000 chars); reviewed via Prisma Studio |
 | `places.search` | query | `{ text, sessionToken }` | signed-in | `core/places.searchPlaces` |
 | `places.retrieve` | query | `{ id, sessionToken }` | signed-in | `core/places.retrievePlace` |
 | `places.reverseGeocode` | query | `{ lat, lon }` | signed-in | `core/places.reverseGeocode` |

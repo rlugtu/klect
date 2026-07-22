@@ -56,7 +56,7 @@ export default async function ListPage({
     const [bookmarkRows, userTags, comments] = await Promise.all([
       getBookmarksForList(id),
       getUserTags(user.id),
-      getListComments(id),
+      getListComments(id, user.id),
     ]);
     const tagSuggestions = userTags.map((t) => t.name);
     const tagColors = Object.fromEntries(userTags.map((t) => [t.name, t.color]));

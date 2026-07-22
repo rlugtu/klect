@@ -112,6 +112,15 @@ Run these from `web/` (the app no longer lives at the repo root).
   per list, shared by all members (owner/collab/viewer); reads/posts require membership; **owner-only
   clear hard-deletes** every message (`ListChatMessage`); per-member unread via
   `ListMembership.chatLastReadAt`.
+- **Moderation / block filtering** (`lib/blocks.ts`, `core/moderation.ts`): `Block` + `Report`
+  models power the Apple-1.2 UGC controls. A **full block** (`blockUser`) also deletes the
+  friendship/pending request in one transaction; enforcement is spread across the existing paths —
+  DM send/start (`core/dms.ts`) + friend requests (`core/friends.ts`) call `isBlockedEitherWay`, and
+  the read paths (`comments.ts`, `list-chat.ts`, `dms.ts`, `profile.ts`) filter authors/threads via
+  `getBlockedUserIds`. So a block is **symmetric + content-level**, not just interpersonal. `Report`
+  rows (no admin UI) are reviewed in Prisma Studio. Exposed as `moderation.*` (tRPC) +
+  `lib/actions/moderation.ts`. The `/terms` EULA (public, no auth — like `/privacy`) carries the
+  zero-tolerance clause Apple requires.
 - **Mobile push notifications** (`core/push.ts`, `core/notifications.ts`): the lockscreen/badge
   counterpart to the realtime ping. `sendPushToUsers` / `sendPushToListMembers` are called
   **fire-and-forget right next to the `broadcast*Activity` pings** inside the core write functions

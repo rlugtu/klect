@@ -1,5 +1,6 @@
 import { deleteComment } from "@/lib/actions/comments";
 import { ConfirmDeleteButton } from "@/components/ui/ConfirmDeleteButton";
+import { ReportControl } from "@/components/moderation/ReportControl";
 import { timeAgo } from "@/lib/utils";
 import { atHandle } from "@/lib/handle";
 
@@ -38,13 +39,18 @@ export function CommentList({
                 </span>
                 <span className="text-muted text-sm">{timeAgo(c.createdAt)}</span>
               </span>
-              {canDelete && (
-                <ConfirmDeleteButton
-                  action={deleteComment.bind(null, c.id)}
-                  label="Delete"
-                  confirmText="Delete?"
-                />
-              )}
+              <span className="flex shrink-0 items-center gap-1">
+                {c.author.id !== currentUserId && (
+                  <ReportControl targetType="COMMENT" targetId={c.id} triggerLabel="" />
+                )}
+                {canDelete && (
+                  <ConfirmDeleteButton
+                    action={deleteComment.bind(null, c.id)}
+                    label="Delete"
+                    confirmText="Delete?"
+                  />
+                )}
+              </span>
             </div>
             <p className="whitespace-pre-wrap break-words">{c.value}</p>
           </li>

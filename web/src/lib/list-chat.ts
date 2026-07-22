@@ -2,6 +2,7 @@ import "server-only";
 import { prisma } from "@/lib/db";
 import { getViewerAccess } from "@/lib/permissions";
 import { getListMembers } from "@/lib/sharing";
+import { getBlockedUserIds } from "@/lib/blocks";
 import { type Role } from "@/generated/prisma/enums";
 
 const DEFAULT_PAGE = 25;
@@ -31,8 +32,10 @@ export async function getChatMessages(
     members.map((m) => [m.userId, { user: m.user, role: m.role as Role }]),
   );
 
+  // Hide chat messages authored by anyone the viewer has blocked or been blocked by.
+  const blocked = await getBlockedUserIds(userId);
   const rows = await prisma.listChatMessage.findMany({
-    where: { listId },
+    where: { listId, senderId: { notIn: blocked } },
     orderBy: [{ createdAt: "desc" }, { id: "desc" }],
     take: limit + 1,
     ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),

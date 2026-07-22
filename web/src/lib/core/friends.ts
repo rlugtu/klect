@@ -1,6 +1,7 @@
 import "server-only";
 import { prisma } from "@/lib/db";
 import { areFriends } from "@/lib/friends";
+import { isBlockedEitherWay } from "@/lib/blocks";
 import { sendPushToUsers } from "@/lib/core/push";
 
 export type FriendState = { error?: string; success?: string };
@@ -15,6 +16,7 @@ export async function sendFriendRequestById(
   targetUserId: string,
 ) {
   if (requesterId === targetUserId) return false;
+  if (await isBlockedEitherWay(requesterId, targetUserId)) return false;
   const existing = await prisma.friendship.findFirst({
     where: {
       OR: [

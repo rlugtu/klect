@@ -57,6 +57,9 @@ with a link or a location.
   vs. a viewer. Only the owner can wipe the history.
 - **Show off a profile.** Everyone has a profile page with their photo/icon, stats, and public
   lists — visit a friend's or a list owner's profile and add them as a friend right there.
+- **Stay in control.** Block anyone to stop their messages and hide them from you, and report a
+  person or a specific comment or message if something's off. Klect has zero tolerance for
+  objectionable content or abusive users.
 - **Comment together.** Leave comments on lists and individual bookmarks to plan and discuss.
 - **Vote with polls.** Can't decide? Create a poll from bookmarks in a list and have the group vote
   (great for "where should we eat?").
@@ -188,6 +191,7 @@ never trapped on the wrong screen.
 | Share a bookmark over DM | ✅ | ✅ | Instagram-style: **Send** action on a bookmark → multi-select friend picker + optional caption; renders as a bookmark **card with preview toggle + Save** in the thread; Save copies it independently into the recipient's chosen lists (rating/visited reset, tags become theirs). Self-contained snapshot (survives source deletion, no private-list leak); partial-failure tolerant (`dms.shareBookmark` / `dms.saveSharedBookmark`) |
 | List chatrooms | ✅ | ✅ | Per-list group chat for all members; header chat icon + unread badge → slide-up drawer (web) / 70% bottom sheet (mobile); sender @handle + soft role suffix; near-real-time (`chat:list:<id>`, polling fallback); paginated history; members-only, owner-only clear = hard-delete (`listChat.*`) |
 | User profiles | ✅ | ✅ | `/users/[handle]` (web) · Profile tab + `users/[handle]` (mobile), resolvable by @handle or id; identity + stats + public lists + add-friend (`profile.get`) |
+| Block & report (UGC safety) | ✅ | ✅ | Block/report a user from their profile or a DM; report a comment, DM message, or list-chat message. Full block removes the friendship + hides each user from the other (DMs, requests, comments, chat, profile) both ways. Blocked-users manager + Terms of Use in Settings (`moderation.*`) |
 | Comments (lists & bookmarks) | ✅ | ✅ | |
 | Polls | ✅ | ✅ | Create / vote / edit / delete |
 | Nearby / geolocation | ⚠️ | ⚠️ | Web browser geo + list (0.5–10 mi) · Mobile native GPS + Mapbox map & drawer (1–25 mi) |
@@ -548,6 +552,29 @@ card in Settings.
 **Mobile.** A "Privacy" row in Settings opens the same public web URL (`${API_URL}/privacy`) in an
 in-app browser via `expo-web-browser` — one source of truth for the copy, no drift.
 **Differences.** Web renders the page; mobile opens the web page in-app.
+
+### Block, report & Terms (UGC safety)
+**Description.** The safety controls for user-generated content (Apple Guideline 1.2). Any user can
+**block** another (from their profile or a DM) and **report** an abusive user or a specific piece of
+content — a comment, a DM message, or a list-chat message. A **full block** removes any friendship +
+pending request, refuses DMs and friend requests both ways, and hides each user from the other
+across comments, list chat, the DM inbox, and the profile (which collapses to a blocked state with
+an **Unblock**). Reports are stored and reviewed via Prisma Studio and acted on within the window
+promised in the **Terms of Use** (`/terms`), which states a **zero-tolerance** policy for
+objectionable content and abusive users.
+**Backend.** `lib/blocks.ts` (`isBlockedEitherWay`, `getBlockedUserIds`, `getBlockedUsers`) +
+`core/moderation.ts` (`blockUser`, `unblockUser`, `submitReport`). Block filtering is wired into the
+existing read/write paths (`core/dms.ts`, `core/friends.ts`, `comments.ts`, `list-chat.ts`,
+`dms.ts`, `profile.ts`). Models `Block` + `Report`. Exposed as `moderation.*` (tRPC) and the
+`lib/actions/moderation.ts` server actions.
+**Web.** Profile (`ProfileModerationActions`), a reusable `ReportControl`, per-comment /
+per-DM-message / per-chat-message report affordances, a `BlockedUsersSection` + Terms link in
+Settings, and a Terms/Privacy agreement line on the sign-in form. Public `/terms` page.
+**Mobile.** A shared `report-sheet.tsx` modal; Block/Report on the profile (`profile-view.tsx`) and
+the DM thread header; long-press to report a DM/chat message; per-comment report in
+`comments-section.tsx`; a pushed `blocked` screen + Terms row in Settings; agreement line on the
+login screen (opens `/terms` + `/privacy` in an in-app browser).
+**Differences.** UI only — same backend on both; the Terms/Privacy pages are the shared web source.
 
 ### Account deletion
 **Description.** Permanently delete your account and **everything you own** — profile, lists,

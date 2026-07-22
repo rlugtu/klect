@@ -366,6 +366,13 @@ modal with `router.back()` (or `router.dismissAll()` after leaving a list).
   (Bug / Idea / Other) + a multiline message box; on submit calls `feedback.submit` with the
   platform + app version (`expo-constants`), toasts, and pops back. Keyboard-inset scroll so the box
   stays visible while typing.
+- **Moderation (block & report)** — the Apple-1.2 UGC controls. A shared `report-sheet.tsx` modal
+  (reason picker + optional note → `moderation.report`) is reused from the profile
+  (`profile-view.tsx` — Block/Report + a blocked state with Unblock), the DM thread header (`⋯` →
+  Block / Report user) and message long-press, `comments-section.tsx` (per-comment flag), and the
+  list-chat sheet (message long-press). **Blocked users** (`blocked.tsx`, pushed from Settings →
+  Safety & privacy) lists + unblocks via `moderation.blockedList` / `unblock`; a **Terms of Use**
+  row opens `${API_URL}/terms`. Block enforcement/filtering all lives in `web/` — screens are UI only.
 - **Share to Klect** (`share-help.tsx`, a pushed stack route from Settings) — a static, illustrated
   walkthrough for surfacing/favoriting the share extension in the iOS share sheet: four steps, one
   screenshot each (`assets/images/share-help/step-1..4.png`, the same PNGs the web help page serves).

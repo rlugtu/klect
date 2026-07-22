@@ -146,6 +146,7 @@ function AppStack() {
       <Stack.Screen name="share-help" options={{ ...blankTitle }} />
       <Stack.Screen name="feedback" options={{ ...blankTitle }} />
       <Stack.Screen name="delete-account" options={{ ...blankTitle }} />
+      <Stack.Screen name="blocked" options={{ ...blankTitle }} />
       <Stack.Screen name="requests" options={{ ...blankTitle }} />
       <Stack.Screen name="friend-requests" options={{ ...transparentHeader }} />
       <Stack.Screen name="pending-requests" options={{ ...transparentHeader }} />

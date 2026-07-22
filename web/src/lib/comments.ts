@@ -1,5 +1,6 @@
 import "server-only";
 import { prisma } from "@/lib/db";
+import { getBlockedUserIds } from "@/lib/blocks";
 
 const authorSelect = {
   author: {
@@ -7,19 +8,22 @@ const authorSelect = {
   },
 } as const;
 
-/** Comments on a list, newest first. */
-export function getListComments(listId: string) {
+/** Comments on a list, newest first — hiding any authored by a user `viewerId` has blocked
+ *  or been blocked by. */
+export async function getListComments(listId: string, viewerId: string) {
+  const blocked = await getBlockedUserIds(viewerId);
   return prisma.comment.findMany({
-    where: { listId },
+    where: { listId, authorId: { notIn: blocked } },
     orderBy: { createdAt: "desc" },
     include: authorSelect,
   });
 }
 
-/** Comments on a bookmark, newest first. */
-export function getBookmarkComments(bookmarkId: string) {
+/** Comments on a bookmark, newest first — with the same block filtering. */
+export async function getBookmarkComments(bookmarkId: string, viewerId: string) {
+  const blocked = await getBlockedUserIds(viewerId);
   return prisma.comment.findMany({
-    where: { bookmarkId },
+    where: { bookmarkId, authorId: { notIn: blocked } },
     orderBy: { createdAt: "desc" },
     include: authorSelect,
   });

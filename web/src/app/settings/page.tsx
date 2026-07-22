@@ -2,14 +2,17 @@ import Link from "next/link";
 import { requireOnboardedUser } from "@/lib/session";
 import { coerceTheme } from "@/lib/theme";
 import { updateProfile } from "@/lib/actions/profile";
+import { getBlockedUsers } from "@/lib/blocks";
 import { ProfileForm } from "@/components/profile/ProfileForm";
 import { SignOutButton } from "@/components/auth/SignOutButton";
 import { DeleteAccountSection } from "@/components/settings/DeleteAccountSection";
+import { BlockedUsersSection } from "@/components/settings/BlockedUsersSection";
 import { PixelCard } from "@/components/ui/PixelCard";
 import { PixelButton } from "@/components/ui/PixelButton";
 
 export default async function SettingsPage() {
   const user = await requireOnboardedUser();
+  const blocked = await getBlockedUsers(user.id);
 
   return (
     <main className="mx-auto w-full max-w-lg px-6 py-12 flex flex-col gap-8">
@@ -61,16 +64,25 @@ export default async function SettingsPage() {
         </Link>
       </PixelCard>
 
+      <BlockedUsersSection blocked={blocked} />
+
       <PixelCard>
-        <h2 className="text-sm mb-4">Privacy</h2>
+        <h2 className="text-sm mb-4">Privacy &amp; terms</h2>
         <p className="text-muted mb-4 text-sm">
-          Read how Klect collects, uses, and protects your data.
+          Read how Klect collects, uses, and protects your data, and the rules for using Klect.
         </p>
-        <Link href="/privacy">
-          <PixelButton variant="secondary" size="sm">
-            Privacy Policy →
-          </PixelButton>
-        </Link>
+        <div className="flex flex-wrap gap-2">
+          <Link href="/privacy">
+            <PixelButton variant="secondary" size="sm">
+              Privacy Policy →
+            </PixelButton>
+          </Link>
+          <Link href="/terms">
+            <PixelButton variant="secondary" size="sm">
+              Terms of Use →
+            </PixelButton>
+          </Link>
+        </div>
       </PixelCard>
 
       <PixelCard>

@@ -6,6 +6,7 @@ import { MessageCircle, Trash2, X } from "lucide-react";
 import { cn, timeAgo } from "@/lib/utils";
 import { atHandle } from "@/lib/handle";
 import { PixelButton } from "@/components/ui/PixelButton";
+import { ReportControl } from "@/components/moderation/ReportControl";
 import {
   loadChatMessages,
   loadChatUnread,
@@ -290,8 +291,15 @@ export function ListChatLauncher({
                         >
                           {m.body}
                         </div>
-                        <span className="text-muted px-1 text-[10px] opacity-70">
+                        <span className="text-muted flex items-center gap-1 px-1 text-[10px] opacity-70">
                           {timeAgo(m.createdAt)}
+                          {!mine && (
+                            <ReportControl
+                              targetType="LIST_CHAT_MESSAGE"
+                              targetId={m.id}
+                              triggerLabel=""
+                            />
+                          )}
                         </span>
                       </div>
                     );
