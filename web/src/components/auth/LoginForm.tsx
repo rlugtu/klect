@@ -129,6 +129,18 @@ export function LoginForm({ next = "/" }: { next?: string }) {
           ? "New here? Create an account"
           : "Already have an account? Sign in"}
       </button>
+
+      <p className="text-muted text-center text-xs">
+        By continuing you agree to our{" "}
+        <a href="/terms" className="text-primary underline">
+          Terms of Use
+        </a>{" "}
+        and{" "}
+        <a href="/privacy" className="text-primary underline">
+          Privacy Policy
+        </a>
+        .
+      </p>
     </div>
   );
 }

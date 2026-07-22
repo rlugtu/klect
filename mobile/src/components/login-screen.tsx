@@ -7,8 +7,10 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import * as WebBrowser from 'expo-web-browser';
 
 import { authClient, clearBearerToken } from '@/client/auth';
+import { API_URL } from '@/client/bearer-store';
 import { useTheme } from '@/theme/theme-provider';
 import { THEME_TOKENS } from '@/theme/tokens';
 
@@ -150,6 +152,22 @@ export default function LoginScreen() {
               : 'Already have an account? Sign in'}
           </Text>
         </Pressable>
+
+        <Text className="mt-1 text-center text-xs text-muted">
+          By continuing you agree to our{' '}
+          <Text
+            className="text-primary underline"
+            onPress={() => WebBrowser.openBrowserAsync(`${API_URL}/terms`)}>
+            Terms of Use
+          </Text>{' '}
+          and{' '}
+          <Text
+            className="text-primary underline"
+            onPress={() => WebBrowser.openBrowserAsync(`${API_URL}/privacy`)}>
+            Privacy Policy
+          </Text>
+          .
+        </Text>
       </View>
     </SafeAreaView>
   );

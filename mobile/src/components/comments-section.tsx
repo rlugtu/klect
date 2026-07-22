@@ -1,7 +1,9 @@
 import { useState } from 'react';
 import { ActivityIndicator, Pressable, Text, TextInput, View } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 
 import { trpc } from '@/client/api';
+import { ReportSheet } from '@/components/report-sheet';
 import { atHandle } from '@/lib/handle';
 import { useTheme } from '@/theme/theme-provider';
 import { THEME_TOKENS } from '@/theme/tokens';
@@ -31,6 +33,8 @@ type Props = {
   onDelete: (id: string) => Promise<void>;
   /** Hide the compose box + delete affordance (non-member viewing a public list). */
   readOnly?: boolean;
+  /** The signed-in user's id — enables a Report action on other people's comments. */
+  currentUserId?: string;
 };
 
 export default function CommentsSection({
@@ -38,11 +42,13 @@ export default function CommentsSection({
   onAdd,
   onDelete,
   readOnly = false,
+  currentUserId,
 }: Props) {
   const { theme } = useTheme();
   const muted = THEME_TOKENS[theme].muted;
   const [value, setValue] = useState('');
   const [busy, setBusy] = useState(false);
+  const [reportId, setReportId] = useState<string | null>(null);
 
   async function post() {
     const v = value.trim();
@@ -96,13 +102,31 @@ export default function CommentsSection({
             </Text>
             <Text className="font-sans text-sm text-ink">{c.value}</Text>
           </View>
-          {!readOnly && (
-            <Pressable onPress={() => onDelete(c.id)} hitSlop={8}>
-              <Text className="text-muted">✕</Text>
-            </Pressable>
-          )}
+          <View className="flex-row items-center gap-3">
+            {currentUserId && c.author.id !== currentUserId && (
+              <Pressable
+                accessibilityLabel="Report comment"
+                onPress={() => setReportId(c.id)}
+                hitSlop={8}>
+                <Ionicons name="flag-outline" size={15} color={muted} />
+              </Pressable>
+            )}
+            {!readOnly && (
+              <Pressable onPress={() => onDelete(c.id)} hitSlop={8}>
+                <Text className="text-muted">✕</Text>
+              </Pressable>
+            )}
+          </View>
         </View>
       ))}
+
+      <ReportSheet
+        visible={reportId !== null}
+        onClose={() => setReportId(null)}
+        targetType="COMMENT"
+        targetId={reportId ?? ''}
+        title="Report comment"
+      />
     </View>
   );
 }

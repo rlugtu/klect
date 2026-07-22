@@ -29,7 +29,12 @@ export default function PrivacyPage() {
         </Link>
       </header>
 
-      <p className="text-muted text-sm">Last updated {LAST_UPDATED}</p>
+      <p className="text-muted text-sm">
+        Last updated {LAST_UPDATED} ·{" "}
+        <Link href="/terms" className="text-primary underline">
+          Terms of Use
+        </Link>
+      </p>
 
       <p className="text-muted">
         Klect is a bookmarking app where your bookmarks live inside shareable lists. This policy

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
+  Alert,
   FlatList,
   Keyboard,
   KeyboardAvoidingView,
@@ -12,12 +13,17 @@ import {
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { Stack, useFocusEffect, useLocalSearchParams } from 'expo-router';
+import { Stack, useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { useHeaderHeight } from '@react-navigation/elements';
 
 import { trpc } from '@/client/api';
 import { subscribeDm, realtimeEnabled } from '@/client/realtime';
 import { authClient } from '@/client/auth';
+import { toast, errorMessage } from '@/client/toast';
+import {
+  ReportSheet,
+  type ReportTargetType,
+} from '@/components/report-sheet';
 import SharedBookmarkCard, {
   type SharedBookmarkSnapshot,
 } from '@/components/dms/shared-bookmark-card';
@@ -45,8 +51,17 @@ export default function DmThreadScreen() {
     handle?: string;
   }>();
   const myId = authClient.useSession().data?.user.id ?? '';
+  const router = useRouter();
 
   const [messages, setMessages] = useState<Message[]>([]);
+  const [otherUser, setOtherUser] = useState<{ id: string; handle: string | null } | null>(
+    null,
+  );
+  const [report, setReport] = useState<{
+    type: ReportTargetType;
+    id: string;
+    title: string;
+  } | null>(null);
   const [olderCursor, setOlderCursor] = useState<string | null>(null);
   const [canSend, setCanSend] = useState(true);
   const [body, setBody] = useState('');
@@ -98,6 +113,7 @@ export default function DmThreadScreen() {
           setMessages(p.messages);
           setOlderCursor(p.nextCursor);
           setCanSend(p.canSend);
+          if (p.other) setOtherUser(p.other);
         })
         .catch(() => {})
         .finally(() => setLoaded(true));
@@ -132,6 +148,44 @@ export default function DmThreadScreen() {
     }
   }
 
+  function openSafetyMenu() {
+    if (!otherUser) return;
+    const label = handle ?? 'this user';
+    Alert.alert(label, undefined, [
+      {
+        text: 'Report user',
+        onPress: () =>
+          setReport({ type: 'USER', id: otherUser.id, title: `Report ${label}` }),
+      },
+      {
+        text: 'Block user',
+        style: 'destructive',
+        onPress: () =>
+          Alert.alert(
+            'Block this user?',
+            'They won’t be able to message you, and you won’t see their content.',
+            [
+              { text: 'Cancel', style: 'cancel' },
+              {
+                text: 'Block',
+                style: 'destructive',
+                onPress: async () => {
+                  try {
+                    await trpc.moderation.block.mutate({ userId: otherUser.id });
+                    toast.success('User blocked.');
+                    router.back();
+                  } catch (e) {
+                    toast.error(errorMessage(e, "Couldn't block."));
+                  }
+                },
+              },
+            ],
+          ),
+      },
+      { text: 'Cancel', style: 'cancel' },
+    ]);
+  }
+
   async function send() {
     const text = body.trim();
     if (!text || sending) return;
@@ -150,7 +204,20 @@ export default function DmThreadScreen() {
 
   return (
     <SafeAreaView style={{ flex: 1 }} edges={['left', 'right']} className="bg-bg">
-      <Stack.Screen options={{ headerTitle: handle ?? 'Chat' }} />
+      <Stack.Screen
+        options={{
+          headerTitle: handle ?? 'Chat',
+          headerRight: () =>
+            otherUser ? (
+              <Pressable
+                accessibilityLabel="Safety options"
+                hitSlop={8}
+                onPress={openSafetyMenu}>
+                <Ionicons name="ellipsis-horizontal" size={20} color={t.ink} />
+              </Pressable>
+            ) : null,
+        }}
+      />
       <KeyboardAvoidingView
         style={{ flex: 1 }}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
@@ -209,14 +276,24 @@ export default function DmThreadScreen() {
               );
             }
             return (
-              <View
+              <Pressable
+                onLongPress={
+                  mine
+                    ? undefined
+                    : () =>
+                        setReport({
+                          type: 'MESSAGE',
+                          id: item.id,
+                          title: 'Report message',
+                        })
+                }
                 className={`max-w-[78%] rounded-skin px-3 py-2 ${
                   mine
                     ? 'self-end bg-primary'
                     : 'self-start border-skin border-border bg-panel'
                 }`}>
                 <Text className={mine ? 'text-primary-ink' : 'text-ink'}>{item.body}</Text>
-              </View>
+              </Pressable>
             );
           }}
         />
@@ -254,6 +331,13 @@ export default function DmThreadScreen() {
           </View>
         )}
       </KeyboardAvoidingView>
+      <ReportSheet
+        visible={report !== null}
+        onClose={() => setReport(null)}
+        targetType={report?.type ?? 'MESSAGE'}
+        targetId={report?.id ?? ''}
+        title={report?.title ?? 'Report'}
+      />
     </SafeAreaView>
   );
 }

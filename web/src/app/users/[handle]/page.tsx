@@ -6,6 +6,8 @@ import { sendFriendRequestToUser } from "@/lib/actions/friends";
 import { PixelButton } from "@/components/ui/PixelButton";
 import { PixelBadge } from "@/components/ui/PixelBadge";
 import { SubmitButton } from "@/components/ui/SubmitButton";
+import { ProfileModerationActions } from "@/components/moderation/ProfileModerationActions";
+import type { FriendshipState } from "@/lib/profile";
 import { ArrowLeft, Globe, Settings } from "lucide-react";
 
 export default async function UserProfilePage({
@@ -19,7 +21,7 @@ export default async function UserProfilePage({
   const profile = await getPublicProfile(viewer.id, handle);
   if (!profile) notFound();
 
-  const { user, publicLists, friendCount, friendship } = profile;
+  const { user, publicLists, friendCount, friendship, blockedByMe } = profile;
   const name = user.handle ? `@${user.handle}` : "Someone";
   const memberSince = new Date(user.createdAt).getFullYear();
 
@@ -68,10 +70,27 @@ export default async function UserProfilePage({
           <Stat value={friendCount} label="Friends" />
         </div>
 
-        <FriendAction targetUserId={user.id} state={friendship} />
+        {friendship === "blocked" ? (
+          <ProfileModerationActions
+            targetUserId={user.id}
+            handle={user.handle}
+            blocked
+          />
+        ) : (
+          <FriendAction targetUserId={user.id} state={friendship} />
+        )}
+
+        {friendship !== "self" && friendship !== "blocked" && (
+          <ProfileModerationActions
+            targetUserId={user.id}
+            handle={user.handle}
+            blocked={blockedByMe}
+          />
+        )}
       </section>
 
-      {/* Public lists */}
+      {/* Public lists — hidden entirely when blocked */}
+      {friendship !== "blocked" && (
       <section className="flex flex-col gap-4">
         <h2 className="font-pixel text-sm">Public lists</h2>
         {publicLists.length === 0 ? (
@@ -115,6 +134,7 @@ export default async function UserProfilePage({
           </div>
         )}
       </section>
+      )}
     </main>
   );
 }
@@ -133,9 +153,9 @@ function FriendAction({
   state,
 }: {
   targetUserId: string;
-  state: "self" | "none" | "pending" | "friends";
+  state: FriendshipState;
 }) {
-  if (state === "self") return null;
+  if (state === "self" || state === "blocked") return null;
   if (state === "friends") {
     return <PixelBadge tone="success">✓ Friends</PixelBadge>;
   }

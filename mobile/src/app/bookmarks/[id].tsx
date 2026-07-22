@@ -19,6 +19,7 @@ import { useHeaderHeight } from '@react-navigation/elements';
 import { Ionicons } from '@expo/vector-icons';
 
 import { trpc } from '@/client/api';
+import { authClient } from '@/client/auth';
 import { toast, errorMessage } from '@/client/toast';
 import BookmarkVideo from '@/components/bookmark-video';
 import CommentsSection, { type CommentItem } from '@/components/comments-section';
@@ -43,6 +44,7 @@ export default function BookmarkScreen() {
   const router = useRouter();
   const { id } = useLocalSearchParams<{ id: string; name?: string }>();
   const headerHeight = useHeaderHeight();
+  const myId = authClient.useSession().data?.user.id;
   const t = THEME_TOKENS[useTheme().theme];
   const [data, setData] = useState<BookmarkResult>(null);
   const [comments, setComments] = useState<CommentItem[]>([]);
@@ -260,6 +262,7 @@ export default function BookmarkScreen() {
 
           <CommentsSection
             comments={comments}
+            currentUserId={myId}
             onAdd={async (value) => {
               if (!id) return;
               await trpc.comments.addToBookmark.mutate({ bookmarkId: id, value });

@@ -47,6 +47,17 @@ mobile-specific implementation only.
   a per-category toggle each (`notifications.getPreferences` / `updatePreferences`). The send side lives
   once in web (`web/src/lib/core/push.ts`); this app is registration + tap-routing + prefs UI only.
   Requires the custom dev build + an APNs key set up on first push-enabled `eas build`.
+- **Moderation (UGC safety)**: block + report via `trpc.moderation.*`. A shared
+  `components/report-sheet.tsx` modal (reason picker) is reused from the profile (`profile-view.tsx`),
+  the DM thread header + long-press, `comments-section.tsx`, and the list-chat sheet. Blocked-users
+  manager is the pushed `src/app/blocked.tsx` (Settings → Safety & privacy); Terms of Use opens
+  `${API_URL}/terms` in an in-app browser (also linked from the login screen). All enforcement +
+  filtering lives once in `web/` — this app is UI only.
+- **iOS review config** lives in `app.json`, not the regenerated native files (`/ios` is
+  gitignored/CNG): `ios.privacyManifests` declares collected-data + required-reason APIs, and the
+  `expo-location` plugin passes `locationAlways*Permission: false` so only the when-in-use string
+  ships. After editing either, re-run `npx expo prebuild -p ios --clean` and re-verify Info.plist /
+  PrivacyInfo.xcprivacy.
 - Never add business logic or direct DB access here — new backend work lands once in `web/` (see the
   per-feature workflow in `../CLAUDE.md`), then you build the screen consuming the procedure.
 

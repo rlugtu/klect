@@ -44,7 +44,7 @@ export default async function BookmarkPage({
     canEdit
       ? getUserTags(user.id)
       : Promise.resolve<{ name: string; color: string }[]>([]),
-    getBookmarkComments(bid),
+    getBookmarkComments(bid, user.id),
     getFriends(user.id),
   ]);
   const tagSuggestions = userTags.map((t) => t.name);

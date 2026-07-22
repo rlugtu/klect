@@ -67,17 +67,42 @@ These are wrong/placeholder in the repo today and block a real production build:
 
 - [ ] **Metadata**: name, subtitle, description, keywords, category, support + marketing URLs.
 - [ ] **Screenshots** for required device sizes (6.7" required; add others as needed).
-- [ ] **App Privacy** nutrition label — declare location + account data collection.
+- [ ] **App Privacy** nutrition label — declare **Email, Name, User ID, Precise Location, and User
+      Content** (all "App Functionality", not used for tracking). This mirrors the on-device
+      **privacy manifest** now declared in `app.json` `ios.privacyManifests`
+      (`NSPrivacyCollectedDataTypes` + the required-reason `NSPrivacyAccessedAPITypes`) — keep the two
+      in sync.
 - [x] **Privacy Policy URL** (hosted, required for review) — live at
       **`https://klect.vercel.app/privacy`** (public, no login; `web/src/app/privacy/page.tsx`).
       Paste this into App Store Connect → App Privacy → Privacy Policy URL. Also linked in-app from
       Settings on both platforms.
+- [x] **Terms of Use / EULA URL** (required for UGC apps, Guideline 1.2) — live at
+      **`https://klect.vercel.app/terms`** (public, no login; `web/src/app/terms/page.tsx`); states
+      the zero-tolerance policy + 24-hour moderation. Paste into App Store Connect → App Information →
+      License Agreement (or use the default EULA). Linked in-app from Settings + the sign-in screen.
+- [x] **UGC moderation** (Guideline 1.2, the top rejection risk) — **block** + **report** shipped on
+      both apps: block/report a user from their profile or a DM, report a comment/DM/list-chat
+      message, and a Blocked-users manager in Settings (`moderation.*`). Full block hides users from
+      each other and stops DMs/requests. Mention these in App Review notes.
 - [x] **Account deletion** (App Store requirement for apps with account creation) — Settings →
       Danger zone → Delete account (type-your-@handle to confirm); permanently deletes the user and
       all owned data via `account.delete`. Mention the in-app path in App Review notes.
+- [x] **Unused location permission strings removed** — `app.json` `expo-location` now passes
+      `locationAlwaysAndWhenInUsePermission: false` + `locationAlwaysPermission: false`, so the build
+      ships **only** `NSLocationWhenInUseUsageDescription` (the app is when-in-use only).
 - [ ] **Age rating** questionnaire.
 - [ ] **Demo account** credentials in App Review notes (the app is auth-gated).
 - [ ] Bump version, submit for **App Review**, then release (manual or automatic).
+
+### App Review notes (paste into App Store Connect → App Review Information → Notes)
+
+> Klect is invite/account-based; sign in with the demo account below (or create one with email +
+> password). **Safety controls (Guideline 1.2):** every user profile and DM has **Block** and
+> **Report**; comments, direct messages, and list-chat messages each have a **Report** action;
+> blocked users are managed under **Settings → Safety & privacy → Blocked users**. Our **Terms of
+> Use** (zero-tolerance policy) is at https://klect.vercel.app/terms and is linked in-app from the
+> sign-in screen and Settings. **Account deletion:** Settings → Danger zone → Delete account
+> (type-your-@handle to confirm). Reports are reviewed and acted on within 24 hours.
 
 ## Handy commands
 

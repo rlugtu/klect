@@ -11,7 +11,7 @@ export const commentsRouter = router({
     .input(z.object({ listId: z.string() }))
     .query(async ({ ctx, input }) => {
       await assertCanView(ctx.user.id, input.listId);
-      return getListComments(input.listId);
+      return getListComments(input.listId, ctx.user.id);
     }),
 
   forBookmark: protectedProcedure
@@ -19,7 +19,7 @@ export const commentsRouter = router({
     .query(async ({ ctx, input }) => {
       const access = await getBookmarkForUser(ctx.user.id, input.bookmarkId);
       if (!access) throw new TRPCError({ code: "NOT_FOUND" });
-      return getBookmarkComments(input.bookmarkId);
+      return getBookmarkComments(input.bookmarkId, ctx.user.id);
     }),
 
   addToList: protectedProcedure

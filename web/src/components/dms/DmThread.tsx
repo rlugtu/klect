@@ -11,6 +11,8 @@ import {
   type SharedBookmarkSnapshot,
 } from "@/lib/actions/dms";
 import { SharedBookmarkCard } from "@/components/dms/SharedBookmarkCard";
+import { ReportControl } from "@/components/moderation/ReportControl";
+import { ProfileModerationActions } from "@/components/moderation/ProfileModerationActions";
 import { subscribeDm, realtimeEnabled } from "@/lib/realtime/client";
 
 type Message = MessagesPage["messages"][number];
@@ -112,6 +114,20 @@ export function DmThread({
 
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-3">
+      {initial.other && (
+        <details className="text-sm">
+          <summary className="text-muted hover:text-ink cursor-pointer select-none">
+            Safety &amp; blocking
+          </summary>
+          <div className="pt-2">
+            <ProfileModerationActions
+              targetUserId={initial.other.id}
+              handle={initial.other.handle}
+              blocked={false}
+            />
+          </div>
+        </details>
+      )}
       <div className="border-border flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto border-2 p-4">
         {olderCursor && (
           <button
@@ -163,13 +179,23 @@ export function DmThread({
             <div
               key={m.id}
               className={cn(
-                "max-w-[75%] px-3 py-2 text-sm break-words",
-                mine
-                  ? "bg-primary text-primary-ink self-end"
-                  : "bg-panel text-ink border-border self-start border-2",
+                "flex max-w-[75%] flex-col gap-1",
+                mine ? "self-end items-end" : "self-start items-start",
               )}
             >
-              {m.body}
+              <div
+                className={cn(
+                  "px-3 py-2 text-sm break-words",
+                  mine
+                    ? "bg-primary text-primary-ink"
+                    : "bg-panel text-ink border-border border-2",
+                )}
+              >
+                {m.body}
+              </div>
+              {!mine && (
+                <ReportControl targetType="MESSAGE" targetId={m.id} triggerLabel="" />
+              )}
             </div>
           );
         })}

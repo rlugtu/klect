@@ -19,6 +19,7 @@ import { useHeaderHeight } from '@react-navigation/elements';
 import { Ionicons } from '@expo/vector-icons';
 
 import { trpc } from '@/client/api';
+import { authClient } from '@/client/auth';
 import { toast } from '@/client/toast';
 import { subscribeListChat, realtimeEnabled } from '@/client/realtime';
 import CommentsSection, { type CommentItem } from '@/components/comments-section';
@@ -40,6 +41,7 @@ type ListAccess = Awaited<ReturnType<typeof trpc.lists.get.query>>;
 export default function ListScreen() {
   const router = useRouter();
   const { id, name } = useLocalSearchParams<{ id: string; name?: string }>();
+  const myId = authClient.useSession().data?.user.id;
   const t = THEME_TOKENS[useTheme().theme];
   const headerHeight = useHeaderHeight();
   const sheetRef = useRef<BottomSheetModal>(null);
@@ -483,6 +485,7 @@ export default function ListScreen() {
           <View className="mt-6">
             <CommentsSection
               comments={comments}
+              currentUserId={myId}
               readOnly={!isMember}
               onAdd={async (value) => {
                 if (!id) return;

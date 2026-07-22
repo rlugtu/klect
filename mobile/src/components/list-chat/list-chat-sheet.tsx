@@ -19,6 +19,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { trpc } from '@/client/api';
 import { subscribeListChat, realtimeEnabled } from '@/client/realtime';
 import { authClient } from '@/client/auth';
+import { ReportSheet } from '@/components/report-sheet';
 import { atHandle } from '@/lib/handle';
 import { useTheme } from '@/theme/theme-provider';
 import { THEME_TOKENS } from '@/theme/tokens';
@@ -65,6 +66,7 @@ export const ListChatSheet = forwardRef<
   const [open, setOpen] = useState(false);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [olderCursor, setOlderCursor] = useState<string | null>(null);
+  const [reportId, setReportId] = useState<string | null>(null);
   const [body, setBody] = useState('');
   const [sending, setSending] = useState(false);
   const [loadingOlder, setLoadingOlder] = useState(false);
@@ -242,7 +244,10 @@ export const ListChatSheet = forwardRef<
                     ) : null}
                   </Text>
                 )}
-                <View
+                <Pressable
+                  onLongPress={
+                    mine ? undefined : () => setReportId(item.id)
+                  }
                   className={`max-w-[80%] rounded-skin px-3 py-2 ${
                     mine
                       ? 'self-end bg-primary'
@@ -251,7 +256,7 @@ export const ListChatSheet = forwardRef<
                   <Text className={mine ? 'text-primary-ink' : 'text-ink'}>
                     {item.body}
                   </Text>
-                </View>
+                </Pressable>
                 <Text className="mt-0.5 px-1 font-sans text-[10px] text-muted opacity-70">
                   {timeAgo(item.createdAt)}
                 </Text>
@@ -293,6 +298,13 @@ export const ListChatSheet = forwardRef<
           </View>
         )}
       </View>
+      <ReportSheet
+        visible={reportId !== null}
+        onClose={() => setReportId(null)}
+        targetType="LIST_CHAT_MESSAGE"
+        targetId={reportId ?? ''}
+        title="Report message"
+      />
     </BottomSheetModal>
   );
 });
