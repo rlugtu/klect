@@ -376,6 +376,7 @@ model Report {
 model WaitlistSignup {
   id        String   @id @default(uuid())
   email     String   @unique
+  signedUp  Boolean  @default(false)
   createdAt DateTime @default(now())
 
   @@index([createdAt])
