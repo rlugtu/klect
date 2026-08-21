@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from "next";
+import { Analytics } from "@vercel/analytics/next";
 import {
   Press_Start_2P,
   VT323,
@@ -6,6 +7,7 @@ import {
   Newsreader,
   Work_Sans,
 } from "next/font/google";
+import { Analytics } from "@vercel/analytics/next";
 import { getSession } from "@/lib/session";
 import { themeDataAttr } from "@/lib/theme";
 import { PWARegister } from "@/components/PWARegister";
@@ -82,10 +84,12 @@ export default async function RootLayout({
       data-theme={theme}
       className={`${pressStart.variable} ${vt323.variable} ${geist.variable} ${newsreader.variable} ${workSans.variable} h-full antialiased`}
     >
+      <Analytics />
       <body className="min-h-full flex flex-col">
         {children}
         <Toaster />
         <PWARegister />
+        <Analytics />
       </body>
     </html>
   );
