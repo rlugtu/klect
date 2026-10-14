@@ -293,7 +293,9 @@ helper — never rely on UI gating alone. Read-only public access uses `assertCa
 
 | Route | Purpose |
 |---|---|
-| `/login` | Google + email/password (better-auth) |
+| `/login` | Google + email/password (better-auth); a **Forgot password?** link (sign-in mode only) goes to `/forgot-password`, and `?reset=1` shows a "password reset, sign in with your new password" notice |
+| `/forgot-password` | **Request a password reset** (public, no auth guard): email input → better-auth `requestPasswordReset` mails a one-time link via EmailJS. Always answers with the same "if an account exists for that email, we've sent a reset link" confirmation, so it never reveals whether an address is registered. Mobile ships no native reset flow; its sign-in screen opens this page in an in-app browser. |
+| `/reset-password` | **Set a new password** (public, no auth guard): the landing spot for the emailed link, which first passes through better-auth's `/api/auth/reset-password/<token>` verifier and arrives here with `?token=…`, or with `?error=INVALID_TOKEN` (rendered as an expired-link card pointing back to `/forgot-password`). New password + confirm, min 8 chars, link good for 1 hour and single-use. A reset opens no session, so success lands on `/login?reset=1`. |
 | `/onboarding` | First login only: handle (required, unique @handle), first/last name (optional), icon, theme |
 | `/` | **Home**: all lists you own or belong to; reorderable (web: Framer Motion drag · mobile: long-press drag) + unified search bar; a **List requests** button above the search opens `/requests` |
 | `/requests` | **List requests**: all open incoming list-join (collab) requests, approve/reject (empty state when none) |
@@ -317,7 +319,7 @@ helper — never rely on UI gating alone. Read-only public access uses `assertCa
 | `/privacy` | **Privacy Policy** — public (no auth), the App Store privacy URL; cross-links `/terms`. |
 | `/settings/share-extension` | **"Share to Klect"** — a static, illustrated how-to for adding the iOS share extension to the system share sheet (four steps). Mirrored on mobile as the pushed `share-help` screen (iOS-only entry). |
 | `/privacy` | **Privacy policy** — a plain-language static page (data collected, use, sharing, retention/deletion, contact). **Public: no auth guard**, so it doubles as the App Store Connect privacy-policy URL. Mobile opens this same URL in an in-app browser from Settings. |
-| `/invite/[token]` | Accept an invite |
+| `/invite/[token]` | Accept an invite: the list + inviter + role, then **Accept invite** → the list. States: not found / already a member / accept. Mobile has the same screen (`src/app/invite/[token].tsx`, `sharing.inviteByToken` + `sharing.accept`), and the link is a **universal link / Android app link** — tapping it on a phone with the app installed opens that screen instead of the browser (`/.well-known/apple-app-site-association` + `/.well-known/assetlinks.json` on web; `ios.associatedDomains` + `android.intentFilters` in `mobile/app.json`) |
 
 **Home search bar behavior** (unified control):
 - Typing shows two sections — **Lists** (by name) then **Matched tags**.
@@ -574,6 +576,7 @@ release builds don't reliably persist `Secure` cookies. `auth.api.getSession()` 
 | `sharing.removeMember` | mutation | `{ listId, userId }` | OWNER (in core) | `core.removeMember` |
 | `sharing.revokeInvite` | mutation | `{ inviteId }` | OWNER (in core) | `core.revokeInvite` |
 | `sharing.leave` | mutation | `{ listId }` | non-owner member (in core) | `core.leaveList` |
+| `sharing.inviteByToken` | query | `{ token }` | any signed-in user w/ link | `getInviteByToken` + `getMembership` → `{ role, list, invitedBy, alreadyMember }`, or `null` for an unknown/revoked token. The invite-link landing context for mobile's `/invite/[token]` screen (web's page reads the same data server-side) |
 | `sharing.accept` | mutation | `{ token }` | any signed-in user w/ link | `core.acceptInvite` |
 | `friends.list` | query | – | self | `getFriends` + `getIncomingFriendRequests` + `getOutgoingFriendRequests` → `{ friends, incoming, outgoing }` |
 | `friends.friendListIds` | query | `{ friendId, listIds }` | self | `getFriendListIds` |
