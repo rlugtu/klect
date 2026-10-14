@@ -73,7 +73,7 @@ export default async function FriendsPage() {
       <section className="flex flex-col gap-3">
         {friends.length === 0 ? (
           <p className="text-muted">
-            No friends yet — add someone by email above.
+            No friends yet — add someone by @handle above.
           </p>
         ) : (
           friends.map((f) => (

@@ -7,6 +7,7 @@ import { roleAtLeast } from "@/lib/permissions";
 import { createPoll } from "@/lib/actions/polls";
 import { PollForm } from "@/components/polls/PollForm";
 import { PixelButton } from "@/components/ui/PixelButton";
+import { Plus } from "lucide-react";
 
 export default async function NewPollPage({
   params,
@@ -42,9 +43,16 @@ export default async function NewPollPage({
       </header>
 
       {bookmarks.length < 2 ? (
-        <p className="text-muted text-sm text-center">
-          You need at least two bookmarks in this list to start a poll.
-        </p>
+        <div className="flex flex-col items-center gap-3">
+          <p className="text-muted text-sm text-center">
+            You need at least two bookmarks in this list to start a poll.
+          </p>
+          <Link href={`/lists/${id}`}>
+            <PixelButton variant="secondary" size="sm">
+              <Plus size={14} aria-hidden /> Add a bookmark
+            </PixelButton>
+          </Link>
+        </div>
       ) : (
         <PollForm
           action={createPoll.bind(null, id)}

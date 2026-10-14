@@ -8,6 +8,7 @@ import {
   useState,
   type ReactNode,
 } from "react";
+import { useRouter } from "next/navigation";
 import { ListForm, type ListDefaults } from "./ListForm";
 import { BookmarkForm } from "@/components/bookmarks/BookmarkForm";
 import { ConfirmDeleteButton } from "@/components/ui/ConfirmDeleteButton";
@@ -212,6 +213,7 @@ function PanelHeader({ title }: { title: string }) {
 }
 
 export function ListToolbarPanels() {
+  const router = useRouter();
   const {
     sourceName,
     panel,
@@ -237,6 +239,10 @@ export function ListToolbarPanels() {
             action={async (formData) => {
               await createBookmark.action(formData);
               closePanel();
+              // Called from inside this client wrapper, the action's revalidatePath
+              // doesn't reach the router, so the new card would otherwise only show
+              // up on the next navigation.
+              router.refresh();
             }}
             submitLabel="Create"
             tagSuggestions={createBookmark.tagSuggestions}
