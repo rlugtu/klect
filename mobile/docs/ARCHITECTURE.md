@@ -239,6 +239,17 @@ modal with `router.back()` (or `router.dismissAll()` after leaving a list).
   lives in the list header) and drop keyboard focus. Cards carry the `cardShadow`.
 - **List requests** (`requests.tsx`) — all open incoming list-join requests
   (`sharing.incomingRequests`) with approve/reject (`approveRequest`/`rejectRequest`).
+- **List invite** (`invite/[token].tsx`) — the landing screen for an invite **link**. Reached by
+  tapping `https://klect.vercel.app/invite/<token>` on a device with the app installed: iOS treats
+  it as a **universal link** (`ios.associatedDomains` in `app.json` + web's
+  `/.well-known/apple-app-site-association`) and Android as an **app link**
+  (`android.intentFilters` with `autoVerify` + web's `/.well-known/assetlinks.json`), and
+  expo-router maps the URL's path onto this route. Shows the list + inviter + role from
+  `sharing.inviteByToken`, then **Accept invite** (`sharing.accept`) → `replace` into the list;
+  separate faces for an unknown/revoked token and for "already a member". A link that arrives
+  while `_layout.tsx` is still showing the login / onboarding gate has no mounted navigator to
+  route into, so the root layout parks the token (`client/pending-invite.ts`) and `AppStack`
+  opens it on mount — the invite survives a sign-in.
 - **Friends** (`(tabs)/friends.tsx`) — a **Friends | Messages** segmented switch (`SegmentedTabs`,
   with a **red** (`t.danger`) unread badge on Messages, matching the navbar badge) tops the screen.
   **Friends** view: add a friend by @handle

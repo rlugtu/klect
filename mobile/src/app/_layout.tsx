@@ -1,7 +1,8 @@
 import '@/global.css';
 
 import { useEffect } from 'react';
-import { Stack, useRouter } from 'expo-router';
+import { Stack, usePathname, useRouter } from 'expo-router';
+import { useLinkingURL } from 'expo-linking';
 import * as Notifications from 'expo-notifications';
 import { StatusBar } from 'expo-status-bar';
 import {
@@ -37,6 +38,10 @@ import OnboardingScreen from '@/components/onboarding-screen';
 import ShareNudgePopup from '@/components/share-nudge-popup';
 import ToastHost from '@/components/toast/ToastHost';
 import { authClient } from '@/client/auth';
+import {
+  rememberPendingInvite,
+  takePendingInvite,
+} from '@/client/pending-invite';
 import { registerForPushNotificationsAsync } from '@/client/push';
 import { ThemeProvider as AppThemeProvider, useTheme } from '@/theme/theme-provider';
 import { fontFor, THEME_TOKENS } from '@/theme/tokens';
@@ -61,6 +66,7 @@ function AppStack() {
   const theme = useTheme().theme;
   const t = THEME_TOKENS[theme];
   const router = useRouter();
+  const pathname = usePathname();
   // The most recent notification tap — covers both cold start (app killed) and warm taps.
   const lastResponse = Notifications.useLastNotificationResponse();
 
@@ -76,6 +82,17 @@ function AppStack() {
       router.push(path as never),
     );
   }, [lastResponse, router]);
+
+  // Open an invite link that arrived while the session gate was up — expo-router had no
+  // mounted navigator to route it into, so RootLayout parked the token (see
+  // client/pending-invite.ts). Skipped when the link already routed here on its own:
+  // `takePendingInvite` clears the token, so this is a no-op on every later render.
+  useEffect(() => {
+    const token = takePendingInvite();
+    if (token && pathname !== `/invite/${token}`) {
+      router.replace({ pathname: '/invite/[token]', params: { token } });
+    }
+  }, [pathname, router]);
   // No page shows a centered header title — the page name lives in the scrolling
   // content instead. This blank title applies everywhere (pushed pages AND modals).
   const blankTitle = { headerTitle: '' };
@@ -149,6 +166,7 @@ function AppStack() {
       <Stack.Screen name="delete-account" options={{ ...blankTitle }} />
       <Stack.Screen name="blocked" options={{ ...blankTitle }} />
       <Stack.Screen name="requests" options={{ ...blankTitle }} />
+      <Stack.Screen name="invite/[token]" options={{ ...blankTitle }} />
       <Stack.Screen name="friend-requests" options={{ ...transparentHeader }} />
       <Stack.Screen name="pending-requests" options={{ ...transparentHeader }} />
       <Stack.Screen name="dm/[conversationId]" options={{ ...blankTitle }} />
@@ -189,9 +207,21 @@ export default function RootLayout() {
     Geist_600SemiBold,
   });
 
+  // The current universal link / deep link (initial URL included, so a cold start counts).
+  const linkingUrl = useLinkingURL();
+  // True while a gate below renders instead of <AppStack />, i.e. while there is no navigator
+  // for expo-router to route a link into.
+  const gated = isPending || !session || !session.user.handle;
+
   useEffect(() => {
     if (fontsLoaded) SplashScreen.hideAsync();
   }, [fontsLoaded]);
+
+  // An invite link that lands on the login / onboarding gate would otherwise be dropped, so
+  // park its token for <AppStack /> to open the moment it mounts (client/pending-invite.ts).
+  useEffect(() => {
+    if (gated) rememberPendingInvite(linkingUrl);
+  }, [gated, linkingUrl]);
 
   // Keep the native splash up until the Journal fonts are ready.
   if (!fontsLoaded) return null;

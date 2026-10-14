@@ -1,11 +1,12 @@
 import { z } from "zod";
 import { router, protectedProcedure } from "../trpc";
 import { inviteRole } from "../inputs";
-import { assertRole } from "@/lib/permissions";
+import { assertRole, getMembership } from "@/lib/permissions";
 import {
   getListMembers,
   getPendingInvites,
   getIncomingRequests,
+  getInviteByToken,
 } from "@/lib/sharing";
 import * as core from "@/lib/core/sharing";
 
@@ -81,6 +82,24 @@ export const sharingRouter = router({
   leave: protectedProcedure
     .input(z.object({ listId: z.string() }))
     .mutation(({ ctx, input }) => core.leaveList(ctx.user.id, input.listId)),
+
+  // Landing context for an invite link, so mobile's /invite/[token] screen can show the
+  // same thing web's page renders server-side. Null = unknown or revoked token. Scoped to
+  // the list/inviter fields the screen shows (the invite row itself carries the invitee's
+  // email). `alreadyMember` saves a pointless accept for someone who's already in.
+  inviteByToken: protectedProcedure
+    .input(z.object({ token: z.string() }))
+    .query(async ({ ctx, input }) => {
+      const invite = await getInviteByToken(input.token);
+      if (!invite) return null;
+      const membership = await getMembership(ctx.user.id, invite.list.id);
+      return {
+        role: invite.role,
+        list: invite.list,
+        invitedBy: invite.invitedBy,
+        alreadyMember: membership !== null,
+      };
+    }),
 
   accept: protectedProcedure
     .input(z.object({ token: z.string() }))
