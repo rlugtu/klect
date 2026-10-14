@@ -6,6 +6,7 @@ import { Stack, useFocusEffect } from 'expo-router';
 import { useHeaderHeight } from '@react-navigation/elements';
 
 import { trpc } from '@/client/api';
+import { toast, errorMessage } from '@/client/toast';
 import { atHandle } from '@/lib/handle';
 import FloatingStatusBar from '@/components/floating-status-bar';
 import { cardShadow } from '@/theme/shadows';
@@ -17,22 +18,34 @@ type Outgoing = FriendsData['outgoing'];
 export default function PendingRequestsScreen() {
   const headerHeight = useHeaderHeight();
   const [outgoing, setOutgoing] = useState<Outgoing>([]);
+  const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
   const load = useCallback(() => {
     trpc.friends.list
       .query()
-      .then((d) => setOutgoing(d.outgoing))
-      .catch(() => {})
+      .then((d) => {
+        setOutgoing(d.outgoing);
+        setError(null);
+      })
+      .catch((e) => setError(errorMessage(e, 'Could not load sent requests')))
       .finally(() => setLoading(false));
   }, []);
 
   useFocusEffect(useCallback(() => load(), [load]));
 
   async function cancel(id: string) {
+    // Optimistic removal, restored from the pre-cancel rows if the mutation fails
+    // (a re-fetch can't be trusted to recover it when the network is what broke).
+    const before = outgoing;
     setOutgoing((cur) => cur.filter((r) => r.id !== id));
-    await trpc.friends.cancel.mutate({ id });
-    load();
+    try {
+      await trpc.friends.cancel.mutate({ id });
+      load();
+    } catch (e) {
+      setOutgoing(before);
+      toast.error(errorMessage(e, 'Could not cancel request'));
+    }
   }
 
   return (
@@ -45,12 +58,14 @@ export default function PendingRequestsScreen() {
           paddingBottom: 40,
           gap: 12,
         }}>
-        <Text className="font-serif text-3xl text-ink">Pending requests</Text>
+        <Text className="font-serif text-3xl text-ink">Sent requests</Text>
 
-        {!loading && outgoing.length === 0 && (
+        {error && <Text className="font-sans text-danger">{error}</Text>}
+
+        {!loading && !error && outgoing.length === 0 && (
           <Text className="font-serif-italic text-muted">
-            No pending requests. Requests you send appear here until they&apos;re
-            accepted.
+            No sent requests. Friend requests you send appear here until the
+            other person accepts them.
           </Text>
         )}
 
@@ -64,9 +79,13 @@ export default function PendingRequestsScreen() {
                 {req.addressee.icon ? `${req.addressee.icon} ` : ''}
                 {atHandle(req.addressee.handle)}
               </Text>
-              <Text className="mt-1 text-xs text-muted">Pending</Text>
+              <Text className="mt-1 text-xs text-muted">Awaiting response</Text>
             </View>
-            <Pressable onPress={() => cancel(req.id)} hitSlop={8}>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={`Cancel friend request to ${atHandle(req.addressee.handle)}`}
+              onPress={() => cancel(req.id)}
+              hitSlop={8}>
               <Text className="font-sans text-danger">Cancel</Text>
             </Pressable>
           </View>

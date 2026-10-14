@@ -18,7 +18,11 @@ function DrawerTopBar({ onCancel }: { onCancel: () => void }) {
   return (
     <View className="flex-row items-center justify-between border-b border-border bg-bg px-4 pb-3 pt-4">
       <Text className="font-serif text-xl text-ink">New Bookmark</Text>
-      <Pressable hitSlop={8} onPress={onCancel}>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel="Cancel"
+        hitSlop={8}
+        onPress={onCancel}>
         <Text className="font-sans-medium text-primary">Cancel</Text>
       </Pressable>
     </View>

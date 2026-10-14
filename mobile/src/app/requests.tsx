@@ -7,21 +7,32 @@ import { useHeaderHeight } from '@react-navigation/elements';
 
 import { trpc } from '@/client/api';
 import { toast, errorMessage } from '@/client/toast';
+import { atHandle } from '@/lib/handle';
 import { cardShadow } from '@/theme/shadows';
 
 type Requests = Awaited<ReturnType<typeof trpc.sharing.incomingRequests.query>>;
 
-/** All open list-join (collab) requests addressed to the user: approve or reject. */
+// Text-only rows can't reach Apple's 44pt minimum from padding alone.
+const TAP_TARGET = { minHeight: 44, justifyContent: 'center' } as const;
+
+/**
+ * Incoming invites to join someone else's list: approve or reject. Distinct from the
+ * Friends tab's friend requests and from a list owner's own sent invites.
+ */
 export default function RequestsScreen() {
   const headerHeight = useHeaderHeight();
   const [requests, setRequests] = useState<Requests>([]);
+  const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
   const load = useCallback(() => {
     trpc.sharing.incomingRequests
       .query()
-      .then(setRequests)
-      .catch(() => {})
+      .then((r) => {
+        setRequests(r);
+        setError(null);
+      })
+      .catch((e) => setError(errorMessage(e, 'Could not load list invites')))
       .finally(() => setLoading(false));
   }, []);
 
@@ -35,7 +46,7 @@ export default function RequestsScreen() {
       } else {
         await trpc.sharing.rejectRequest.mutate({ inviteId });
       }
-      toast.success(decision === 'approve' ? 'Request approved' : 'Request rejected');
+      toast.success(decision === 'approve' ? 'Invite approved' : 'Invite rejected');
     } catch (e) {
       toast.error(errorMessage(e, 'Something went wrong'));
     }
@@ -52,12 +63,14 @@ export default function RequestsScreen() {
           paddingBottom: 40,
           gap: 12,
         }}>
-        <Text className="font-serif text-3xl text-ink">List requests</Text>
+        <Text className="font-serif text-3xl text-ink">List invites</Text>
 
-        {!loading && requests.length === 0 && (
+        {error && <Text className="font-sans text-danger">{error}</Text>}
+
+        {!loading && !error && requests.length === 0 && (
           <Text className="font-serif-italic text-muted">
-            No open list requests. When someone invites you to a list, it shows
-            up here to approve or reject.
+            No list invites right now. When someone invites you to one of their
+            lists, it shows up here to approve or reject.
           </Text>
         )}
 
@@ -72,12 +85,29 @@ export default function RequestsScreen() {
             <Text className="font-sans text-sm text-muted" numberOfLines={2}>
               {req.list.description || 'No description'}
             </Text>
-            <View className="mt-3 flex-row justify-end gap-5">
-              <Pressable onPress={() => decide(req.id, 'reject')} hitSlop={8}>
-                <Text className="font-sans text-muted">Reject</Text>
+            <Text className="mt-1 font-sans text-xs text-muted">
+              Invited by {atHandle(req.invitedBy.handle)}
+            </Text>
+            <View className="mt-3 flex-row justify-end gap-3">
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={`Reject invite to ${req.list.name}`}
+                onPress={() => decide(req.id, 'reject')}
+                hitSlop={6}
+                style={TAP_TARGET}
+                className="rounded-skin border-skin border-border px-4">
+                <Text className="font-sans-semibold text-ink">Reject</Text>
               </Pressable>
-              <Pressable onPress={() => decide(req.id, 'approve')} hitSlop={8}>
-                <Text className="font-sans-semibold text-primary">Approve</Text>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={`Approve invite to ${req.list.name}`}
+                onPress={() => decide(req.id, 'approve')}
+                hitSlop={6}
+                style={TAP_TARGET}
+                className="rounded-skin bg-primary px-4">
+                <Text className="font-sans-semibold text-primary-ink">
+                  Approve
+                </Text>
               </Pressable>
             </View>
           </View>

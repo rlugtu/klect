@@ -27,6 +27,7 @@ import { ListChatSheet } from '@/components/list-chat/list-chat-sheet';
 import PhotoCard from '@/components/photo-card';
 import PollRow from '@/components/poll-row';
 import RatingStars from '@/components/rating-stars';
+import Skeleton from '@/components/skeleton';
 import TagPill from '@/components/tag-pill';
 import ListMembers from '@/components/list-members';
 import { screenshotThumbUrl, videoPosterUrl } from '@/lib/video-embed';
@@ -61,6 +62,10 @@ export default function ListScreen() {
   // Rendered inline (no route change) so the header/details/tabs stay put.
   const [tab, setTab] = useState<'list' | 'members' | 'polls'>('list');
   const [error, setError] = useState<string | null>(null);
+  // Separate from `error` (which covers the bookmarks fetch): if the access check
+  // itself fails we can't tell a public list from a deleted/private/unreachable one,
+  // so the screen must say so instead of falling through to the public-list UI.
+  const [accessError, setAccessError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
   const loadComments = useCallback(() => {
@@ -125,8 +130,13 @@ export default function ListScreen() {
       loadPolls();
       trpc.lists.get
         .query({ listId: id })
-        .then(setAccess)
-        .catch(() => {});
+        .then((a) => {
+          setAccess(a);
+          setAccessError(null);
+        })
+        .catch((e) =>
+          setAccessError(e instanceof Error ? e.message : 'Request failed'),
+        );
       loadComments();
       loadChatUnread();
     }, [id, loadBookmarks, loadPolls, loadComments, loadChatUnread]),
@@ -205,11 +215,30 @@ export default function ListScreen() {
 
   const selectedTags = availableTags.filter((tag) => selected.has(tag.id));
 
+  // With any filter active, an empty result means "nothing matched" rather than
+  // "this list is empty" — the two need different empty states.
+  const filtering = query.trim() !== '' || selected.size > 0 || hideVisited;
+
+  // Params only carry a name when the list was opened from a list card; a push
+  // notification or deep link arrives without one, so fall back to the fetched list.
+  const listName = name ?? access?.list.name ?? 'List';
   const description = access?.list.description ?? '';
   const isMember = access?.isMember ?? false;
   const isOwner = isMember && access?.role === 'OWNER';
   const canEdit =
     isMember && (access?.role === 'OWNER' || access?.role === 'COLLABORATOR');
+
+  if (accessError) {
+    return (
+      <View className="flex-1 items-center justify-center gap-1 bg-bg p-6">
+        <Stack.Screen options={{ headerTitle: '' }} />
+        <Text className="font-serif text-xl text-ink">
+          Couldn&apos;t load this list
+        </Text>
+        <Text className="text-center font-sans text-danger">{accessError}</Text>
+      </View>
+    );
+  }
 
   return (
     <View className="flex-1 bg-bg">
@@ -221,7 +250,10 @@ export default function ListScreen() {
           headerRight: () =>
             isMember ? (
               <Pressable
-                accessibilityLabel="List chat"
+                accessibilityRole="button"
+                accessibilityLabel={`List chat${
+                  chatUnread > 0 ? `, ${chatUnread} unread` : ''
+                }`}
                 hitSlop={8}
                 onPress={() => {
                   setChatUnread(0);
@@ -248,7 +280,10 @@ export default function ListScreen() {
                       justifyContent: 'center',
                       backgroundColor: t.danger,
                     }}>
-                    <Text style={{ color: '#fff', fontSize: 10, fontWeight: '700' }}>
+                    {/* primaryInk is the token for text on a filled surface — it flips
+                        to near-black in the dark themes, where `danger` is a light red. */}
+                    <Text
+                      style={{ color: t.primaryInk, fontSize: 10, fontWeight: '700' }}>
                       {chatUnread > 99 ? '99+' : chatUnread}
                     </Text>
                   </View>
@@ -278,13 +313,14 @@ export default function ListScreen() {
           <View className="gap-3 pb-1">
             <View className="flex-row items-center justify-between gap-3">
               <Text className="flex-1 font-serif text-3xl text-ink">
-                {name ?? 'List'}
+                {listName}
               </Text>
               {isMember && (
                 <View className="flex-row items-center gap-2">
                   {canEdit && (
                     // Louder filled "New bookmark" action, before the ⋮ list actions.
                     <Pressable
+                      accessibilityRole="button"
                       accessibilityLabel="Add bookmark"
                       hitSlop={8}
                       onPress={() =>
@@ -301,6 +337,7 @@ export default function ListScreen() {
                     </Pressable>
                   )}
                   <Pressable
+                    accessibilityRole="button"
                     accessibilityLabel="List actions"
                     hitSlop={8}
                     onPress={() => actionsSheetRef.current?.present()}
@@ -328,6 +365,9 @@ export default function ListScreen() {
               // Rounded-pill segmented control, echoing the floating nav bar.
               <View className="flex-row self-center rounded-full border-skin border-border bg-panel p-1">
                 <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel="List"
+                  accessibilityState={{ selected: tab === 'list' }}
                   onPress={() => setTab('list')}
                   className={`flex-row items-center gap-1.5 rounded-full px-4 py-1.5 ${
                     tab === 'list' ? 'bg-primary' : ''
@@ -347,6 +387,9 @@ export default function ListScreen() {
                   </Text>
                 </Pressable>
                 <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel="Members"
+                  accessibilityState={{ selected: tab === 'members' }}
                   onPress={() => setTab('members')}
                   className={`flex-row items-center gap-1.5 rounded-full px-4 py-1.5 ${
                     tab === 'members' ? 'bg-primary' : ''
@@ -366,6 +409,9 @@ export default function ListScreen() {
                   </Text>
                 </Pressable>
                 <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel="Polls"
+                  accessibilityState={{ selected: tab === 'polls' }}
                   onPress={() => setTab('polls')}
                   className={`flex-row items-center gap-1.5 rounded-full px-4 py-1.5 ${
                     tab === 'polls' ? 'bg-primary' : ''
@@ -392,6 +438,7 @@ export default function ListScreen() {
                 <View className="flex-row items-center justify-between">
                   <Text className="font-sans text-ink">Show only unvisited</Text>
                   <Switch
+                    accessibilityLabel="Show only unvisited bookmarks"
                     value={hideVisited}
                     onValueChange={setHideVisited}
                     trackColor={{ true: t.primary, false: `${t.muted}66` }}
@@ -411,6 +458,8 @@ export default function ListScreen() {
                   />
                   {availableTags.length > 0 && (
                     <Pressable
+                      accessibilityRole="button"
+                      accessibilityLabel="Filter by tag"
                       onPress={() => sheetRef.current?.present()}
                       className="rounded-skin border-skin border-border px-3 py-2.5">
                       <Text className="font-sans-semibold text-ink">Tags ▾</Text>
@@ -423,6 +472,8 @@ export default function ListScreen() {
                     {selectedTags.map((tag) => (
                       <Pressable
                         key={tag.id}
+                        accessibilityRole="button"
+                        accessibilityLabel={`Clear the ${tag.name} filter`}
                         onPress={() => toggleTag(tag.id)}
                         className="px-1 py-0.5">
                         <Text className="font-sans text-sm text-muted">
@@ -431,6 +482,8 @@ export default function ListScreen() {
                       </Pressable>
                     ))}
                     <Pressable
+                      accessibilityRole="button"
+                      accessibilityLabel="Clear all filters"
                       onPress={() => {
                         setSelected(new Set());
                         setQuery('');
@@ -441,11 +494,19 @@ export default function ListScreen() {
                   </View>
                 )}
 
-                {loading && <Text className="font-sans text-muted">Loading…</Text>}
+                {loading && (
+                  // Photo-card-shaped placeholders, same idiom as the poll screens.
+                  <View className="gap-4">
+                    <Skeleton height={180} />
+                    <Skeleton height={180} />
+                  </View>
+                )}
                 {error && <Text className="font-sans text-danger">{error}</Text>}
-                {!loading && !error && bookmarks.length === 0 && (
+                {!loading && !error && shown.length === 0 && (
                   <Text className="font-serif-italic text-muted">
-                    No bookmarks yet — add your first find.
+                    {filtering
+                      ? 'No bookmarks match.'
+                      : 'No bookmarks yet — add your first find.'}
                   </Text>
                 )}
               </>
@@ -459,6 +520,8 @@ export default function ListScreen() {
               <>
                 {canEdit && (
                   <Pressable
+                    accessibilityRole="button"
+                    accessibilityLabel="Create poll"
                     onPress={() =>
                       router.push({
                         pathname: '/polls/new',
@@ -487,6 +550,7 @@ export default function ListScreen() {
               comments={comments}
               currentUserId={myId}
               readOnly={!isMember}
+              canModerate={isOwner}
               onAdd={async (value) => {
                 if (!id) return;
                 await trpc.comments.addToList.mutate({ listId: id, value });
@@ -545,8 +609,16 @@ export default function ListScreen() {
                     <RatingStars value={b.rating} size="sm" />
                   </View>
                 )}
+                {/* Tapping an inline tag toggles the same filter the Tags sheet drives,
+                    so a tag you can see is a tag you can filter by. */}
                 {b.tags.map((bt) => (
-                  <TagPill key={bt.tag.id} name={bt.tag.name} color={bt.tag.color} />
+                  <TagPill
+                    key={bt.tag.id}
+                    name={bt.tag.name}
+                    color={bt.tag.color}
+                    selected={selected.has(bt.tag.id)}
+                    onPress={() => toggleTag(bt.tag.id)}
+                  />
                 ))}
               </View>
             </PhotoCard>
@@ -567,6 +639,9 @@ export default function ListScreen() {
                 key={tag.id}
                 className="flex-row items-center border-b border-border">
                 <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel={`${on ? 'Clear' : 'Filter by'} ${tag.name}`}
+                  accessibilityState={{ selected: on }}
                   onPress={() => toggleTag(tag.id)}
                   className="flex-1 flex-row items-center justify-between py-3">
                   <Text className="font-sans text-ink">
@@ -577,6 +652,7 @@ export default function ListScreen() {
                 {canEdit && (
                   // Collaborators can strip a tag off every bookmark in the list.
                   <Pressable
+                    accessibilityRole="button"
                     accessibilityLabel={`Remove ${tag.name} from this list`}
                     hitSlop={8}
                     onPress={() => confirmRemoveTag(tag.name)}
@@ -597,6 +673,8 @@ export default function ListScreen() {
         <BottomSheetView style={{ paddingHorizontal: 16, paddingBottom: 32 }}>
           {canEdit && (
             <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Edit list"
               onPress={() => {
                 actionsSheetRef.current?.dismiss();
                 router.push({ pathname: '/lists/edit', params: { id } });
@@ -607,6 +685,8 @@ export default function ListScreen() {
             </Pressable>
           )}
           <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Duplicate list"
             onPress={() => {
               actionsSheetRef.current?.dismiss();
               router.push({ pathname: '/lists/actions', params: { id, name } });
@@ -617,6 +697,8 @@ export default function ListScreen() {
           </Pressable>
           {isOwner && (
             <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Clear list"
               onPress={() => {
                 actionsSheetRef.current?.dismiss();
                 confirmClear();

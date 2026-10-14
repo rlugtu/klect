@@ -71,6 +71,8 @@ export default function PollListScreen() {
             <Text className="font-serif text-3xl text-ink">Polls</Text>
             {canCreate && (
               <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="Create poll"
                 onPress={() =>
                   router.push({ pathname: '/polls/new', params: { listId, listName } })
                 }

@@ -1,8 +1,8 @@
 import { useCallback, useState } from 'react';
 import {
-  ActivityIndicator,
   Alert,
   Linking,
+  Platform,
   Pressable,
   ScrollView,
   Text,
@@ -24,6 +24,7 @@ import { toast, errorMessage } from '@/client/toast';
 import BookmarkVideo from '@/components/bookmark-video';
 import CommentsSection, { type CommentItem } from '@/components/comments-section';
 import RatingStars from '@/components/rating-stars';
+import Skeleton from '@/components/skeleton';
 import VisitedPill from '@/components/visited-pill';
 import TagPill from '@/components/tag-pill';
 import { screenshotThumbUrl, videoPosterUrl } from '@/lib/video-embed';
@@ -31,13 +32,21 @@ import { useTheme } from '@/theme/theme-provider';
 import { THEME_TOKENS } from '@/theme/tokens';
 import { cardShadow } from '@/theme/shadows';
 
-// Inferred from web's tRPC procedure ({ bookmark, role } | null).
+// Inferred from web's tRPC procedure ({ bookmark, role, isMember } | null).
 type BookmarkResult = Awaited<ReturnType<typeof trpc.bookmarks.get.query>>;
 
+// Apple Maps on iOS, Google Maps on Android. The Google "search" URL is a universal link,
+// so Android hands it to the Maps app when installed and to the browser when not. A `geo:`
+// URI would open the user's default maps app, but dead-ends on a device that has none.
 function mapsUrl(location: string, lat: number | null, lon: number | null) {
-  if (lat != null && lon != null)
-    return `https://maps.apple.com/?ll=${lat},${lon}&q=${encodeURIComponent(location || 'Location')}`;
-  return `https://maps.apple.com/?q=${encodeURIComponent(location)}`;
+  const label = encodeURIComponent(location || 'Location');
+  if (Platform.OS === 'ios') {
+    if (lat != null && lon != null)
+      return `https://maps.apple.com/?ll=${lat},${lon}&q=${label}`;
+    return `https://maps.apple.com/?q=${label}`;
+  }
+  const query = lat != null && lon != null ? `${lat},${lon}` : label;
+  return `https://www.google.com/maps/search/?api=1&query=${query}`;
 }
 
 export default function BookmarkScreen() {
@@ -69,6 +78,13 @@ export default function BookmarkScreen() {
   );
 
   const b = data?.bookmark;
+  // Mirrors web's bookmark page: editing, rating, the visited flag and delete all
+  // require COLLABORATOR+, deleting someone else's comment requires OWNER. A viewer
+  // (or a non-member reading a public list) gets a read-only view.
+  const isMember = data?.isMember ?? false;
+  const canEdit =
+    isMember && (data?.role === 'OWNER' || data?.role === 'COLLABORATOR');
+  const canModerate = isMember && data?.role === 'OWNER';
 
   async function toggleVisited() {
     if (!id || !b) return;
@@ -125,8 +141,9 @@ export default function BookmarkScreen() {
         options={{
           headerTitle: '',
           headerRight: () =>
-            b ? (
+            b && canEdit ? (
               <Pressable
+                accessibilityRole="button"
                 accessibilityLabel="Edit bookmark"
                 hitSlop={8}
                 onPress={() =>
@@ -144,7 +161,14 @@ export default function BookmarkScreen() {
         }}
       />
 
-      {loading && <ActivityIndicator />}
+      {loading && (
+        <>
+          <Skeleton height={180} />
+          <Skeleton height={32} />
+          <Skeleton height={24} />
+          <Skeleton height={56} />
+        </>
+      )}
       {error && <Text className="font-sans text-danger">{error}</Text>}
       {!loading && !error && !b && (
         <Text className="font-serif-italic text-muted">Bookmark not found.</Text>
@@ -201,10 +225,13 @@ export default function BookmarkScreen() {
 
           <Text className="font-serif text-3xl text-ink">{b.name}</Text>
 
-          {/* Instagram-style action row — sits above the rating/visited row. */}
-          <View className="flex-row items-center gap-4 border-b border-border pb-3">
+          {/* Action row above the rating/visited row. Holds every action on this
+              bookmark except Edit, which lives in the header. */}
+          <View className="flex-row items-center justify-between gap-4 border-b border-border pb-3">
             <Pressable
+              accessibilityRole="button"
               accessibilityLabel="Send to a friend"
+              className="flex-row items-center gap-1.5 py-1"
               hitSlop={8}
               onPress={() =>
                 router.push({
@@ -213,12 +240,29 @@ export default function BookmarkScreen() {
                 })
               }>
               <Ionicons name="paper-plane-outline" size={24} color={t.ink} />
+              <Text className="font-sans-medium text-base text-ink">Send</Text>
             </Pressable>
+
+            {canEdit && (
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="Delete bookmark"
+                className="flex-row items-center gap-1.5 rounded-skin border-skin border-danger px-3 py-1.5"
+                hitSlop={8}
+                onPress={confirmDelete}>
+                <Ionicons name="trash-outline" size={18} color={t.danger} />
+                <Text className="font-sans-semibold text-danger">Delete</Text>
+              </Pressable>
+            )}
           </View>
 
           <View className="flex-row items-center justify-between">
-            <RatingStars value={b.rating} onChange={setRating} />
-            <VisitedPill visited={b.visited} onToggle={toggleVisited} size="md" />
+            <RatingStars value={b.rating} onChange={canEdit ? setRating : undefined} />
+            <VisitedPill
+              visited={b.visited}
+              onToggle={canEdit ? toggleVisited : undefined}
+              size="md"
+            />
           </View>
 
           {b.tags.length > 0 && (
@@ -236,7 +280,11 @@ export default function BookmarkScreen() {
           {b.urls.length > 0 && (
             <View className="gap-1">
               {b.urls.map((url) => (
-                <Pressable key={url} onPress={() => Linking.openURL(url)}>
+                <Pressable
+                  key={url}
+                  accessibilityRole="link"
+                  accessibilityLabel={`Open ${url}`}
+                  onPress={() => Linking.openURL(url)}>
                   <Text className="font-sans text-primary" numberOfLines={1}>
                     {url}
                   </Text>
@@ -247,6 +295,8 @@ export default function BookmarkScreen() {
 
           {b.location ? (
             <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={`Open ${b.location} in Maps`}
               onPress={() =>
                 Linking.openURL(mapsUrl(b.location, b.latitude, b.longitude))
               }>
@@ -263,6 +313,8 @@ export default function BookmarkScreen() {
           <CommentsSection
             comments={comments}
             currentUserId={myId}
+            readOnly={!isMember}
+            canModerate={canModerate}
             onAdd={async (value) => {
               if (!id) return;
               await trpc.comments.addToBookmark.mutate({ bookmarkId: id, value });
@@ -274,12 +326,6 @@ export default function BookmarkScreen() {
               loadComments();
             }}
           />
-
-          <Pressable
-            className="mt-4 items-center rounded-skin border-skin border-border py-3"
-            onPress={confirmDelete}>
-            <Text className="font-sans-semibold text-danger">Delete bookmark</Text>
-          </Pressable>
         </>
       )}
     </ScrollView>

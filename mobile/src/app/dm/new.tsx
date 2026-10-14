@@ -22,14 +22,16 @@ export default function NewChatScreen() {
   const router = useRouter();
   const [friends, setFriends] = useState<Friend[]>([]);
   const [loaded, setLoaded] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
 
   useFocusEffect(
     useCallback(() => {
+      setError(null);
       trpc.friends.list
         .query()
         .then((d) => setFriends(d.friends))
-        .catch(() => {})
+        .catch((e) => setError(e instanceof Error ? e.message : 'Could not load friends.'))
         .finally(() => setLoaded(true));
     }, []),
   );
@@ -62,15 +64,21 @@ export default function NewChatScreen() {
         }}>
         <Text className="font-serif text-3xl text-ink">New chat</Text>
 
-        {loaded && friends.length === 0 && (
-          <Text className="font-serif-italic text-muted">
-            You have no friends to message yet — add some on the Friends tab.
-          </Text>
-        )}
+        {loaded &&
+          friends.length === 0 &&
+          (error ? (
+            <Text className="font-sans text-danger">{error}</Text>
+          ) : (
+            <Text className="font-serif-italic text-muted">
+              You have no friends to message yet — add some on the Friends tab.
+            </Text>
+          ))}
 
         {friends.map((f) => (
           <Pressable
             key={f.friendshipId}
+            accessibilityRole="button"
+            accessibilityLabel={`Message ${atHandle(f.friend.handle)}`}
             style={cardShadow}
             disabled={busyId !== null}
             onPress={() => open(f)}

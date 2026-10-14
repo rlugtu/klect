@@ -2,6 +2,7 @@ import { useState } from 'react';
 import {
   ActivityIndicator,
   Pressable,
+  ScrollView,
   Text,
   TextInput,
   View,
@@ -80,95 +81,117 @@ export default function LoginScreen() {
 
   return (
     <SafeAreaView style={{ flex: 1 }} className="bg-bg">
-      <View className="flex-1 justify-center gap-3 px-6">
-        <Text className="text-center text-3xl font-bold text-ink">Klect</Text>
-        <Text className="mb-4 text-center text-muted">
-          {mode === 'signin'
-            ? 'Sign in to your bookmarks'
-            : 'Create your bookmarks account'}
-        </Text>
+      <ScrollView
+        className="flex-1"
+        keyboardShouldPersistTaps="handled"
+        automaticallyAdjustKeyboardInsets
+        contentContainerStyle={{ flexGrow: 1, justifyContent: 'center' }}>
+        <View className="gap-3 px-6">
+          {/* `font-serif`, not `font-bold`: RN doesn't synthesize weights, so a bare
+              fontWeight utility with no family drops the wordmark to the system font. */}
+          <Text className="text-center font-serif text-3xl text-ink">Klect</Text>
+          <Text className="mb-4 text-center text-muted">
+            {mode === 'signin'
+              ? 'Sign in to your bookmarks'
+              : 'Create your bookmarks account'}
+          </Text>
 
-        {mode === 'signup' && (
+          {mode === 'signup' && (
+            <TextInput
+              className="rounded-skin border-skin border-border px-4 py-3 text-ink"
+              placeholder="Name"
+              placeholderTextColor={muted}
+              autoCapitalize="words"
+              value={name}
+              onChangeText={setName}
+            />
+          )}
+
           <TextInput
             className="rounded-skin border-skin border-border px-4 py-3 text-ink"
-            placeholder="Name"
+            placeholder="Email"
             placeholderTextColor={muted}
-            autoCapitalize="words"
-            value={name}
-            onChangeText={setName}
+            autoCapitalize="none"
+            autoCorrect={false}
+            keyboardType="email-address"
+            value={email}
+            onChangeText={setEmail}
           />
-        )}
+          <TextInput
+            className="rounded-skin border-skin border-border px-4 py-3 text-ink"
+            placeholder="Password"
+            placeholderTextColor={muted}
+            secureTextEntry
+            value={password}
+            onChangeText={setPassword}
+          />
 
-        <TextInput
-          className="rounded-skin border-skin border-border px-4 py-3 text-ink"
-          placeholder="Email"
-          placeholderTextColor={muted}
-          autoCapitalize="none"
-          autoCorrect={false}
-          keyboardType="email-address"
-          value={email}
-          onChangeText={setEmail}
-        />
-        <TextInput
-          className="rounded-skin border-skin border-border px-4 py-3 text-ink"
-          placeholder="Password"
-          placeholderTextColor={muted}
-          secureTextEntry
-          value={password}
-          onChangeText={setPassword}
-        />
+          {error && <Text className="text-center text-danger">{error}</Text>}
 
-        {error && <Text className="text-center text-danger">{error}</Text>}
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={mode === 'signin' ? 'Sign in' : 'Create account'}
+            className="items-center rounded-skin bg-primary py-3"
+            disabled={busy}
+            onPress={submitCredentials}>
+            {busy ? (
+              <ActivityIndicator color={THEME_TOKENS[theme].primaryInk} />
+            ) : (
+              <Text className="font-sans-semibold text-primary-ink">
+                {mode === 'signin' ? 'Sign in' : 'Create account'}
+              </Text>
+            )}
+          </Pressable>
 
-        <Pressable
-          className="items-center rounded-skin bg-primary py-3"
-          disabled={busy}
-          onPress={submitCredentials}>
-          {busy ? (
-            <ActivityIndicator color={THEME_TOKENS[theme].primaryInk} />
-          ) : (
-            <Text className="font-semibold text-primary-ink">
-              {mode === 'signin' ? 'Sign in' : 'Create account'}
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Continue with Google"
+            className="items-center rounded-skin border-skin border-border py-3"
+            disabled={busy}
+            onPress={signInGoogle}>
+            <Text className="font-sans-semibold text-ink">Continue with Google</Text>
+          </Pressable>
+
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={
+              mode === 'signin'
+                ? 'New here? Create an account'
+                : 'Already have an account? Sign in'
+            }
+            className="items-center py-1"
+            onPress={() => {
+              setMode(mode === 'signin' ? 'signup' : 'signin');
+              setError(null);
+            }}>
+            <Text className="text-sm text-muted">
+              {mode === 'signin'
+                ? 'New here? Create an account'
+                : 'Already have an account? Sign in'}
             </Text>
-          )}
-        </Pressable>
+          </Pressable>
 
-        <Pressable
-          className="items-center rounded-skin border-skin border-border py-3"
-          disabled={busy}
-          onPress={signInGoogle}>
-          <Text className="font-semibold text-ink">Continue with Google</Text>
-        </Pressable>
-
-        <Pressable
-          className="items-center py-1"
-          onPress={() => {
-            setMode(mode === 'signin' ? 'signup' : 'signin');
-            setError(null);
-          }}>
-          <Text className="text-sm text-muted">
-            {mode === 'signin'
-              ? 'New here? Create an account'
-              : 'Already have an account? Sign in'}
+          <Text className="mt-1 text-center text-xs text-muted">
+            By continuing you agree to our{' '}
+            <Text
+              accessibilityRole="link"
+              accessibilityLabel="Terms of Use, opens in a browser"
+              className="text-primary underline"
+              onPress={() => WebBrowser.openBrowserAsync(`${API_URL}/terms`)}>
+              Terms of Use
+            </Text>{' '}
+            and{' '}
+            <Text
+              accessibilityRole="link"
+              accessibilityLabel="Privacy Policy, opens in a browser"
+              className="text-primary underline"
+              onPress={() => WebBrowser.openBrowserAsync(`${API_URL}/privacy`)}>
+              Privacy Policy
+            </Text>
+            .
           </Text>
-        </Pressable>
-
-        <Text className="mt-1 text-center text-xs text-muted">
-          By continuing you agree to our{' '}
-          <Text
-            className="text-primary underline"
-            onPress={() => WebBrowser.openBrowserAsync(`${API_URL}/terms`)}>
-            Terms of Use
-          </Text>{' '}
-          and{' '}
-          <Text
-            className="text-primary underline"
-            onPress={() => WebBrowser.openBrowserAsync(`${API_URL}/privacy`)}>
-            Privacy Policy
-          </Text>
-          .
-        </Text>
-      </View>
+        </View>
+      </ScrollView>
     </SafeAreaView>
   );
 }

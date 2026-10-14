@@ -10,7 +10,7 @@ import {
   ThemeProvider as NavThemeProvider,
 } from '@react-navigation/native';
 import * as SplashScreen from 'expo-splash-screen';
-import { useColorScheme, View } from 'react-native';
+import { ActivityIndicator, Text, useColorScheme, View } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { BottomSheetModalProvider } from '@gorhom/bottom-sheet';
 import { useFonts } from 'expo-font';
@@ -30,6 +30,7 @@ import {
   Geist_600SemiBold,
 } from '@expo-google-fonts/geist';
 
+import ErrorBoundary from '@/components/error-boundary';
 import HeaderBlurBackground from '@/components/header-blur-background';
 import LoginScreen from '@/components/login-screen';
 import OnboardingScreen from '@/components/onboarding-screen';
@@ -157,6 +158,21 @@ function AppStack() {
   );
 }
 
+/**
+ * Shown while the session resolves, between the native splash hiding and the first real screen.
+ * Branded (wordmark in the theme's title font + spinner on the theme background) so a cold start
+ * isn't a flash of blank white or black. Must be a child of <AppThemeProvider> to read the theme.
+ */
+function SessionLoadingScreen() {
+  const theme = useTheme().theme;
+  return (
+    <View className="flex-1 items-center justify-center gap-4 bg-bg">
+      <Text className="font-serif text-3xl text-ink">Klect</Text>
+      <ActivityIndicator color={THEME_TOKENS[theme].primary} />
+    </View>
+  );
+}
+
 export default function RootLayout() {
   const colorScheme = useColorScheme();
   const { data: session, isPending, refetch } = authClient.useSession();
@@ -185,16 +201,20 @@ export default function RootLayout() {
       <AppThemeProvider mirrorToShared>
         <NavThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
           <BottomSheetModalProvider>
-            {isPending ? (
-              <View style={{ flex: 1 }} />
-            ) : !session ? (
-              <LoginScreen />
-            ) : !session.user.handle ? (
-              // Signed in but no handle yet — mirror web's onboarding gate.
-              <OnboardingScreen onDone={() => refetch()} />
-            ) : (
-              <AppStack />
-            )}
+            {/* Inside the theme provider so the fallback screen is themed; outside the toast host
+                so a render throw below still leaves the toast overlay mounted. */}
+            <ErrorBoundary>
+              {isPending ? (
+                <SessionLoadingScreen />
+              ) : !session ? (
+                <LoginScreen />
+              ) : !session.user.handle ? (
+                // Signed in but no handle yet — mirror web's onboarding gate.
+                <OnboardingScreen onDone={() => refetch()} />
+              ) : (
+                <AppStack />
+              )}
+            </ErrorBoundary>
             {/* Global toast overlay — sits above every screen, reads the theme. */}
             <ToastHost />
           </BottomSheetModalProvider>

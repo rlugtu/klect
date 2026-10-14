@@ -79,10 +79,15 @@ export function ReportSheet({
       animationType="fade"
       onRequestClose={onClose}>
       <Pressable
+        accessibilityRole="button"
+        accessibilityLabel="Close"
         onPress={onClose}
         style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.4)' }}
         className="justify-end">
         <Pressable
+          // Only swallows taps so they don't reach the backdrop, so it must not become an
+          // accessibility element itself (that would merge the whole sheet into one).
+          accessible={false}
           onPress={(e) => e.stopPropagation()}
           className="gap-3 rounded-t-3xl bg-bg p-5"
           style={{ paddingBottom: 40 }}>
@@ -97,6 +102,9 @@ export function ReportSheet({
               return (
                 <Pressable
                   key={r.value}
+                  accessibilityRole="button"
+                  accessibilityLabel={r.label}
+                  accessibilityState={{ selected: active }}
                   onPress={() => setReason(r.value)}
                   className={`flex-row items-center justify-between rounded-skin border bg-panel p-3 ${
                     active ? 'border-primary' : 'border-border'
@@ -119,6 +127,8 @@ export function ReportSheet({
           />
 
           <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Submit report"
             disabled={busy}
             onPress={submit}
             className="items-center rounded-skin bg-danger py-3">
@@ -126,7 +136,11 @@ export function ReportSheet({
               {busy ? 'Submitting…' : 'Submit report'}
             </Text>
           </Pressable>
-          <Pressable onPress={onClose} className="items-center py-2">
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Cancel"
+            onPress={onClose}
+            className="items-center py-2">
             <Text className="font-sans text-muted">Cancel</Text>
           </Pressable>
         </Pressable>

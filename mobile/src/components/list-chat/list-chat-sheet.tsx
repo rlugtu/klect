@@ -19,6 +19,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { trpc } from '@/client/api';
 import { subscribeListChat, realtimeEnabled } from '@/client/realtime';
 import { authClient } from '@/client/auth';
+import { toast, errorMessage } from '@/client/toast';
 import { ReportSheet } from '@/components/report-sheet';
 import { atHandle } from '@/lib/handle';
 import { useTheme } from '@/theme/theme-provider';
@@ -72,6 +73,9 @@ export const ListChatSheet = forwardRef<
   const [loadingOlder, setLoadingOlder] = useState(false);
   const [loaded, setLoaded] = useState(false);
   const listRef = useRef<React.ComponentRef<typeof BottomSheetFlatList>>(null);
+  // `onContentSizeChange` fires for prepended history too; without this flag the list would
+  // snap back to the newest message and undo the "Load older messages" tap.
+  const prependedRef = useRef(false);
 
   const mergeNewest = useCallback((incoming: ChatMessage[]) => {
     setMessages((cur) => {
@@ -129,6 +133,7 @@ export const ListChatSheet = forwardRef<
     setLoadingOlder(true);
     try {
       const p = await trpc.listChat.messages.query({ listId, cursor: olderCursor });
+      prependedRef.current = true;
       setMessages((cur) => {
         const seen = new Set(cur.map((m) => m.id));
         return [...p.messages.filter((m) => !seen.has(m.id)), ...cur];
@@ -149,9 +154,12 @@ export const ListChatSheet = forwardRef<
         setBody('');
         mergeNewest([{ ...res.message, sender: null, role: null }]);
         refreshNewest();
+      } else {
+        // The composer keeps its text so the send can be retried without retyping.
+        toast.error('error' in res ? res.error : "Couldn't send message.");
       }
-    } catch {
-      // swallow — the composer keeps the text so the user can retry
+    } catch (e) {
+      toast.error(errorMessage(e, "Couldn't send message."));
     }
     setSending(false);
   }
@@ -195,6 +203,7 @@ export const ListChatSheet = forwardRef<
           <Text className="font-serif text-lg text-ink">Chat</Text>
           {isOwner && (
             <Pressable
+              accessibilityRole="button"
               accessibilityLabel="Clear chat history"
               hitSlop={8}
               onPress={confirmClear}
@@ -210,12 +219,20 @@ export const ListChatSheet = forwardRef<
           data={messages}
           keyExtractor={(m: ChatMessage) => m.id}
           contentContainerStyle={{ padding: 16, gap: 10 }}
-          onContentSizeChange={() =>
-            listRef.current?.scrollToEnd({ animated: false })
-          }
+          onContentSizeChange={() => {
+            if (prependedRef.current) {
+              prependedRef.current = false;
+              return;
+            }
+            listRef.current?.scrollToEnd({ animated: false });
+          }}
           ListHeaderComponent={
             olderCursor ? (
-              <Pressable onPress={loadOlder} className="items-center py-2">
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="Load older messages"
+                onPress={loadOlder}
+                className="items-center py-2">
                 <Text className="text-sm text-muted underline">
                   {loadingOlder ? 'Loading…' : 'Load older messages'}
                 </Text>
@@ -245,6 +262,9 @@ export const ListChatSheet = forwardRef<
                   </Text>
                 )}
                 <Pressable
+                  accessibilityHint={
+                    mine ? undefined : 'Double tap and hold to report this message'
+                  }
                   onLongPress={
                     mine ? undefined : () => setReportId(item.id)
                   }
@@ -278,6 +298,8 @@ export const ListChatSheet = forwardRef<
               multiline
             />
             <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Send message"
               className="rounded-full bg-primary p-2.5"
               disabled={sending || !body.trim()}
               onPress={send}>

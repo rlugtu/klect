@@ -19,6 +19,9 @@ export type ListValues = {
   isPublic: boolean;
 };
 
+/** Picker options, in the same style as onboarding's avatar grid. */
+const ICON_CHOICES = ['📁', '📍', '🍜', '☕', '🎬', '📚', '🛍️', '✈️', '🎵', '⭐'];
+
 type Props = {
   initial: ListValues;
   submitLabel: string;
@@ -45,8 +48,18 @@ export default function ListForm({
   const [icon, setIcon] = useState(initial.icon);
   const [description, setDescription] = useState(initial.description);
   const [isPublic, setIsPublic] = useState(initial.isPublic);
+  // An existing icon that isn't in the grid can only be edited in the text field, so
+  // reveal it up front rather than making the user hunt for the "custom" option.
+  const [customIcon, setCustomIcon] = useState(
+    initial.icon !== '' && !ICON_CHOICES.includes(initial.icon),
+  );
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Only the edit screen passes a delete handler, so it doubles as the mode signal.
+  const isEdit = onDelete !== undefined;
+  // An empty icon saves as 📁 (see submit), so show that as the picked one.
+  const pickedIcon = icon.trim() === '' ? '📁' : icon;
 
   async function submit() {
     if (!name.trim()) {
@@ -72,23 +85,60 @@ export default function ListForm({
     <ScrollView
       className="flex-1 bg-bg"
       contentContainerStyle={{ padding: 16, gap: 12 }}
-      keyboardShouldPersistTaps="handled">
-      <View className="flex-row gap-2">
-        <TextInput
-          className="w-16 rounded-skin border-skin border-border px-2 py-3 text-center text-ink"
-          placeholder="📁"
-          placeholderTextColor={muted}
-          value={icon}
-          onChangeText={setIcon}
-        />
-        <TextInput
-          className="flex-1 rounded-skin border-skin border-border px-4 py-3 text-ink"
-          placeholder="List name"
-          placeholderTextColor={muted}
-          value={name}
-          onChangeText={setName}
-        />
+      keyboardShouldPersistTaps="handled"
+      automaticallyAdjustKeyboardInsets>
+      <Text className="font-serif text-3xl text-ink">
+        {isEdit ? 'Edit list' : 'New list'}
+      </Text>
+
+      <View className="gap-2">
+        <Text className="font-sans-medium text-sm text-muted">Icon</Text>
+        <View className="flex-row flex-wrap gap-2">
+          {ICON_CHOICES.map((choice) => (
+            <Pressable
+              key={choice}
+              accessibilityRole="button"
+              accessibilityLabel={`Icon ${choice}`}
+              accessibilityState={{ selected: !customIcon && pickedIcon === choice }}
+              onPress={() => {
+                setIcon(choice);
+                setCustomIcon(false);
+              }}
+              className={`h-11 w-11 items-center justify-center rounded-skin-sm border-skin bg-panel ${
+                !customIcon && pickedIcon === choice ? 'border-primary' : 'border-border'
+              }`}>
+              <Text className="text-xl">{choice}</Text>
+            </Pressable>
+          ))}
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Use a custom emoji"
+            accessibilityState={{ selected: customIcon }}
+            onPress={() => setCustomIcon(true)}
+            className={`h-11 items-center justify-center rounded-skin-sm border-skin bg-panel px-3 ${
+              customIcon ? 'border-primary' : 'border-border'
+            }`}>
+            <Text className="font-sans text-sm text-muted">Custom</Text>
+          </Pressable>
+        </View>
+        {customIcon && (
+          <TextInput
+            className="w-16 rounded-skin border-skin border-border px-2 py-3 text-center text-ink"
+            placeholder="📁"
+            placeholderTextColor={muted}
+            value={icon}
+            onChangeText={setIcon}
+          />
+        )}
       </View>
+
+      <TextInput
+        className="rounded-skin border-skin border-border px-4 py-3 text-ink"
+        placeholder="List name"
+        placeholderTextColor={muted}
+        value={name}
+        onChangeText={setName}
+      />
       <TextInput
         className="rounded-skin border-skin border-border px-4 py-3 text-ink"
         placeholder="Description"
@@ -107,6 +157,7 @@ export default function ListForm({
             </Text>
           </View>
           <Switch
+            accessibilityLabel="Public list"
             value={isPublic}
             onValueChange={setIsPublic}
             trackColor={{ true: t.primary }}
@@ -117,6 +168,8 @@ export default function ListForm({
       {error && <Text className="text-danger">{error}</Text>}
 
       <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={submitLabel}
         className="items-center rounded-skin bg-primary py-3"
         disabled={busy}
         onPress={submit}>
@@ -129,6 +182,8 @@ export default function ListForm({
 
       {onDelete && (
         <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Delete list"
           className="mt-4 items-center rounded-skin border-skin border-border py-3"
           disabled={busy}
           onPress={onDelete}>

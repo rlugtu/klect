@@ -52,15 +52,19 @@ export function DmInbox({
   const insets = useSafeAreaInsets();
   const [convos, setConvos] = useState<Conversation[]>([]);
   const [loaded, setLoaded] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const load = useCallback(() => {
+    setError(null);
     trpc.dms.conversations
       .query()
       .then((c) => {
         setConvos(c);
         onCounts(c.filter((x) => x.unread).length);
       })
-      .catch(() => {})
+      .catch((e) =>
+        setError(e instanceof Error ? e.message : 'Could not load conversations.'),
+      )
       .finally(() => setLoaded(true));
   }, [onCounts]);
 
@@ -100,16 +104,22 @@ export function DmInbox({
         <View className="gap-4">
           {header}
           <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="New chat"
             onPress={() => router.push('/dm/new')}
             className="flex-row items-center justify-center gap-2 self-end rounded-skin bg-primary px-4 py-2.5">
             <Ionicons name="create-outline" size={16} color={t.primaryInk} />
             <Text className="font-sans-semibold text-primary-ink">New chat</Text>
           </Pressable>
-          {loaded && convos.length === 0 && (
-            <Text className="font-serif-italic text-muted">
-              No conversations yet — start one with a friend.
-            </Text>
-          )}
+          {loaded &&
+            convos.length === 0 &&
+            (error ? (
+              <Text className="font-sans text-danger">{error}</Text>
+            ) : (
+              <Text className="font-serif-italic text-muted">
+                No conversations yet — start one with a friend.
+              </Text>
+            ))}
         </View>
       }
       contentContainerStyle={{
@@ -122,6 +132,10 @@ export function DmInbox({
         const mine = item.lastMessage.senderId !== item.other.id;
         return (
           <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={`Chat with ${atHandle(item.other.handle)}${
+              item.unread ? ', unread' : ''
+            }`}
             style={cardShadow}
             onPress={() =>
               router.push({
@@ -156,7 +170,11 @@ export function DmInbox({
                   : item.lastMessage.body}
               </Text>
             </View>
-            <Pressable hitSlop={8} onPress={() => confirmDelete(item.conversationId)}>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={`Delete chat with ${atHandle(item.other.handle)}`}
+              hitSlop={8}
+              onPress={() => confirmDelete(item.conversationId)}>
               <Ionicons name="trash-outline" size={18} color={t.muted} />
             </Pressable>
           </Pressable>

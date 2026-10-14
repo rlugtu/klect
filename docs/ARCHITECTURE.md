@@ -131,7 +131,7 @@ The mobile-facing surface, mounted at `/api/trpc` beside the auth handler.
 - `inputs.ts` — reusable zod input schemas (the typed contract mobile sends).
 - `routers/*.ts` — one router per domain (lists, bookmarks, comments, polls, sharing, friends,
   profile, tags, nearby, feedback, and the external-service router mounted as
-  `places`/`metadata`/`comprehend`); **80 procedures** total. Each is a thin wrapper over a `core`
+  `places`/`metadata`/`comprehend`); **86 procedures** total across 18 mounted routers. Each is a thin wrapper over a `core`
   mutation or a `lib` read.
 - `router.ts` — combines them into `appRouter` and `export type AppRouter`.
 
@@ -229,23 +229,29 @@ modules begin with.
 
 ```
 src/app/_layout.tsx           root Stack + auth gate (login when signed out); registers routes
-  (tabs)/_layout.tsx          Tabs (swipeable pager) — Nearby / Create(＋) / Lists / Friends / Profile
-  (tabs)/index.tsx            Home: lists + search + drag-reorder → push /lists/[id]
+  (tabs)/_layout.tsx          4 swipe pages (material-top-tabs, tabBarPosition="bottom"):
+                              nearby, index, friends, profile. The bar renders them as
+                              Nearby / [Create] / Lists / Friends / Profile, where Create is an
+                              action button injected by components/floating-tab-bar.tsx, NOT a
+                              route (there is no (tabs)/create.tsx); it pushes /bookmarks/new
+  (tabs)/index.tsx            Home ("Lists"): lists + search + drag-reorder → push /lists/[id]
   (tabs)/nearby.tsx           Mapbox map + drawer (expo-location → trpc.nearby.find)
-  (tabs)/create.tsx           action-only tab: press intercepted → push /bookmarks/new (renders null)
-  (tabs)/friends.tsx          friends + add-by-email; → friend-requests / pending-requests
+  (tabs)/friends.tsx          friends + add-by-@handle; → friend-requests / pending-requests
   (tabs)/profile.tsx          own profile; settings gear → push /settings
   settings.tsx                account + theme switcher + privacy link + feedback + danger zone (pushed route, reached from Profile gear)
   feedback.tsx                Send feedback (category + message) → feedback.submit (pushed route, reached from Settings)
   delete-account.tsx          "Danger zone" account deletion; type-your-@handle to confirm → account.delete → sign out
-  lists/[id].tsx              a list's bookmarks + tag filter + comments; List|Polls tabs + ⋮ actions menu (Edit/Members/Duplicate/Clear)
-  lists/new.tsx  lists/edit.tsx  lists/members.tsx
+  lists/[id].tsx              a list's bookmarks + tag filter + comments; List|Members|Polls tabs
+                              (all inline, no route push) + ⋮ actions menu (Edit list / Duplicate
+                              list / Clear list)
+  lists/new.tsx  lists/edit.tsx  lists/actions.tsx    (no lists/members.tsx: the Members tab
+                              renders src/components/list-members.tsx inline)
   bookmarks/[id].tsx          bookmark detail + comments + video + edit/delete/visited
   bookmarks/new.tsx  bookmarks/edit.tsx
   polls/*                     list polls, poll detail (Vote/Results), new/edit
   requests.tsx                incoming list-join requests (approve/reject)
   friend-requests.tsx  pending-requests.tsx      incoming / outgoing friend requests
-  users/[id].tsx              another user's profile (add-friend)
+  users/[handle].tsx          another user's profile (add-friend)
   src/share-extension.tsx     iOS share-sheet save UI (entry: index.share.js)
 ```
 

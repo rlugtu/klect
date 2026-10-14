@@ -86,6 +86,8 @@ export default function BlockedScreen() {
                   </Text>
                 </View>
                 <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel={`Unblock ${atHandle(r.user.handle)}`}
                   disabled={pendingId === r.user.id}
                   onPress={() => unblock(r.user.id)}
                   className="rounded-skin border-skin border-border px-3 py-2">

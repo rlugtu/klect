@@ -423,10 +423,12 @@ The capabilities the app ships today. Product-level coverage (and web/mobile par
   returned closest→farthest. Bookmarks with a typed-but-not-geocoded location are excluded and counted
   in an "N skipped" note.
 - **Themes** — six across three families (pixel / modern / journal), each light + dark, stored per
-  user; **`MODERN_LIGHT` is the web default** (mobile defaults to Journal Light). Each theme is a
+  user; **`MODERN_LIGHT` is the web default**, and mobile also defaults to Modern (following the
+  device's light/dark setting between `MODERN_LIGHT` and `MODERN_DARK`). Each theme is a
   CSS-token block swapped via `data-theme` on `<html>` (web) / NativeWind `vars()` (mobile).
 - **Platform extras** — the web app is an installable **PWA** (manifest, prod-only service worker,
-  `/offline` fallback) and has an AI **caption extraction** procedure (`comprehend.caption`). The iOS
+  `/offline` fallback) and exposes an AI **caption extraction** procedure (`comprehend.caption`),
+  which is backend-only: no web or mobile component calls it, so there is no caption UI. The iOS
   app adds a native **share extension** that saves a shared link into a list from inside the OS share
   sheet. A short, illustrated **"Share to Klect"** how-to (in Settings on both apps —
   `/settings/share-extension` on web, the `share-help` screen on mobile) walks users through adding

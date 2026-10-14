@@ -138,6 +138,8 @@ function ToastCard({ toast: t }: { toast: Toast }) {
           </Text>
           {t.action && (
             <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={t.action.label}
               hitSlop={8}
               onPress={() => {
                 t.action?.onPress();
@@ -148,7 +150,11 @@ function ToastCard({ toast: t }: { toast: Toast }) {
               </Text>
             </Pressable>
           )}
-          <Pressable hitSlop={8} onPress={() => dismiss(t.id)} accessibilityLabel="Dismiss">
+          <Pressable
+            hitSlop={8}
+            onPress={() => dismiss(t.id)}
+            accessibilityRole="button"
+            accessibilityLabel="Dismiss">
             <Ionicons name="close" size={16} color={tokens.muted} />
           </Pressable>
         </Pressable>

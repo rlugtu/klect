@@ -50,7 +50,11 @@ function PlayFacade({
   style: ViewStyle;
 }) {
   return (
-    <Pressable onPress={onPress} accessibilityLabel="Play video" style={style}>
+    <Pressable
+      onPress={onPress}
+      accessibilityRole="button"
+      accessibilityLabel="Play video"
+      style={style}>
       {poster ? (
         <Image
           source={poster}

@@ -84,6 +84,9 @@ export default function FeedbackScreen() {
               return (
                 <Pressable
                   key={c.value}
+                  accessibilityRole="button"
+                  accessibilityLabel={c.label}
+                  accessibilityState={{ selected: active }}
                   onPress={() => setCategory(c.value)}
                   className={`flex-1 items-center rounded-skin border bg-panel p-3 ${
                     active ? 'border-primary' : 'border-border'
@@ -114,6 +117,8 @@ export default function FeedbackScreen() {
         </View>
 
         <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Send feedback"
           onPress={onSubmit}
           disabled={!canSend}
           style={{ opacity: canSend ? 1 : 0.5 }}

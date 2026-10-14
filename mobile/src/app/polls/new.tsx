@@ -148,7 +148,14 @@ export default function NewPollScreen() {
     <View className="flex-1 bg-bg">
       <Stack.Screen options={{ headerTitle: '' }} />
 
-      <ScrollView contentContainerStyle={{ padding: 16, gap: 16, paddingBottom: 40 }}>
+      <ScrollView
+        keyboardShouldPersistTaps="handled"
+        automaticallyAdjustKeyboardInsets
+        contentContainerStyle={{ padding: 16, gap: 16, paddingBottom: 40 }}>
+        <Text className="font-serif text-3xl text-ink">
+          {isEdit ? 'Edit poll' : 'New poll'}
+        </Text>
+
         <View className="gap-2">
           <Text className="font-sans-medium text-sm text-muted">Name</Text>
           <TextInput
@@ -202,14 +209,22 @@ export default function NewPollScreen() {
 
         <View className="flex-row items-center justify-between">
           <Text className="font-sans-medium text-sm text-ink">Allow revotes</Text>
-          <Switch value={revotesAllowed} onValueChange={setRevotesAllowed} />
+          <Switch
+            accessibilityLabel="Allow revotes"
+            value={revotesAllowed}
+            onValueChange={setRevotesAllowed}
+          />
         </View>
 
         {!isEdit && (
           <View className="gap-1.5">
             <View className="flex-row items-center justify-between">
               <Text className="font-sans-medium text-sm text-ink">Anonymous poll</Text>
-              <Switch value={isAnonymous} onValueChange={setIsAnonymous} />
+              <Switch
+                accessibilityLabel="Anonymous poll"
+                value={isAnonymous}
+                onValueChange={setIsAnonymous}
+              />
             </View>
             <Text className="font-sans text-xs text-muted">
               Hides who voted for what. This can only be set now and can’t be
@@ -238,6 +253,8 @@ export default function NewPollScreen() {
           />
           {availableTags.length > 0 && (
             <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Filter by tag"
               onPress={() => sheetRef.current?.present()}
               className="rounded-skin border-skin border-border px-3 py-2.5">
               <Text className="font-sans-semibold text-ink">Tags ▾</Text>
@@ -250,6 +267,8 @@ export default function NewPollScreen() {
             {selectedTags.map((tag) => (
               <Pressable
                 key={tag.id}
+                accessibilityRole="button"
+                accessibilityLabel={`Clear the ${tag.name} filter`}
                 onPress={() => toggleIn(setTagFilter, tag.id)}
                 className="px-1 py-0.5">
                 <Text className="font-sans text-sm text-muted">
@@ -261,9 +280,15 @@ export default function NewPollScreen() {
         )}
 
         {shown.length > 0 && (
-          <Pressable onPress={toggleSelectAll} className="self-start">
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={
+              allShownSelected ? 'Deselect all' : `Select all ${shown.length}`
+            }
+            onPress={toggleSelectAll}
+            className="self-start">
             <Text className="font-sans-medium text-primary">
-              {allShownSelected ? 'Clear all' : `Select all (${shown.length})`}
+              {allShownSelected ? 'Deselect all' : `Select all (${shown.length})`}
             </Text>
           </Pressable>
         )}
@@ -283,6 +308,9 @@ export default function NewPollScreen() {
               return (
                 <Pressable
                   key={b.id}
+                  accessibilityRole="button"
+                  accessibilityLabel={b.name}
+                  accessibilityState={{ selected: on }}
                   onPress={() => toggleIn(setSelected, b.id)}
                   className={`flex-row items-center justify-between rounded-skin border-skin px-3 py-2.5 ${
                     on ? 'border-primary bg-primary/20' : 'border-border bg-panel'
@@ -300,6 +328,8 @@ export default function NewPollScreen() {
         {error && <Text className="font-sans text-danger">{error}</Text>}
 
         <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={isEdit ? 'Save changes' : 'Create poll'}
           onPress={submit}
           disabled={busy || selected.size < 2}
           className={`items-center rounded-skin py-3 ${
@@ -328,6 +358,9 @@ export default function NewPollScreen() {
             return (
               <Pressable
                 key={tag.id}
+                accessibilityRole="button"
+                accessibilityLabel={`${on ? 'Clear' : 'Filter by'} ${tag.name}`}
+                accessibilityState={{ selected: on }}
                 onPress={() => toggleIn(setTagFilter, tag.id)}
                 className="flex-row items-center justify-between border-b border-border py-3">
                 <Text className="font-sans text-ink">#{tag.name.toLowerCase()}</Text>

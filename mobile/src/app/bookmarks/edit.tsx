@@ -42,9 +42,12 @@ export default function EditBookmarkScreen() {
       .catch((e) => setError(e instanceof Error ? e.message : 'Request failed'));
   }, [id]);
 
+  // The app's headers are titleless by convention, so the page name lives in the body on
+  // every state of this screen (loading and error included, not just the loaded form).
   if (error) {
     return (
-      <View className="flex-1 bg-bg p-4">
+      <View className="flex-1 gap-3 bg-bg p-4">
+        <Text className="font-serif text-3xl text-ink">Edit bookmark</Text>
         <Text className="text-danger">{error}</Text>
       </View>
     );
@@ -52,7 +55,8 @@ export default function EditBookmarkScreen() {
 
   if (!initial) {
     return (
-      <View className="flex-1 items-center justify-center bg-bg">
+      <View className="flex-1 gap-3 bg-bg p-4">
+        <Text className="font-serif text-3xl text-ink">Edit bookmark</Text>
         <ActivityIndicator />
       </View>
     );
@@ -60,6 +64,7 @@ export default function EditBookmarkScreen() {
 
   return (
     <BookmarkForm
+      pageTitle="Edit bookmark"
       initial={initial}
       submitLabel="Save changes"
       onSubmit={async (data) => {

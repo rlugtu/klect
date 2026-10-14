@@ -37,6 +37,9 @@ export default function PhotoCard({
 
   return (
     <Pressable
+      // No label: the card's own children (title, meta, tags) are what VoiceOver
+      // should read, and a Pressable collects them automatically.
+      accessibilityRole={onPress ? 'button' : undefined}
       onPress={onPress}
       style={cardShadow}
       className="overflow-hidden rounded-skin border-skin border-border bg-panel">

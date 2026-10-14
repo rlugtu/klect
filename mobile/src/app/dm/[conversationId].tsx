@@ -27,11 +27,25 @@ import {
 import SharedBookmarkCard, {
   type SharedBookmarkSnapshot,
 } from '@/components/dms/shared-bookmark-card';
+import { atHandle } from '@/lib/handle';
 import { useTheme } from '@/theme/theme-provider';
 import { THEME_TOKENS } from '@/theme/tokens';
 
 type MessagesPage = Awaited<ReturnType<typeof trpc.dms.messages.query>>;
 type Message = MessagesPage['messages'][number];
+
+/** Compact relative time. Mirrors list chat so both chat surfaces read the same. */
+function timeAgo(value: Date | string): string {
+  const s = Math.max(0, Math.round((Date.now() - new Date(value).getTime()) / 1000));
+  if (s < 60) return 'now';
+  const m = Math.floor(s / 60);
+  if (m < 60) return `${m}m`;
+  const h = Math.floor(m / 60);
+  if (h < 24) return `${h}h`;
+  const d = Math.floor(h / 24);
+  if (d < 7) return `${d}d`;
+  return new Date(value).toLocaleDateString();
+}
 
 /**
  * A DM thread. Loads older history on demand (keyset cursor), refreshes the newest page off the
@@ -69,6 +83,12 @@ export default function DmThreadScreen() {
   const [loadingOlder, setLoadingOlder] = useState(false);
   const [loaded, setLoaded] = useState(false);
   const listRef = useRef<FlatList<Message>>(null);
+  // A push-notification deep link only carries the conversation id, so when the `handle`
+  // param is missing fall back to the participant the messages query returns.
+  const otherLabel = handle ?? (otherUser ? atHandle(otherUser.handle) : null);
+  // `onContentSizeChange` fires for prepended history too; without this flag the list would
+  // snap back to the newest message and undo the "Load older messages" tap.
+  const prependedRef = useRef(false);
 
   useEffect(() => {
     const showEvt = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
@@ -138,6 +158,7 @@ export default function DmThreadScreen() {
     setLoadingOlder(true);
     try {
       const p = await trpc.dms.messages.query({ conversationId, cursor: olderCursor });
+      prependedRef.current = true;
       setMessages((cur) => {
         const seen = new Set(cur.map((m) => m.id));
         return [...p.messages.filter((m) => !seen.has(m.id)), ...cur];
@@ -150,7 +171,7 @@ export default function DmThreadScreen() {
 
   function openSafetyMenu() {
     if (!otherUser) return;
-    const label = handle ?? 'this user';
+    const label = otherLabel ?? 'this user';
     Alert.alert(label, undefined, [
       {
         text: 'Report user',
@@ -195,9 +216,12 @@ export default function DmThreadScreen() {
       if ('message' in res) {
         setBody('');
         mergeNewest([res.message]);
+      } else {
+        // The composer keeps its text so the send can be retried without retyping.
+        toast.error(res.error || "Couldn't send message.");
       }
-    } catch {
-      // swallow — the composer keeps the text so the user can retry
+    } catch (e) {
+      toast.error(errorMessage(e, "Couldn't send message."));
     }
     setSending(false);
   }
@@ -206,10 +230,11 @@ export default function DmThreadScreen() {
     <SafeAreaView style={{ flex: 1 }} edges={['left', 'right']} className="bg-bg">
       <Stack.Screen
         options={{
-          headerTitle: handle ?? 'Chat',
+          headerTitle: otherLabel ?? 'Chat',
           headerRight: () =>
             otherUser ? (
               <Pressable
+                accessibilityRole="button"
                 accessibilityLabel="Safety options"
                 hitSlop={8}
                 onPress={openSafetyMenu}>
@@ -231,10 +256,20 @@ export default function DmThreadScreen() {
             paddingTop: headerHeight + 8,
             gap: 8,
           }}
-          onContentSizeChange={() => listRef.current?.scrollToEnd({ animated: false })}
+          onContentSizeChange={() => {
+            if (prependedRef.current) {
+              prependedRef.current = false;
+              return;
+            }
+            listRef.current?.scrollToEnd({ animated: false });
+          }}
           ListHeaderComponent={
             olderCursor ? (
-              <Pressable onPress={loadOlder} className="items-center py-2">
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="Load older messages"
+                onPress={loadOlder}
+                className="items-center py-2">
                 <Text className="text-sm text-muted underline">
                   {loadingOlder ? 'Loading…' : 'Load older messages'}
                 </Text>
@@ -272,28 +307,41 @@ export default function DmThreadScreen() {
                     snapshot={item.sharedBookmark as unknown as SharedBookmarkSnapshot}
                     mine={mine}
                   />
+                  <Text className="mt-0.5 px-1 font-sans text-[10px] text-muted opacity-70">
+                    {timeAgo(item.createdAt)}
+                  </Text>
                 </View>
               );
             }
             return (
-              <Pressable
-                onLongPress={
-                  mine
-                    ? undefined
-                    : () =>
-                        setReport({
-                          type: 'MESSAGE',
-                          id: item.id,
-                          title: 'Report message',
-                        })
-                }
-                className={`max-w-[78%] rounded-skin px-3 py-2 ${
-                  mine
-                    ? 'self-end bg-primary'
-                    : 'self-start border-skin border-border bg-panel'
-                }`}>
-                <Text className={mine ? 'text-primary-ink' : 'text-ink'}>{item.body}</Text>
-              </Pressable>
+              <View className={mine ? 'items-end' : 'items-start'}>
+                <Pressable
+                  accessibilityHint={
+                    mine ? undefined : 'Double tap and hold to report this message'
+                  }
+                  onLongPress={
+                    mine
+                      ? undefined
+                      : () =>
+                          setReport({
+                            type: 'MESSAGE',
+                            id: item.id,
+                            title: 'Report message',
+                          })
+                  }
+                  className={`max-w-[78%] rounded-skin px-3 py-2 ${
+                    mine
+                      ? 'self-end bg-primary'
+                      : 'self-start border-skin border-border bg-panel'
+                  }`}>
+                  <Text className={mine ? 'text-primary-ink' : 'text-ink'}>
+                    {item.body}
+                  </Text>
+                </Pressable>
+                <Text className="mt-0.5 px-1 font-sans text-[10px] text-muted opacity-70">
+                  {timeAgo(item.createdAt)}
+                </Text>
+              </View>
             );
           }}
         />
@@ -311,6 +359,8 @@ export default function DmThreadScreen() {
               multiline
             />
             <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Send message"
               className="rounded-full bg-primary p-2.5"
               disabled={sending || !body.trim()}
               onPress={send}>

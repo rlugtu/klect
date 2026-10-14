@@ -31,6 +31,14 @@ module.exports = {
         sans: ["var(--font-body)"],
         "sans-medium": ["var(--font-body-medium)"],
         "sans-semibold": ["var(--font-body-semibold)"],
+        // Tailwind's weight utilities only emit fontWeight, and RN can't synthesize a
+        // weight into a custom family, so `font-bold`/`font-semibold` used without a
+        // family class silently rendered in the OS font. Aliasing them here lands them
+        // on a real loaded face (600 is the heaviest weight the app ships). Tailwind
+        // emits these before `font-sans*`/`font-serif*`, so an explicit family class
+        // paired with one of them still wins.
+        semibold: ["var(--font-body-semibold)"],
+        bold: ["var(--font-body-semibold)"],
       },
     },
   },

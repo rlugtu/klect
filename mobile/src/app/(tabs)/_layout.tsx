@@ -18,8 +18,8 @@ export default function AppTabs() {
       {/* Provides the unread-DM + friend-request counts that drive the Friends tab badge. */}
       <AttentionProvider>
         {/*
-          Swipe order (left→right): Nearby, Lists (index), Friends, Profile. The bar
-          renders them Nearby · [Create] · Lists · Friends · Profile — "Create" is an
+          Swipe order (left→right): Nearby, Klect (index), Friends, Profile. The bar
+          renders them Nearby · [Create] · Klect · Friends · Profile — "Create" is an
           action button injected by FloatingTabBar, NOT a swipe page, so it pushes the
           standalone new-bookmark modal instead of participating in the pager.
         */}
@@ -28,7 +28,9 @@ export default function AppTabs() {
           tabBar={(props) => <FloatingTabBar {...props} />}
           screenOptions={{ swipeEnabled: true, lazy: true }}>
           <MaterialTopTabs.Screen name="nearby" options={{ title: 'Nearby' }} />
-          <MaterialTopTabs.Screen name="index" options={{ title: 'Lists' }} />
+          {/* "Klect" (not "Lists") so the tab's name matches the heading the screen
+              itself shows, the way Nearby/Friends/Profile already do. */}
+          <MaterialTopTabs.Screen name="index" options={{ title: 'Klect' }} />
           <MaterialTopTabs.Screen name="friends" options={{ title: 'Friends' }} />
           <MaterialTopTabs.Screen name="profile" options={{ title: 'Profile' }} />
         </MaterialTopTabs>

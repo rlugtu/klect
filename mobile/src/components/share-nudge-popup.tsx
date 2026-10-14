@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Modal, Platform, Pressable, Switch, Text, View } from 'react-native';
+import { Modal, Platform, Pressable, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import * as SecureStore from 'expo-secure-store';
@@ -9,41 +9,55 @@ import { THEME_TOKENS } from '@/theme/tokens';
 
 /**
  * A launch-time nudge that points new users at the one setup step the app can't do for them:
- * enabling Klect in the iOS share sheet (see share-help.tsx). It shows on every launch until the
- * user acknowledges it via the toggle — turning the toggle on persists the acknowledgement
- * immediately (and turning it back off clears it); the close button only dismisses for this
- * session. iOS-only: the share extension / share-help walkthrough don't exist on Android.
+ * enabling Klect in the iOS share sheet (see share-help.tsx). iOS-only: the share extension /
+ * share-help walkthrough don't exist on Android.
+ *
+ * Two controls, not three: "Show me how" (which also retires the nudge for good) and a single
+ * "Not now" dismiss. The nudge is self-limiting — it counts its own appearances and stops after
+ * MAX_SHOWS, so a user who never taps either control still isn't nagged on every cold launch.
  */
+/** Set once the user has engaged with the nudge — retires it permanently. */
 const ACK_KEY = 'klect.share-nudge-ack';
+/** How many cold launches have already shown the nudge. */
+const SHOWN_KEY = 'klect.share-nudge-shown';
+const MAX_SHOWS = 2;
 
 export default function ShareNudgePopup() {
   const { theme } = useTheme();
   const t = THEME_TOKENS[theme];
   const router = useRouter();
 
-  // `null` = the stored ack hasn't been read yet; render nothing until we know, so an
+  // `null` = the stored state hasn't been read yet; render nothing until we know, so an
   // already-acknowledged user never sees a flash of the popup.
   const [visible, setVisible] = useState<boolean | null>(null);
-  const [ack, setAck] = useState(false);
 
   useEffect(() => {
     if (Platform.OS !== 'ios') {
       setVisible(false);
       return;
     }
-    SecureStore.getItemAsync(ACK_KEY)
-      .then((v) => setVisible(v !== 'true'))
-      .catch(() => setVisible(true));
+    Promise.all([
+      SecureStore.getItemAsync(ACK_KEY),
+      SecureStore.getItemAsync(SHOWN_KEY),
+    ])
+      .then(([ack, shown]) => {
+        const count = Number(shown ?? 0);
+        if (ack === 'true' || count >= MAX_SHOWS) {
+          setVisible(false);
+          return;
+        }
+        setVisible(true);
+        // Count the appearance immediately rather than on dismiss, so force-quitting past the
+        // nudge still burns one of its two chances.
+        SecureStore.setItemAsync(SHOWN_KEY, String(count + 1)).catch(() => {});
+      })
+      .catch(() => setVisible(false));
   }, []);
 
-  function toggleAck(next: boolean) {
-    setAck(next);
-    if (next) SecureStore.setItemAsync(ACK_KEY, 'true').catch(() => {});
-    else SecureStore.deleteItemAsync(ACK_KEY).catch(() => {});
-  }
-
+  /** Retire the nudge for good — the user has seen the real walkthrough. */
   function openTutorial() {
     setVisible(false);
+    SecureStore.setItemAsync(ACK_KEY, 'true').catch(() => {});
     router.push('/share-help');
   }
 
@@ -63,6 +77,8 @@ export default function ShareNudgePopup() {
           </Text>
 
           <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Show me how to add Klect to the share sheet"
             onPress={openTutorial}
             style={{ backgroundColor: t.primary }}
             className="flex-row items-center justify-center gap-2 rounded-skin px-4 py-3">
@@ -72,29 +88,17 @@ export default function ShareNudgePopup() {
             <Ionicons name="arrow-forward" size={18} color={t.primaryInk} />
           </Pressable>
 
-          <Text className="text-sm text-muted">
-            You can find these same directions any time under Settings.
-          </Text>
-
-          <View className="flex-row items-center justify-between gap-3 border-t border-border pt-4">
-            <Text className="flex-1 text-sm text-ink">
-              Got it — don&apos;t remind me again.
-            </Text>
-            <Switch
-              value={ack}
-              onValueChange={toggleAck}
-              trackColor={{ true: t.primary, false: `${t.muted}66` }}
-              ios_backgroundColor={`${t.muted}66`}
-            />
-          </View>
-
           <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Not now"
             onPress={() => setVisible(false)}
             className="items-center rounded-skin border-skin border-border py-3">
-            <Text className="font-sans-semibold text-base text-ink">
-              {ack ? 'All set!' : 'Remind me again later'}
-            </Text>
+            <Text className="font-sans-semibold text-base text-ink">Not now</Text>
           </Pressable>
+
+          <Text className="text-center text-sm text-muted">
+            You can find these directions any time under Settings.
+          </Text>
         </View>
       </View>
     </Modal>

@@ -123,6 +123,8 @@ export default function ListActionsScreen() {
           maxLength={30}
         />
         <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Duplicate list"
           className="items-center rounded-skin bg-primary py-3"
           disabled={duplicating || newName.trim() === ''}
           onPress={duplicate}>
@@ -143,6 +145,8 @@ export default function ListActionsScreen() {
             Removes every bookmark in this list. The list itself stays.
           </Text>
           <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Clear all bookmarks"
             className="items-center rounded-skin border-skin border-danger py-3"
             disabled={clearing}
             onPress={confirmClear}>

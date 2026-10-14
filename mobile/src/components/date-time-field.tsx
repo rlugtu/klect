@@ -54,6 +54,10 @@ export default function DateTimeField({
     <View className="gap-2">
       <View className="flex-row items-center gap-2">
         <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={
+            value ? `Change date and time, ${fmt(value)}` : placeholder
+          }
           onPress={() =>
             Platform.OS === 'android' ? openAndroid() : setShowIOS((s) => !s)
           }
@@ -63,7 +67,11 @@ export default function DateTimeField({
           </Text>
         </Pressable>
         {onClear && value ? (
-          <Pressable onPress={onClear} className="px-2 py-3">
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Clear date and time"
+            onPress={onClear}
+            className="px-2 py-3">
             <Text className="font-sans text-sm text-muted">Clear</Text>
           </Pressable>
         ) : null}

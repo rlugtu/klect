@@ -1,7 +1,7 @@
 import '@/global.css';
 
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, Pressable, Text, View } from 'react-native';
+import { ActivityIndicator, Appearance, Pressable, Text, View } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import {
   SafeAreaProvider,
@@ -42,7 +42,19 @@ import {
   SHARED_THEME_OPTS,
   isThemeName,
 } from '@/theme/theme-provider';
-import type { ThemeName } from '@/theme/tokens';
+import { THEME_TOKENS, type ThemeName } from '@/theme/tokens';
+
+/**
+ * Background for the frame rendered before the real theme is known. The user's chosen theme lives
+ * behind an async keychain read, but `Appearance` is synchronous even in the extension's separate
+ * process, so we can at least match system light/dark — which is exactly what ThemeProvider itself
+ * falls back to (Modern, following the system scheme). Replaces a hardcoded white frame that
+ * flashed every dark-mode user.
+ */
+function preMountBackground() {
+  const dark = Appearance.getColorScheme() === 'dark';
+  return THEME_TOKENS[dark ? 'MODERN_DARK' : 'MODERN_LIGHT'].bg;
+}
 
 /** Compact header bar with a Cancel that dismisses the share sheet (no expo-router here). */
 function TopBar({ title }: { title: string }) {
@@ -52,7 +64,11 @@ function TopBar({ title }: { title: string }) {
       className="flex-row items-center justify-between border-b border-border bg-bg px-5 pb-4"
       style={{ paddingTop: insets.top + 12 }}>
       <Text className="text-xl font-semibold text-ink">{title}</Text>
-      <Pressable hitSlop={8} onPress={() => close()}>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel="Cancel"
+        hitSlop={8}
+        onPress={() => close()}>
         <Text className="text-primary">Cancel</Text>
       </Pressable>
     </View>
@@ -123,6 +139,8 @@ function SaveScreen({ url, text }: InitialProps) {
             Open Klect and sign in to save bookmarks from the share sheet.
           </Text>
           <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Open Klect"
             className="rounded-skin bg-primary px-6 py-3"
             onPress={() => openHostApp('/')}>
             <Text className="font-semibold text-primary-ink">Open Klect</Text>
@@ -210,12 +228,12 @@ export default function ShareExtension(props: InitialProps) {
   }, []);
 
   // Gate the theme provider until the seed resolves — `initialTheme` only seeds on mount, so the
-  // provider must not mount before we know it. Opaque plain surface meanwhile (matches the
-  // extension's opaque host background), never a black void.
+  // provider must not mount before we know it. Opaque surface meanwhile, matched to the system
+  // scheme, never a black void or a white flash.
   if (!fontsLoaded || initialTheme === undefined) {
     return (
       <SafeAreaProvider>
-        <View style={{ flex: 1, backgroundColor: '#fff' }} />
+        <View style={{ flex: 1, backgroundColor: preMountBackground() }} />
       </SafeAreaProvider>
     );
   }

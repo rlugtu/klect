@@ -27,6 +27,11 @@ export default function PollRow({
   const creator = atHandle(poll.creator.handle);
   return (
     <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={`${poll.name}, by ${creator}, ${poll._count.options} options, ${pollStatus(
+        poll.startAt,
+        poll.endAt,
+      )}`}
       onPress={onPress}
       className="rounded-skin border-skin border-border bg-panel p-4">
       <Text className="font-serif text-lg text-ink">{poll.name}</Text>

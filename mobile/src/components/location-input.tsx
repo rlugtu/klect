@@ -158,6 +158,8 @@ export function LocationInput({
             suggestions.map((s, i) => (
               <Pressable
                 key={`${s.id},${i}`}
+                accessibilityRole="button"
+                accessibilityLabel={`${s.label}, ${s.address}`}
                 onPress={() => void pick(s)}
                 className="gap-0.5 rounded-skin-sm px-2 py-2">
                 <Text className="text-ink" numberOfLines={1}>

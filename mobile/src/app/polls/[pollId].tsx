@@ -189,6 +189,9 @@ export default function PollDetailScreen() {
           {(['vote', 'results'] as const).map((m) => (
             <Pressable
               key={m}
+              accessibilityRole="button"
+              accessibilityLabel={m === 'vote' ? 'Vote' : 'Results'}
+              accessibilityState={{ selected: mode === m }}
               onPress={() => setMode(m)}
               className={`flex-1 items-center py-2 ${mode === m ? 'bg-primary' : ''}`}>
               <Text
@@ -211,6 +214,9 @@ export default function PollDetailScreen() {
               return (
                 <Animated.View key={o.id} layout={LinearTransition}>
                   <Pressable
+                    accessibilityRole="button"
+                    accessibilityLabel={`Vote for ${o.bookmark.name}`}
+                    accessibilityState={{ selected: on, disabled }}
                     onPress={() => togglePick(o.id)}
                     disabled={disabled}
                     className={`flex-row items-center gap-3 rounded-skin border-skin p-2 ${
@@ -242,6 +248,8 @@ export default function PollDetailScreen() {
                     : `${Math.max(0, poll.maxVotes - picks.size)} votes remaining`}
                 </Text>
                 <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel={alreadyVoted ? 'Update vote' : 'Submit vote'}
                   onPress={submitVotes}
                   disabled={busy || !changed || picks.size === 0}
                   className={`items-center rounded-skin py-3 ${
@@ -279,8 +287,15 @@ export default function PollDetailScreen() {
                     (poll.isAnonymous ? (
                       <Text className="font-sans text-xs text-muted">🔒 Anonymous</Text>
                     ) : (
-                      <Text className="text-sm">
-                        {o.votes.map((v) => v.user.icon ?? '🙂').join(' ')}
+                      <Text className="font-sans text-xs text-muted">
+                        {o.votes
+                          .map(
+                            (v) =>
+                              `${v.user.icon ? `${v.user.icon} ` : ''}${atHandle(
+                                v.user.handle,
+                              )}`,
+                          )
+                          .join(' · ')}
                       </Text>
                     ))}
                 </View>
@@ -292,6 +307,8 @@ export default function PollDetailScreen() {
         {canManage && (
           <View className="mt-2 flex-row gap-2">
             <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Edit poll"
               onPress={() =>
                 router.push({
                   pathname: '/polls/new',
@@ -302,6 +319,8 @@ export default function PollDetailScreen() {
               <Text className="font-sans text-ink">Edit</Text>
             </Pressable>
             <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Delete poll"
               onPress={confirmDelete}
               className="flex-1 items-center rounded-skin border-skin border-danger py-3">
               <Text className="font-sans text-danger">Delete</Text>

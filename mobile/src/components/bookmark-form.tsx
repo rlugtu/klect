@@ -52,6 +52,8 @@ type Props = {
   initial: BookmarkData;
   submitLabel: string;
   onSubmit: (data: BookmarkData) => Promise<void>;
+  // Page name, rendered in the scrolling body (the app's headers are deliberately titleless).
+  pageTitle?: string;
   // Optional content rendered at the top of the form (e.g. the standalone flow's list picker).
   header?: ReactNode;
   // When true (e.g. a URL shared into the app), fetch page metadata once on mount.
@@ -67,6 +69,7 @@ export default function BookmarkForm({
   initial,
   submitLabel,
   onSubmit,
+  pageTitle,
   header,
   autofillOnMount,
 }: Props) {
@@ -98,6 +101,19 @@ export default function BookmarkForm({
   const nameDirty = useRef(false);
   const descDirty = useRef(false);
 
+  // Abort handle for the in-flight *blocking* fetch, so the overlay's Cancel can drop it
+  // instead of leaving the user stuck until the timeout. `cancelled` tells the catch path
+  // apart from a real timeout (both surface as an aborted signal).
+  const blockingAbort = useRef<AbortController | null>(null);
+  const cancelled = useRef(false);
+
+  function cancelAutofill() {
+    cancelled.current = true;
+    blockingAbort.current?.abort();
+    blockingAbort.current = null;
+    setAutofilling(false);
+  }
+
   // Phase 2 — comprehension. Its own abort/timeout; returns null on failure so the
   // fast fields from phase 1 stand.
   async function comprehendUrl(target: string) {
@@ -128,12 +144,17 @@ export default function BookmarkForm({
     setError(null);
     // Phase 1 — fast extraction. Always resolve — cap it.
     const controller = new AbortController();
+    if (blocking) {
+      cancelled.current = false;
+      blockingAbort.current = controller;
+    }
     const timer = setTimeout(() => controller.abort(), AUTOFILL_TIMEOUT_MS);
     try {
       const res = await trpc.metadata.extract.query(
         { url: target },
         { signal: controller.signal },
       );
+      if (blocking && cancelled.current) return; // cancelled mid-flight, discard the result
       if (res.ok) {
         const { title, description: desc, images: imgs, video } = res.data;
         if (title && (!respectDirty || !nameDirty.current)) setName(title);
@@ -146,6 +167,7 @@ export default function BookmarkForm({
         return; // extraction failed — skip phase 2
       }
     } catch (e) {
+      if (blocking && cancelled.current) return; // user cancelled, not an error to report
       setError(
         controller.signal.aborted
           ? 'Autofill timed out. Try again.'
@@ -156,6 +178,7 @@ export default function BookmarkForm({
       return;
     } finally {
       clearTimeout(timer);
+      if (blocking) blockingAbort.current = null;
       (blocking ? setAutofilling : setPrefilling)(false);
     }
 
@@ -213,12 +236,15 @@ export default function BookmarkForm({
     setAutofilling(true);
     // Phase 1 — extract the website (blocking).
     const controller = new AbortController();
+    cancelled.current = false;
+    blockingAbort.current = controller;
     const timer = setTimeout(() => controller.abort(), AUTOFILL_TIMEOUT_MS);
     try {
       const res = await trpc.metadata.extract.query(
         { url: place.website },
         { signal: controller.signal },
       );
+      if (cancelled.current) return; // cancelled mid-flight, discard the result
       if (res.ok) {
         // A POI's own name wins over the unfurl title; only fall back to the title when the POI had
         // no name and the field was empty.
@@ -235,8 +261,10 @@ export default function BookmarkForm({
       // Keep the basics set above.
     } finally {
       clearTimeout(timer);
+      blockingAbort.current = null;
       setAutofilling(false);
     }
+    if (cancelled.current) return; // cancelled, skip the enrich pass too
 
     // Phase 2 — enrich description/tags (location + coords already set by the place).
     setEnhancing(true);
@@ -301,6 +329,9 @@ export default function BookmarkForm({
         // keyboard. Critical inside the fixed-height iOS share sheet, where a padding-based
         // avoider pushed the whole form off-screen and left it blank while typing.
         automaticallyAdjustKeyboardInsets>
+        {pageTitle ? (
+          <Text className="font-serif text-3xl text-ink">{pageTitle}</Text>
+        ) : null}
         {header ? (
           <>
             {header}
@@ -340,6 +371,8 @@ export default function BookmarkForm({
             onChangeText={setUrl}
           />
           <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Autofill from the link"
             className="items-center justify-center rounded-skin border-skin border-border px-3"
             disabled={autofilling || prefilling || enhancing}
             onPress={() => autofill(true)}>
@@ -416,12 +449,14 @@ export default function BookmarkForm({
           </Text>
         </View>
 
-        <View className="flex-row items-center justify-between gap-3">
-          <View className="flex-row items-center gap-2">
+        {/* Stacked rather than side by side: the interactive stars claim 44pt per star for
+            the tap target, which leaves no room for the Visited pill on the same row. */}
+        <View className="gap-2">
+          <View className="flex-row items-center justify-between gap-2">
             <Text className="text-muted">Rating</Text>
             <RatingStars value={rating} onChange={setRating} />
           </View>
-          <View className="flex-row items-center gap-2">
+          <View className="flex-row items-center justify-between gap-2">
             <Text className="text-muted">Visited</Text>
             <VisitedPill visited={visited} onToggle={() => setVisited((v) => !v)} />
           </View>
@@ -430,6 +465,8 @@ export default function BookmarkForm({
         {error && <Text className="text-danger">{error}</Text>}
 
         <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={submitLabel}
           className="items-center rounded-skin bg-primary py-3"
           disabled={busy}
           onPress={submit}>
@@ -443,18 +480,26 @@ export default function BookmarkForm({
       </ScrollView>
 
       {/* Full-screen blocking overlay while link data is fetched: dims the whole
-          screen and intercepts all touches until the fetch resolves. */}
+          screen and intercepts all touches until the fetch resolves. Cancel (and the
+          Android back button) aborts the request and hands the form straight back. */}
       <Modal
         transparent
         visible={autofilling}
         animationType="fade"
-        onRequestClose={() => {}}>
+        onRequestClose={cancelAutofill}>
         <View
           className="flex-1 items-center justify-center"
           style={{ backgroundColor: 'rgba(0,0,0,0.45)' }}>
           <View className="items-center gap-3 rounded-skin bg-panel px-8 py-6">
             <ActivityIndicator size="large" color={THEME_TOKENS[theme].primary} />
             <Text className="text-ink">Fetching link…</Text>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Cancel fetching the link"
+              hitSlop={8}
+              onPress={cancelAutofill}>
+              <Text className="font-sans-semibold text-primary">Cancel</Text>
+            </Pressable>
           </View>
         </View>
       </Modal>
@@ -467,6 +512,7 @@ export default function BookmarkForm({
           <View className="flex-row justify-end border-t border-border bg-panel px-4 py-2">
             <Pressable
               accessibilityRole="button"
+              accessibilityLabel="Done, close the keyboard"
               hitSlop={8}
               onPress={() => Keyboard.dismiss()}>
               <Text className="font-sans-semibold text-primary">Done</Text>

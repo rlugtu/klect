@@ -10,7 +10,9 @@ import { useFocusEffect, useRouter } from 'expo-router';
 
 import { trpc } from '@/client/api';
 import { writeSharedLists } from '@/client/shared-lists-cache';
+import { toast, errorMessage } from '@/client/toast';
 import FloatingStatusBar from '@/components/floating-status-bar';
+import Skeleton from '@/components/skeleton';
 import { useTheme } from '@/theme/theme-provider';
 import { THEME_TOKENS } from '@/theme/tokens';
 import { cardShadow } from '@/theme/shadows';
@@ -74,6 +76,14 @@ function CardBody({
 }) {
   return (
     <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={`${item.list.name}, ${plural(
+        item.list._count.bookmarks,
+        'bookmark',
+      )}, ${plural(item.list._count.memberships, 'member')}`}
+      accessibilityHint={
+        onLongPress ? 'Double tap and hold to reorder this list' : undefined
+      }
       onPress={onOpen}
       onLongPress={onLongPress}
       delayLongPress={200}
@@ -135,7 +145,11 @@ export default function HomeScreen() {
   function persistOrder(next: Memberships) {
     trpc.lists.reorder
       .mutate({ orderedListIds: next.map((m) => m.list.id) })
-      .catch(() => load()); // reload to resync if the write fails
+      .catch((e) => {
+        // The rows already moved optimistically, so say why they're about to jump back.
+        toast.error(errorMessage(e, 'Could not save the new order'));
+        load(); // reload to resync with the order the server still has
+      });
   }
 
   function openList(item: Membership) {
@@ -153,11 +167,15 @@ export default function HomeScreen() {
           reads as a toolbar — not another list card. */}
       <View className="flex-row items-center justify-between border-b border-border pb-3">
         <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={`List invites${
+            requestCount > 0 ? `, ${requestCount} to review` : ''
+          }`}
           onPress={() => router.push('/requests')}
           className="flex-row items-center gap-1.5"
           hitSlop={8}>
           <Ionicons name="file-tray-outline" size={20} color={muted} />
-          <Text className="font-sans-medium text-lg text-muted">Requests</Text>
+          <Text className="font-sans-medium text-lg text-muted">List invites</Text>
           {requestCount > 0 && (
             <View className="rounded-full bg-primary px-2 py-0.5">
               <Text className="font-sans-semibold text-xs text-primary-ink">
@@ -166,7 +184,11 @@ export default function HomeScreen() {
             </View>
           )}
         </Pressable>
-        <Pressable onPress={() => router.push('/lists/new')} hitSlop={8}>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="New list"
+          onPress={() => router.push('/lists/new')}
+          hitSlop={8}>
           <Text className="font-sans-semibold text-lg text-primary">+ List</Text>
         </Pressable>
       </View>
@@ -183,7 +205,14 @@ export default function HomeScreen() {
         />
       </View>
 
-      {loading && <Text className="font-sans text-muted">Loading…</Text>}
+      {loading && (
+        // Card-shaped placeholders, same idiom as the poll screens.
+        <View className="gap-4">
+          <Skeleton height={76} />
+          <Skeleton height={76} />
+          <Skeleton height={76} />
+        </View>
+      )}
       {error && <Text className="font-sans text-danger">{error}</Text>}
       {!loading && !error && shown.length === 0 && (
         <Text className="font-serif-italic text-muted">

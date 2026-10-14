@@ -30,15 +30,23 @@ export default function DeleteAccountScreen() {
     setBusy(true);
     try {
       await trpc.account.delete.mutate();
-      // Sign out (clears the expo cookie store) before wiping the local bearer, matching the
-      // settings sign-out order so there's one teardown mental model.
-      await authClient.signOut();
-      clearBearerToken();
-      // Root layout re-reads the (now empty) session and shows the login screen.
     } catch (e) {
       setBusy(false);
       Alert.alert('Could not delete account', e instanceof Error ? e.message : 'Please try again.');
+      return;
     }
+    // Past this point the account is gone, so nothing below is allowed to surface an error.
+    // Sign out (clears the expo cookie store) before wiping the local bearer, matching the
+    // settings sign-out order so there's one teardown mental model. The delete cascaded the
+    // user row away, so the server can no longer resolve this session and the sign-out call
+    // is expected to fail as often as not. Swallow it: the local wipe is what matters.
+    try {
+      await authClient.signOut();
+    } catch {
+      // Expected after a successful delete. Not an error worth showing.
+    }
+    clearBearerToken();
+    // Root layout re-reads the (now empty) session and shows the login screen.
   }
 
   return (
@@ -76,6 +84,8 @@ export default function DeleteAccountScreen() {
         </View>
 
         <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Delete my account"
           onPress={onDelete}
           disabled={!confirmed || busy}
           style={{ backgroundColor: t.danger, opacity: !confirmed || busy ? 0.5 : 1 }}

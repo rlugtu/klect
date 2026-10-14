@@ -1,5 +1,14 @@
 import { useEffect, useState } from 'react';
-import { Linking, Platform, Pressable, ScrollView, Switch, Text, View } from 'react-native';
+import {
+  Alert,
+  Linking,
+  Platform,
+  Pressable,
+  ScrollView,
+  Switch,
+  Text,
+  View,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useHeaderHeight } from '@react-navigation/elements';
 import { useRouter } from 'expo-router';
@@ -83,6 +92,28 @@ export default function SettingsScreen() {
     }
   };
 
+  // Order matters: unregister the device and sign out while the bearer token is still valid
+  // (signOut() authenticates with the cached bearer to invalidate the server session and clear the
+  // expo cookie store), then wipe local token state last. `finally` guarantees the local wipe even
+  // if the network sign-out fails (offline / dead token).
+  const signOut = async () => {
+    try {
+      await unregisterPushNotificationsAsync();
+      await authClient.signOut();
+    } finally {
+      clearBearerToken();
+    }
+  };
+
+  // Confirm first — this button sits directly above Delete account, and a stray tap used to end
+  // the session outright. Same Alert pattern as the other hard-to-undo actions (list-members.tsx).
+  const confirmSignOut = () => {
+    Alert.alert('Sign out?', 'You will need to sign in again to reach your bookmarks.', [
+      { text: 'Cancel', style: 'cancel' },
+      { text: 'Sign out', style: 'destructive', onPress: signOut },
+    ]);
+  };
+
   return (
     <SafeAreaView style={{ flex: 1 }} edges={['left', 'right']} className="bg-bg">
       <ScrollView
@@ -112,6 +143,9 @@ export default function SettingsScreen() {
             return (
               <Pressable
                 key={name}
+                accessibilityRole="button"
+                accessibilityLabel={`${THEME_LABELS[name]} theme`}
+                accessibilityState={{ selected: active }}
                 onPress={() => setTheme(name)}
                 className={`flex-row items-center justify-between rounded-skin border bg-panel p-3 ${
                   active ? 'border-primary' : 'border-border'
@@ -138,6 +172,8 @@ export default function SettingsScreen() {
           <View className="gap-2">
             <Text className="text-sm uppercase text-muted">Sharing</Text>
             <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Add Klect to your Share Sheet"
               onPress={() => router.push('/share-help')}
               className="flex-row items-center justify-between rounded-skin border-skin border-border bg-panel p-3">
               <View className="flex-row items-center gap-3">
@@ -153,6 +189,8 @@ export default function SettingsScreen() {
           <Text className="text-sm uppercase text-muted">Notifications</Text>
           {permGranted === false ? (
             <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Enable notifications"
               onPress={enableNotifications}
               className="flex-row items-center justify-between rounded-skin border-skin border-border bg-panel p-3">
               <View className="flex-row items-center gap-3">
@@ -167,8 +205,12 @@ export default function SettingsScreen() {
                 key={key}
                 className="flex-row items-center justify-between rounded-skin border-skin border-border bg-panel p-3">
                 <Text className="text-base text-ink">{label}</Text>
+                {/* Inert until the real preferences land: defaulting to `true` had every
+                    switch claim "on", then visibly flip to its stored value. */}
                 <Switch
-                  value={prefs?.[key] ?? true}
+                  accessibilityLabel={`${label} notifications`}
+                  value={prefs?.[key] ?? false}
+                  disabled={!prefs}
                   onValueChange={(v) => togglePref(key, v)}
                   trackColor={{ true: t.primary, false: t.border }}
                 />
@@ -180,6 +222,8 @@ export default function SettingsScreen() {
         <View className="gap-2">
           <Text className="text-sm uppercase text-muted">Feedback</Text>
           <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Send feedback"
             onPress={() => router.push('/feedback')}
             className="flex-row items-center justify-between rounded-skin border-skin border-border bg-panel p-3">
             <View className="flex-row items-center gap-3">
@@ -197,6 +241,8 @@ export default function SettingsScreen() {
         <View className="gap-2">
           <Text className="text-sm uppercase text-muted">Safety &amp; privacy</Text>
           <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Blocked users"
             onPress={() => router.push('/blocked')}
             className="flex-row items-center justify-between rounded-skin border-skin border-border bg-panel p-3">
             <View className="flex-row items-center gap-3">
@@ -206,6 +252,8 @@ export default function SettingsScreen() {
             <Ionicons name="chevron-forward" size={18} color={t.muted} />
           </Pressable>
           <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Privacy Policy, opens in a browser"
             onPress={() => WebBrowser.openBrowserAsync(`${API_URL}/privacy`)}
             className="flex-row items-center justify-between rounded-skin border-skin border-border bg-panel p-3">
             <View className="flex-row items-center gap-3">
@@ -215,6 +263,8 @@ export default function SettingsScreen() {
             <Ionicons name="open-outline" size={18} color={t.muted} />
           </Pressable>
           <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Terms of Use, opens in a browser"
             onPress={() => WebBrowser.openBrowserAsync(`${API_URL}/terms`)}
             className="flex-row items-center justify-between rounded-skin border-skin border-border bg-panel p-3">
             <View className="flex-row items-center gap-3">
@@ -226,25 +276,18 @@ export default function SettingsScreen() {
         </View>
 
         <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Sign out"
           className="items-center rounded-skin border-skin border-border py-3"
-          onPress={async () => {
-            // Order matters: unregister the device and sign out while the bearer token is still
-            // valid (signOut() authenticates with the cached bearer to invalidate the server session
-            // and clear the expo cookie store), then wipe local token state last. `finally`
-            // guarantees the local wipe even if the network sign-out fails (offline / dead token).
-            try {
-              await unregisterPushNotificationsAsync();
-              await authClient.signOut();
-            } finally {
-              clearBearerToken();
-            }
-          }}>
-          <Text className="font-semibold text-danger">Sign out</Text>
+          onPress={confirmSignOut}>
+          <Text className="font-sans-semibold text-danger">Sign out</Text>
         </Pressable>
 
         <View className="gap-2">
           <Text className="text-sm uppercase text-danger">Danger zone</Text>
           <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Delete account"
             onPress={() => router.push('/delete-account')}
             style={{ borderColor: t.danger }}
             className="flex-row items-center justify-between rounded-skin border-skin p-3">

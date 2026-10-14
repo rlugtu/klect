@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
+  Linking,
   Pressable,
   StyleSheet,
   Switch,
@@ -19,6 +20,7 @@ import BottomSheet, {
 import { trpc } from '@/client/api';
 import FloatingStatusBar from '@/components/floating-status-bar';
 import TagPill from '@/components/tag-pill';
+import { cardShadow } from '@/theme/shadows';
 import { useTheme } from '@/theme/theme-provider';
 import { THEME_TOKENS } from '@/theme/tokens';
 
@@ -72,6 +74,9 @@ export default function NearbyScreen() {
     'Tap a distance to find nearby bookmarks.',
   );
   const [busy, setBusy] = useState(false);
+  // Drives the "Open Settings" recovery row: once iOS has recorded a denial, asking again
+  // from inside the app is a no-op, so the only way forward is the system settings pane.
+  const [permDenied, setPermDenied] = useState(false);
   // Off by default → all bookmarks; on → only those the user hasn't visited.
   const [hideVisited, setHideVisited] = useState(false);
   // Briefly ringed after its pin is tapped, to tie the pin to its list row.
@@ -96,11 +101,15 @@ export default function NearbyScreen() {
       try {
         const { status: perm } = await Location.requestForegroundPermissionsAsync();
         if (perm !== 'granted') {
-          if (!cancelled) setStatus('Location permission denied.');
+          if (!cancelled) {
+            setStatus('Location permission denied.');
+            setPermDenied(true);
+          }
           return;
         }
         const loc = await Location.getCurrentPositionAsync({});
         if (cancelled) return;
+        setPermDenied(false);
         const { latitude: lat, longitude: lon } = loc.coords;
         setCoords({ lat, lon });
         cameraRef.current?.setCamera({
@@ -156,9 +165,11 @@ export default function NearbyScreen() {
       const { status: perm } = await Location.requestForegroundPermissionsAsync();
       if (perm !== 'granted') {
         setStatus('Location permission denied.');
+        setPermDenied(true);
         setBusy(false);
         return;
       }
+      setPermDenied(false);
       const loc = await Location.getCurrentPositionAsync({});
       const { latitude: lat, longitude: lon } = loc.coords;
       setCoords({ lat, lon });
@@ -199,7 +210,7 @@ export default function NearbyScreen() {
   }, [highlightId]);
 
   return (
-    <View style={{ flex: 1, backgroundColor: t.bg }}>
+    <View className="flex-1 bg-bg">
       <MapView
         style={StyleSheet.absoluteFill}
         styleURL={isDark ? Mapbox.StyleURL.Dark : Mapbox.StyleURL.Street}
@@ -216,7 +227,11 @@ export default function NearbyScreen() {
               coordinate={[item.lon, item.lat]}
               anchor={{ x: 0.5, y: 1 }}
               allowOverlap>
-              <Pressable onPress={() => focusItem(item, index)} hitSlop={8}>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={`Map pin ${index + 1}, ${item.card.name}, ${item.distanceMiles.toFixed(1)} miles away`}
+                onPress={() => focusItem(item, index)}
+                hitSlop={8}>
                 <View
                   style={[
                     styles.pin,
@@ -225,7 +240,7 @@ export default function NearbyScreen() {
                       borderColor: t.panel,
                     },
                   ]}>
-                  <Text style={[styles.pinLabel, { color: t.primaryInk }]}>
+                  <Text className="font-sans-semibold text-xs text-primary-ink">
                     {index + 1}
                   </Text>
                 </View>
@@ -258,16 +273,18 @@ export default function NearbyScreen() {
             return (
               <Pressable
                 key={r}
+                accessibilityRole="button"
+                accessibilityLabel={`Search within ${r} miles`}
+                accessibilityState={{ selected }}
                 onPress={() => find(r)}
                 style={[
                   styles.chip,
                   { backgroundColor: selected ? t.primary : 'transparent' },
                 ]}>
                 <Text
-                  style={{
-                    color: selected ? t.primaryInk : t.ink,
-                    fontWeight: '600',
-                  }}>
+                  className={`font-sans-semibold ${
+                    selected ? 'text-primary-ink' : 'text-ink'
+                  }`}>
                   {r} mi
                 </Text>
               </Pressable>
@@ -290,14 +307,19 @@ export default function NearbyScreen() {
         // full height it covers them; at the resting 45% snap they don't overlap (chips are
         // pinned to the top, the drawer to the bottom), so both stay tappable.
         containerStyle={{ zIndex: 10 }}
-        backgroundStyle={{ backgroundColor: t.panel }}
+        backgroundStyle={{ backgroundColor: t.bg }}
         handleIndicatorStyle={{ backgroundColor: t.muted }}>
-        <View style={styles.sheetHeader}>
-          <View style={styles.sheetTitleRow}>
-            <Text style={[styles.sheetTitle, { color: t.ink }]}>Near me</Text>
-            <View style={styles.toggleWrap}>
-              <Text style={{ color: t.muted, fontSize: 13 }}>Show only unvisited</Text>
+        <View className="gap-0.5 px-4 pb-2">
+          <View className="flex-row items-center justify-between gap-2">
+            <Text className="font-serif text-3xl text-ink" numberOfLines={1}>
+              Near me
+            </Text>
+            <View className="flex-row items-center gap-1.5">
+              <Text className="font-sans text-xs text-muted">
+                Show only unvisited
+              </Text>
               <Switch
+                accessibilityLabel="Show only unvisited bookmarks"
                 value={hideVisited}
                 onValueChange={setHideVisited}
                 trackColor={{ true: t.primary, false: `${t.muted}66` }}
@@ -306,11 +328,22 @@ export default function NearbyScreen() {
             </View>
           </View>
           {locationLabel && (
-            <Text style={{ color: t.muted, fontSize: 13 }} numberOfLines={1}>
+            <Text className="font-sans text-sm text-muted" numberOfLines={1}>
               📍 {locationLabel}
             </Text>
           )}
-          {status && <Text style={{ color: t.muted, marginTop: 2 }}>{status}</Text>}
+          {status && (
+            <Text className="mt-0.5 font-sans text-sm text-muted">{status}</Text>
+          )}
+          {permDenied && (
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Open Settings to allow location access"
+              onPress={() => Linking.openSettings()}
+              className="mt-2 self-start rounded-full border-skin border-border bg-panel px-3.5 py-2">
+              <Text className="font-sans-semibold text-primary">Open Settings</Text>
+            </Pressable>
+          )}
         </View>
         <BottomSheetFlatList
           ref={listRef}
@@ -337,42 +370,40 @@ export default function NearbyScreen() {
             const active = highlightId === item.card.id;
             return (
               <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={`${item.card.name}, ${item.distanceMiles.toFixed(1)} miles away, in ${item.listLabel.name}`}
                 onPress={() =>
                   router.push({
                     pathname: '/bookmarks/[id]',
                     params: { id: item.card.id, name: item.card.name },
                   })
                 }
-                style={[
-                  styles.card,
-                  {
-                    backgroundColor: t.bg,
-                    borderColor: active ? t.accent : t.border,
-                    borderWidth: active ? 2 : StyleSheet.hairlineWidth,
-                  },
-                ]}>
-                <View style={styles.cardTop}>
-                  <View style={styles.cardNumWrap}>
+                style={cardShadow}
+                className={`gap-1 rounded-skin bg-panel p-3 ${
+                  active ? 'border-2 border-accent' : 'border-skin border-border'
+                }`}>
+                <View className="flex-row items-center justify-between gap-2">
+                  <View className="flex-shrink flex-row items-center gap-2">
                     <View style={[styles.cardNum, { backgroundColor: t.primary }]}>
-                      <Text style={[styles.pinLabel, { color: t.primaryInk }]}>
+                      <Text className="font-sans-semibold text-xs text-primary-ink">
                         {index + 1}
                       </Text>
                     </View>
                     <Text
-                      style={[styles.cardName, { color: t.ink }]}
+                      className="flex-shrink font-sans-semibold text-base text-ink"
                       numberOfLines={1}>
                       {item.card.name}
                     </Text>
                   </View>
-                  <Text style={[styles.cardName, { color: t.ink }]}>
+                  <Text className="font-sans-semibold text-base text-ink">
                     {item.distanceMiles.toFixed(1)} mi
                   </Text>
                 </View>
-                <Text style={{ color: t.muted, fontSize: 12 }}>
+                <Text className="font-sans text-xs text-muted">
                   {item.listLabel.icon} {item.listLabel.name}
                 </Text>
                 {item.card.tags.length > 0 && (
-                  <View style={styles.tags}>
+                  <View className="flex-row flex-wrap gap-1">
                     {item.card.tags.slice(0, 3).map((tag) => (
                       <TagPill key={tag.id} name={tag.name} color={tag.color} />
                     ))}
@@ -424,10 +455,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  pinLabel: {
-    fontSize: 12,
-    fontWeight: '700',
-  },
   pinTail: {
     alignSelf: 'center',
     width: 0,
@@ -439,47 +466,7 @@ const styles = StyleSheet.create({
     borderLeftColor: 'transparent',
     borderRightColor: 'transparent',
   },
-  sheetHeader: {
-    paddingHorizontal: 16,
-    paddingBottom: 8,
-    gap: 2,
-  },
-  sheetTitleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  toggleWrap: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  sheetTitle: {
-    fontSize: 20,
-    fontWeight: '700',
-  },
-  card: {
-    gap: 4,
-    borderRadius: 14,
-    padding: 12,
-  },
-  cardTop: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: 8,
-  },
-  cardName: {
-    fontSize: 15,
-    fontWeight: '600',
-    flexShrink: 1,
-  },
-  cardNumWrap: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    flexShrink: 1,
-  },
+  // Matches the map pin's circle so a result row reads as the same marker.
   cardNum: {
     minWidth: 22,
     height: 22,
@@ -487,10 +474,5 @@ const styles = StyleSheet.create({
     borderRadius: 11,
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  tags: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 4,
   },
 });

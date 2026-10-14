@@ -42,6 +42,14 @@ const ICONS: Record<
   profile: { outline: 'person-circle-outline', filled: 'person-circle' },
 };
 
+/** VoiceOver names for the icon-only tabs — the bar shows no text labels. */
+const TAB_LABELS: Record<string, string> = {
+  nearby: 'Near me',
+  index: 'Lists',
+  friends: 'Friends',
+  profile: 'Profile',
+};
+
 /** Squash on touch-down; low-damping rebound (elastic overshoot) on release. */
 const SQUASH = { stiffness: 400, damping: 18 } as const;
 const REBOUND = { stiffness: 260, damping: 9 } as const;
@@ -99,8 +107,16 @@ export default function FloatingTabBar({
       }
     };
 
+    // The badge sits *inside* the button, which VoiceOver treats as one element — so the count has
+    // to be folded into the button's own label to get announced at all.
+    const unread = badge > 0 ? `, ${badge} unread` : '';
+
     return (
-      <TabButton key={route.key} focused={focused} onPress={onPress}>
+      <TabButton
+        key={route.key}
+        focused={focused}
+        onPress={onPress}
+        accessibilityLabel={`${TAB_LABELS[route.name] ?? route.name}${unread}`}>
         <RNAnimated.View
           style={[
             styles.ring,
@@ -119,8 +135,14 @@ export default function FloatingTabBar({
           <Ionicons name={icon.filled} size={ICON_SIZE} color={t.primary} />
         </RNAnimated.View>
         {badge > 0 && (
-          <View style={[styles.badge, { backgroundColor: t.danger }]}>
-            <Text style={styles.badgeText}>{badge > 99 ? '99+' : badge}</Text>
+          <View
+            accessibilityLabel={`${badge} unread`}
+            style={[styles.badge, { backgroundColor: t.danger }]}>
+            {/* primaryInk is the theme's "text on a saturated fill" token — light in the light
+                themes, near-black in the dark ones, so it stays legible on the danger red. */}
+            <Text style={[styles.badgeText, { color: t.primaryInk }]}>
+              {badge > 99 ? '99+' : badge}
+            </Text>
           </View>
         )}
       </TabButton>
@@ -161,10 +183,12 @@ export default function FloatingTabBar({
 function TabButton({
   focused,
   onPress,
+  accessibilityLabel,
   children,
 }: {
   focused: boolean;
   onPress: () => void;
+  accessibilityLabel: string;
   children: React.ReactNode;
 }) {
   const scale = useSharedValue(1);
@@ -172,6 +196,7 @@ function TabButton({
   return (
     <Pressable
       accessibilityRole="button"
+      accessibilityLabel={accessibilityLabel}
       accessibilityState={focused ? { selected: true } : {}}
       hitSlop={6}
       onPressIn={() => {
@@ -268,7 +293,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   badgeText: {
-    color: '#fff',
     fontSize: 11,
     fontWeight: '700',
   },

@@ -10,6 +10,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { trpc } from '@/client/api';
+import { authClient, clearBearerToken } from '@/client/auth';
 import { toast } from '@/client/toast';
 import { useTheme } from '@/theme/theme-provider';
 import { THEME_TOKENS, type ThemeName } from '@/theme/tokens';
@@ -52,6 +53,7 @@ export default function OnboardingScreen({ onDone }: { onDone: () => void }) {
   const [lastName, setLastName] = useState('');
   const [icon, setIcon] = useState('🔖');
   const [busy, setBusy] = useState(false);
+  const [signingOut, setSigningOut] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   async function submit() {
@@ -79,6 +81,25 @@ export default function OnboardingScreen({ onDone }: { onDone: () => void }) {
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Could not save your profile.');
       setBusy(false);
+    }
+  }
+
+  /**
+   * Escape hatch for signing in with the wrong account. This gate has no navigation out of
+   * it, so dropping the session is the only way back to the login screen. Same teardown
+   * order as the Settings sign-out, minus the push unregister (a handle-less user never
+   * reached the stack that registers the device). `finally` wipes the local token even if
+   * the network call fails, so a dead session can't trap the user here.
+   */
+  async function signOut() {
+    setSigningOut(true);
+    try {
+      await authClient.signOut();
+    } catch {
+      // Ignored: the local wipe below is what releases the gate.
+    } finally {
+      clearBearerToken();
+      setSigningOut(false);
     }
   }
 
@@ -140,6 +161,9 @@ export default function OnboardingScreen({ onDone }: { onDone: () => void }) {
             {ICON_CHOICES.map((choice) => (
               <Pressable
                 key={choice}
+                accessibilityRole="button"
+                accessibilityLabel={`Avatar ${choice}`}
+                accessibilityState={{ selected: icon === choice }}
                 onPress={() => setIcon(choice)}
                 className={`h-11 w-11 items-center justify-center rounded-skin-sm border-skin bg-panel ${
                   icon === choice ? 'border-primary' : 'border-border'
@@ -158,6 +182,9 @@ export default function OnboardingScreen({ onDone }: { onDone: () => void }) {
             return (
               <Pressable
                 key={name}
+                accessibilityRole="button"
+                accessibilityLabel={`${THEME_LABELS[name]} theme`}
+                accessibilityState={{ selected: active }}
                 onPress={() => setTheme(name)}
                 className={`flex-row items-center justify-between rounded-skin border bg-panel p-3 ${
                   active ? 'border-primary' : 'border-border'
@@ -183,14 +210,27 @@ export default function OnboardingScreen({ onDone }: { onDone: () => void }) {
         {error && <Text className="font-sans text-danger">{error}</Text>}
 
         <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Enter Klect"
           className="items-center rounded-skin bg-primary py-3"
-          disabled={busy}
+          disabled={busy || signingOut}
           onPress={submit}>
           {busy ? (
             <ActivityIndicator color={THEME_TOKENS[theme].primaryInk} />
           ) : (
             <Text className="font-sans-semibold text-primary-ink">Enter Klect</Text>
           )}
+        </Pressable>
+
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Wrong account? Sign out"
+          className="items-center py-2"
+          disabled={busy || signingOut}
+          onPress={signOut}>
+          <Text className="font-sans text-sm text-muted">
+            {signingOut ? 'Signing out…' : 'Wrong account? Sign out'}
+          </Text>
         </Pressable>
       </ScrollView>
     </SafeAreaView>

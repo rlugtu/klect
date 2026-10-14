@@ -59,8 +59,8 @@ Everything else hot-reloads normally against the dev client.
   hosts (`API_URL`, deep-link `scheme: "klect"`, `storagePrefix: "klect"`), tokens in
   `expo-secure-store`. It adds `inferAdditionalFields({ user: … })` mirroring web's
   `user.additionalFields`, so the session user is typed with the profile fields — notably
-  `displayName`, the "onboarded" signal. The root layout gates on `authClient.useSession()`: pending →
-  blank view, signed-out → `<LoginScreen>`, signed-in **without** a `displayName` → `<OnboardingScreen>`,
+  `handle`, the "onboarded" signal. The root layout gates on `authClient.useSession()`: pending →
+  blank view, signed-out → `<LoginScreen>`, signed-in **without** a `handle` → `<OnboardingScreen>`,
   otherwise → the navigator. `LoginScreen` toggles **sign in ⇄ create account** — email/password
   (`signIn.email` / `signUp.email` with a name + password ≥ 8) and Google social sign-in
   (`signIn.social`); after onboarding saves, the layout `refetch()`es the session so the gate advances.
@@ -201,7 +201,7 @@ a centered title anywhere in the app**.
   via the transparent navigation header described above (same `header-blur-background` surface), so every
   page's top bar is consistent.
 - **Stack screens**: `lists/[id]` (list detail), `bookmarks/[id]` (detail),
-  `users/[id]` (another user's profile, pushed from friend rows), `requests` (incoming list-join
+  `users/[handle]` (another user's profile, pushed from friend rows), `requests` (incoming list-join
   requests), `friend-requests` (incoming friend requests), `pending-requests` (outgoing friend
   requests you've sent — cancel to withdraw), `dm/[conversationId]` (a DM chat thread) and `dm/new`
   (friend picker to start a chat).
@@ -211,9 +211,13 @@ a centered title anywhere in the app**.
   It uses `presentation: 'formSheet'` (not plain `modal`) pinned to a full-height detent
   (`sheetAllowedDetents: [1.0]`, grabber hidden) purely so its top corners can use a milder
   `sheetCornerRadius: 16` — a tunable curve the native `modal` presentation doesn't expose.
-- **`+native-intent.tsx`** — `redirectSystemPath` intercepts the Share Extension's re-open deep link
-  (`klect://dataUrl=<key>…`, not a real route) and rewrites it to `/`, so expo-router doesn't render
-  the not-found screen; the share payload is then picked up by the provider (see Share intent below).
+- **No `+native-intent.tsx` (known gap, not built).** The file does not exist in `src/app/`, and
+  nothing in the repo tracks adding it. It isn't needed by the current design: the Share Extension
+  finishes the save in its own process (`src/share-extension.tsx` → `bookmarks.createInLists` →
+  `close()`), and its only re-open path is `openHostApp('/')` for a signed-out user, which is already
+  a real route. There is no `klect://dataUrl=<key>` payload hand-off for a `redirectSystemPath` hook
+  to rewrite. If a future flow ever hands a share payload to the app instead of saving in-extension,
+  this file is what would intercept it.
 
 Navigate with `router.push({ pathname, params })`; read params with `useLocalSearchParams`; dismiss a
 modal with `router.back()` (or `router.dismissAll()` after leaving a list).
@@ -240,7 +244,7 @@ modal with `router.back()` (or `router.dismissAll()` after leaving a list).
   **Friends** view: add a friend by @handle
   (`friends.sendRequest`), the **Pending** + **Requests** pills, and your friends list. Each
   `FriendCard` is **tap-to-expand** (chevron affordance): pressing the row opens an **actions panel**
-  with a **Remove** (→ `Alert` confirm → `friends.remove`) + **View profile** (→ pushed `users/[id]`)
+  with a **Remove** (→ `Alert` confirm → `friends.remove`) + **View profile** (→ pushed `users/[handle]`)
   row above an **Add to lists** multiselect (list chips + Viewer/Collaborator role →
   `friends.addToLists`). Lists the friend **already belongs to** (`friends.friendListIds`) render
   **dimmed + checkmarked and non-tappable** — only genuinely new lists are selectable, and **Send
@@ -275,7 +279,7 @@ modal with `router.back()` (or `router.dismissAll()` after leaving a list).
   still unanswered (`friends.list().outgoing`), each with a **Cancel** action to withdraw
   (`friends.cancel`). Reached from a **Pending** pill on the Friends screen — the **leading** pill,
   pushed to the opposite edge from the Requests pill.
-  *(Header note: `friend-requests`, `pending-requests`, and the pushed `users/[id]` profile use the
+  *(Header note: `friend-requests`, `pending-requests`, and the pushed `users/[handle]` profile use the
   home-style **fully transparent** navigation header — floating back chevron, no title — and take
   their gradual blur from the screen's own `FloatingStatusBar` (the `transparentHeader` option in
   `_layout.tsx`), rather than the pushed-header `HeaderBlurBackground`.)*
@@ -332,8 +336,10 @@ modal with `router.back()` (or `router.dismissAll()` after leaving a list).
   both create **and edit** show a **Public** `Switch` (`showVisibility`) — on edit it's shown only to
   the **owner** and persists via `lists.setVisibility` (metadata still goes through `lists.update`,
   which ignores `isPublic`); `lists.create` / `lists.update`; edit also offers **Delete list**.
-- **Members** (`lists/members.tsx`) — sharing UI. Owner-only invite by email as **Viewer** or
-  **Collaborator** (`sharing.invite`), member list with role toggle + remove (`sharing.changeRole` /
+- **Members** (`components/list-members.tsx`): sharing UI. **A component, not a route** (there is no
+  `lists/members.tsx`): it renders inline under the list screen's **Members** tab, see Lists above.
+  Owner-only invite by **@handle** as **Viewer** or **Collaborator** (`sharing.invite` takes a
+  `handle`, not an email), member list with role toggle + remove (`sharing.changeRole` /
   `sharing.removeMember`), pending-invite revoke (`sharing.pendingInvites` / `sharing.revokeInvite`);
   non-owners see a **Leave list** action (`sharing.leave`). Pending-invite/owner-only queries swallow
   the 403 for non-owners.
@@ -353,7 +359,7 @@ modal with `router.back()` (or `router.dismissAll()` after leaving a list).
   `#hashtag` tags (`TagPill`), plus the location label. Tapping a row opens the bookmark. Only
   bookmarks given coordinates via location search appear (coordinate-less ones are silently omitted). (`app.config.js` injects the Mapbox **download** token
   from `MAPBOX_DOWNLOAD_TOKEN` at build time; see `.env.example`.)
-- **Profile** (`(tabs)/profile.tsx` own · `users/[id].tsx` others, both render
+- **Profile** (`(tabs)/profile.tsx` own · `users/[handle].tsx` others, both render
   `components/profile-view.tsx`) — a user's avatar/icon, name, "Member since", stats (public lists ·
   friends), and their public lists (`profile.get`). Others' profiles show an **Add friend** button
   (`friends.requestByUser`); your own omits it but shows a **settings gear** (top-right) that pushes
@@ -390,14 +396,18 @@ modal with `router.back()` (or `router.dismissAll()` after leaving a list).
   web's `LoginForm`; Google is available in both. `signUp.email` creates the account, then the
   onboarding gate takes over.
 - **Onboarding** (`components/onboarding-screen.tsx`) — the mobile analogue of web's `/onboarding`.
-  Rendered by the root layout when a signed-in user has no `displayName` yet (new email or Google
-  accounts). Collects display name (required), first/last name, birthday (`YYYY-MM-DD` text), an emoji
+  Rendered by the root layout when a signed-in user has no `handle` yet (new email or Google
+  accounts). Collects the public **@handle** (required, validated against the same lowercase
+  `a–z 0–9 _`, 3–20 rule as web's `HANDLE_RE`), first/last name, an emoji
   avatar (web's `ICON_CHOICES`), and a theme (the six-theme picker, applied locally via `setTheme`).
+  **No birthday input.** `birthday` is a nullable `User` column and `profileInput` accepts it, but
+  neither platform's UI collects it: this screen hard-codes `birthday: null`, and web's `ProfileForm`
+  renders no birthday field either.
   Saves through the shared **`trpc.profile.update`** procedure (same `saveProfile` core web's
-  onboarding uses), then calls back to refetch the session and enter the app. **Theme caveat:** mobile
-  themes are local (`secure-store`) and include Journal, but the server `Theme` enum is only
-  Pixel/Modern — a Journal pick is `coerceTheme`d to Pixel server-side (affecting web only; mobile
-  keeps its local theme).
+  onboarding uses), then calls back to refetch the session and enter the app. The pick is also
+  persisted locally (`secure-store`), which is what the app actually renders; the server `Theme` enum
+  carries all six values (Pixel/Modern/Journal × light/dark), so a Journal pick round-trips to web
+  intact.
 - **Share extension** (`expo-share-extension`, **iOS only**) — Klect appears in other apps' native
   share sheets (web URLs / text; activation rules in `app.json`). Instead of opening the app, the
   extension **renders a React save UI right in the share sheet** (`index.share.js` registers the

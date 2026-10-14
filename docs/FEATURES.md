@@ -172,7 +172,7 @@ never trapped on the wrong screen.
 | Feature | Web | Mobile | Notes |
 |---|:---:|:---:|---|
 | Auth (email/password + Google) | ✅ | ✅ | Same better-auth backend |
-| Onboarding (profile setup) | ✅ | ✅ | Name, emoji avatar, theme |
+| Onboarding (profile setup) | ✅ | ✅ | **@handle** (required), first/last name, emoji avatar, theme. No birthday input on either platform |
 | Lists — CRUD | ✅ | ✅ | |
 | Lists — public/private visibility | ✅ | ✅ | Owner-only toggle; **private by default**; public = read-only for anyone (`lists.setVisibility`) |
 | Lists — drag-reorder | ✅ | ✅ | Per-user order (`lists.reorder`); web: Framer Motion · mobile: long-press drag (`react-native-reorderable-list`) |
@@ -196,7 +196,7 @@ never trapped on the wrong screen.
 | Polls | ✅ | ✅ | Create / vote / edit / delete |
 | Nearby / geolocation | ⚠️ | ⚠️ | Web browser geo + list (0.5–10 mi) · Mobile native GPS + Mapbox map & drawer (1–25 mi) |
 | Profile & settings | ✅ | ✅ | Theme picker (all 6 themes) |
-| Themes | ✅ | ✅ | All 6 both; **default differs** (web Modern Light · mobile Journal Light) |
+| Themes | ✅ | ✅ | All 6 both; both default to **Modern**. Web pins Modern Light (`coerceTheme`); mobile follows the device light/dark setting (`MODERN_LIGHT`/`MODERN_DARK`) until the user picks |
 | Native share extension | ➖ | ✅ | Mobile-only, iOS (save a bookmark inside the OS share sheet) |
 | Push notifications | ➖ | ✅ | Mobile-only, iOS — lockscreen alerts + app-icon badge; per-category toggles in Settings |
 | "Share to Klect" how-to | ✅ | ✅ | Illustrated setup walkthrough in Settings (mobile entry iOS-only) |
@@ -205,7 +205,7 @@ never trapped on the wrong screen.
 | Send feedback | ✅ | ✅ | Settings → Send feedback; category (bug/idea/other) + message → `Feedback` table (`feedback.submit`) |
 | Toast notifications | ✅ | ✅ | Non-intrusive confirmation/error toasts with a 3s countdown bar + type colors (success/error/info); web bottom-right/top-center · mobile top, swipe-to-dismiss + haptics |
 | PWA install | ✅ | ➖ | Web-only (mobile is a native app) |
-| AI caption extraction | ✅ | ➖ | Web-only (`comprehend.caption`, Claude-backed) |
+| AI caption extraction | ➖ | ➖ | **Backend only, no UI on either platform.** The `comprehend.caption` procedure and web's `comprehendCaption` server action exist (Claude-backed), but nothing calls either, so there is no paste-a-caption input anywhere. Distinct from the shipped *link* autofill, which uses `metadata.comprehend` |
 
 ---
 
@@ -535,9 +535,11 @@ country); `nearby.find` (results carry `lat`/`lon`).
 a list; mobile renders an interactive map + drawer.
 
 ### Profile & settings
-**Description.** Edit your profile (names, birthday, emoji icon), pick a theme, sign out.
+**Description.** Edit your profile (names, emoji icon), pick a theme, sign out. (`birthday` is a
+nullable `User` column that no UI collects: web's `ProfileForm` has no birthday field, and mobile has
+no post-onboarding profile editor at all.)
 **Web.** `/settings` → `ProfileForm`; `profile.update`. Reached via the settings gear on your own
-profile (`/users/[id]`).
+profile (`/users/[handle]`).
 **Mobile.** `src/app/settings.tsx` (a pushed stack route, no longer a tab); reached via the settings
 gear on the Profile screen. Theme persisted to secure-store, applied locally.
 **Differences.** None.
@@ -611,9 +613,11 @@ on submit calls `feedback.submit` with `platform: 'ios'` + app version, then toa
 `<html>`, fully styled (incl. Journal) in `globals.css`. Default **Modern Light** (`coerceTheme`
 falls back to `MODERN_LIGHT`).
 **Mobile.** All six; `src/theme/tokens.ts` + `theme-provider.tsx`, applied via NativeWind `vars()`.
-Default **Journal Light**.
-**Differences.** Same six themes on both; the **default** differs (web Modern Light, mobile Journal
-Light).
+Default **Modern**, following the device's light/dark setting. `theme-provider.tsx` falls back to
+`MODERN_DARK` when the system scheme is dark and `MODERN_LIGHT` otherwise, until the user picks a
+theme explicitly (then it's persisted to `expo-secure-store`).
+**Differences.** Same six themes on both, and both default to the **Modern** family; web pins Modern
+Light, mobile follows the system light/dark setting between Modern Light and Modern Dark.
 
 ### Native share extension
 **Description.** Share a URL into Klect from any other app's native share sheet to save a bookmark —
@@ -666,11 +670,18 @@ page.
 
 ### AI caption extraction (Comprehend)
 **Description.** Extract structured fields (title, location, description, tags) from a pasted social
-media caption using Claude.
-**Web.** `comprehend.caption` (Anthropic, `claude-haiku-4-5`), best-effort with fallback to the raw
-caption.
-**Mobile.** ➖ The procedure exists on the shared API but no mobile screen calls it.
-**Differences.** **Web-only** in practice.
+media caption using Claude. **Backend only: this is not a shipped feature on either platform, and
+there is no UI for it anywhere.**
+**Web.** The capability exists in two places and has **no caller in either**: the `comprehend.caption`
+tRPC procedure (`src/server/trpc/routers/external.ts`) and the `comprehendCaption` server action
+(`src/lib/actions/comprehend.ts`), both wrapping `lib/core/comprehend.ts` (Anthropic,
+`claude-haiku-4-5`, best-effort with fallback to the raw caption). No page or component imports the
+action or calls the procedure, so there is no paste-a-caption input in the web app.
+**Mobile.** ➖ No mobile screen calls it either.
+**Differences.** None in practice, since it is unreachable from both UIs. Not to be confused with the shipped
+**link** autofill, which calls `metadata.extract` + `metadata.comprehend` and reaches the same core
+module through a different function (`comprehendMetadata`); caption-only comprehension is the unused
+part.
 
 ### Toast notifications
 **Description.** Lightweight, non-intrusive confirmations (and clearer error reporting) that appear

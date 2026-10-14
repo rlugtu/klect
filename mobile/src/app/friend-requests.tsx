@@ -14,17 +14,24 @@ import { cardShadow } from '@/theme/shadows';
 type FriendsData = Awaited<ReturnType<typeof trpc.friends.list.query>>;
 type Incoming = FriendsData['incoming'];
 
+// Text-only rows can't reach Apple's 44pt minimum from padding alone.
+const TAP_TARGET = { minHeight: 44, justifyContent: 'center' } as const;
+
 /** All incoming friend requests: accept or decline. Pushed from the Friends tab. */
 export default function FriendRequestsScreen() {
   const headerHeight = useHeaderHeight();
   const [incoming, setIncoming] = useState<Incoming>([]);
+  const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
   const load = useCallback(() => {
     trpc.friends.list
       .query()
-      .then((d) => setIncoming(d.incoming))
-      .catch(() => {})
+      .then((d) => {
+        setIncoming(d.incoming);
+        setError(null);
+      })
+      .catch((e) => setError(errorMessage(e, 'Could not load friend requests')))
       .finally(() => setLoading(false));
   }, []);
 
@@ -54,10 +61,12 @@ export default function FriendRequestsScreen() {
         }}>
         <Text className="font-serif text-3xl text-ink">Friend requests</Text>
 
-        {!loading && incoming.length === 0 && (
+        {error && <Text className="font-sans text-danger">{error}</Text>}
+
+        {!loading && !error && incoming.length === 0 && (
           <Text className="font-serif-italic text-muted">
-            No pending friend requests. When someone adds you, it shows up here
-            to accept or decline.
+            No friend requests right now. When someone sends you a friend
+            request, it shows up here to accept or decline.
           </Text>
         )}
 
@@ -72,12 +81,26 @@ export default function FriendRequestsScreen() {
                 {atHandle(req.requester.handle)}
               </Text>
             </View>
-            <View className="flex-row items-center gap-4">
-              <Pressable onPress={() => decide(req.id, 'decline')} hitSlop={8}>
-                <Text className="font-sans text-muted">Decline</Text>
+            <View className="flex-row items-center gap-2">
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={`Decline friend request from ${atHandle(req.requester.handle)}`}
+                onPress={() => decide(req.id, 'decline')}
+                hitSlop={6}
+                style={TAP_TARGET}
+                className="rounded-skin border-skin border-border px-3">
+                <Text className="font-sans-semibold text-ink">Decline</Text>
               </Pressable>
-              <Pressable onPress={() => decide(req.id, 'accept')} hitSlop={8}>
-                <Text className="font-sans-semibold text-primary">Accept</Text>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={`Accept friend request from ${atHandle(req.requester.handle)}`}
+                onPress={() => decide(req.id, 'accept')}
+                hitSlop={6}
+                style={TAP_TARGET}
+                className="rounded-skin bg-primary px-3">
+                <Text className="font-sans-semibold text-primary-ink">
+                  Accept
+                </Text>
               </Pressable>
             </View>
           </View>

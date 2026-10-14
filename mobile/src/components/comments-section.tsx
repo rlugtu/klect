@@ -3,6 +3,7 @@ import { ActivityIndicator, Pressable, Text, TextInput, View } from 'react-nativ
 import { Ionicons } from '@expo/vector-icons';
 
 import { trpc } from '@/client/api';
+import { toast, errorMessage } from '@/client/toast';
 import { ReportSheet } from '@/components/report-sheet';
 import { atHandle } from '@/lib/handle';
 import { useTheme } from '@/theme/theme-provider';
@@ -35,6 +36,8 @@ type Props = {
   readOnly?: boolean;
   /** The signed-in user's id — enables a Report action on other people's comments. */
   currentUserId?: string;
+  /** List owners can delete anyone's comment; everyone else only their own. */
+  canModerate?: boolean;
 };
 
 export default function CommentsSection({
@@ -43,6 +46,7 @@ export default function CommentsSection({
   onDelete,
   readOnly = false,
   currentUserId,
+  canModerate = false,
 }: Props) {
   const { theme } = useTheme();
   const muted = THEME_TOKENS[theme].muted;
@@ -56,9 +60,19 @@ export default function CommentsSection({
     setBusy(true);
     try {
       await onAdd(v);
-      setValue('');
+      setValue(''); // only clear once the post landed, so a retry keeps the text
+    } catch (e) {
+      toast.error(errorMessage(e, 'Could not post comment'));
     } finally {
       setBusy(false);
+    }
+  }
+
+  async function remove(id: string) {
+    try {
+      await onDelete(id);
+    } catch (e) {
+      toast.error(errorMessage(e, 'Could not delete comment'));
     }
   }
 
@@ -78,6 +92,8 @@ export default function CommentsSection({
             onChangeText={setValue}
           />
           <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Post comment"
             className="items-center justify-center rounded-skin bg-primary px-4"
             disabled={busy}
             onPress={post}>
@@ -105,14 +121,19 @@ export default function CommentsSection({
           <View className="flex-row items-center gap-3">
             {currentUserId && c.author.id !== currentUserId && (
               <Pressable
+                accessibilityRole="button"
                 accessibilityLabel="Report comment"
                 onPress={() => setReportId(c.id)}
                 hitSlop={8}>
                 <Ionicons name="flag-outline" size={15} color={muted} />
               </Pressable>
             )}
-            {!readOnly && (
-              <Pressable onPress={() => onDelete(c.id)} hitSlop={8}>
+            {!readOnly && (canModerate || c.author.id === currentUserId) && (
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="Delete comment"
+                onPress={() => remove(c.id)}
+                hitSlop={8}>
                 <Text className="text-muted">✕</Text>
               </Pressable>
             )}

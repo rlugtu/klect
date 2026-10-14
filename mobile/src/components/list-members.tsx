@@ -3,6 +3,7 @@ import { ActivityIndicator, Alert, Pressable, Text, TextInput, View } from 'reac
 import { useFocusEffect } from 'expo-router';
 
 import { trpc } from '@/client/api';
+import { toast, errorMessage } from '@/client/toast';
 import { atHandle } from '@/lib/handle';
 import { useTheme } from '@/theme/theme-provider';
 import { THEME_TOKENS } from '@/theme/tokens';
@@ -11,10 +12,19 @@ type Members = Awaited<ReturnType<typeof trpc.sharing.members.query>>;
 type Invites = Awaited<ReturnType<typeof trpc.sharing.pendingInvites.query>>;
 type InviteRole = 'VIEWER' | 'COLLABORATOR';
 
+// Text-only row actions can't reach Apple's 44pt minimum from padding alone.
+const TAP_TARGET = { minHeight: 44, justifyContent: 'center' } as const;
+const ICON_TAP_TARGET = {
+  minHeight: 44,
+  minWidth: 44,
+  alignItems: 'center',
+  justifyContent: 'center',
+} as const;
+
 /**
  * The list's member roster. Rendered as the Members tab on the list screen and
  * shown to every member: the roster + roles are read-only for everyone, while
- * the invite form, per-row role/remove controls, and pending-request list are
+ * the invite form, per-row role/remove controls, and the sent-invite list are
  * owner-only. Non-owners get a "Leave list" action instead.
  */
 export default function ListMembers({
@@ -33,7 +43,10 @@ export default function ListMembers({
   const [invites, setInvites] = useState<Invites>([]);
   const [handle, setHandle] = useState('');
   const [inviteRole, setInviteRole] = useState<InviteRole>('VIEWER');
-  const [msg, setMsg] = useState<string | null>(null);
+  // Success and failure are tracked apart so a rejected invite can't render in the
+  // same neutral style as an accepted one.
+  const [okMsg, setOkMsg] = useState<string | null>(null);
+  const [errMsg, setErrMsg] = useState<string | null>(null);
   const [offerFriend, setOfferFriend] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [loaded, setLoaded] = useState(false);
@@ -54,7 +67,8 @@ export default function ListMembers({
   async function invite() {
     if (!listId || !handle.trim()) return;
     setBusy(true);
-    setMsg(null);
+    setOkMsg(null);
+    setErrMsg(null);
     setOfferFriend(null);
     try {
       const res = await trpc.sharing.invite.mutate({
@@ -62,45 +76,74 @@ export default function ListMembers({
         handle: handle.trim(),
         role: inviteRole,
       });
-      setMsg(res.success ?? res.error ?? null);
+      if (res.error) setErrMsg(res.error);
+      else setOkMsg(res.success ?? null);
       setOfferFriend(res.offerFriend?.handle ?? null);
       setHandle('');
       load();
     } catch (e) {
-      setMsg(e instanceof Error ? e.message : 'Invite failed');
+      setErrMsg(errorMessage(e, 'Invite failed'));
     }
     setBusy(false);
   }
 
   async function sendFriendRequest(friendHandle: string) {
     setOfferFriend(null);
+    setOkMsg(null);
+    setErrMsg(null);
     try {
       const res = await trpc.friends.sendRequest.mutate({ handle: friendHandle });
-      setMsg(res.success ?? res.error ?? null);
+      if (res.error) setErrMsg(res.error);
+      else setOkMsg(res.success ?? null);
     } catch (e) {
-      setMsg(e instanceof Error ? e.message : 'Request failed');
+      setErrMsg(errorMessage(e, 'Request failed'));
     }
   }
 
   async function toggleRole(userId: string, role: InviteRole) {
     if (!listId) return;
-    await trpc.sharing.changeRole.mutate({
-      listId,
-      userId,
-      role: role === 'VIEWER' ? 'COLLABORATOR' : 'VIEWER',
-    });
-    load();
+    try {
+      await trpc.sharing.changeRole.mutate({
+        listId,
+        userId,
+        role: role === 'VIEWER' ? 'COLLABORATOR' : 'VIEWER',
+      });
+      load();
+    } catch (e) {
+      toast.error(errorMessage(e, 'Could not change role'));
+    }
   }
 
-  async function remove(userId: string) {
-    if (!listId) return;
-    await trpc.sharing.removeMember.mutate({ listId, userId });
-    load();
+  function confirmRemove(userId: string, handle: string | null) {
+    Alert.alert(
+      `Remove ${atHandle(handle)}?`,
+      'They will lose access to this list. You can invite them again later.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Remove',
+          style: 'destructive',
+          onPress: async () => {
+            if (!listId) return;
+            try {
+              await trpc.sharing.removeMember.mutate({ listId, userId });
+              load();
+            } catch (e) {
+              toast.error(errorMessage(e, 'Could not remove member'));
+            }
+          },
+        },
+      ],
+    );
   }
 
   async function revoke(inviteId: string) {
-    await trpc.sharing.revokeInvite.mutate({ inviteId });
-    load();
+    try {
+      await trpc.sharing.revokeInvite.mutate({ inviteId });
+      load();
+    } catch (e) {
+      toast.error(errorMessage(e, 'Could not revoke invite'));
+    }
   }
 
   function leave() {
@@ -138,6 +181,11 @@ export default function ListMembers({
             {(['VIEWER', 'COLLABORATOR'] as InviteRole[]).map((r) => (
               <Pressable
                 key={r}
+                accessibilityRole="button"
+                accessibilityLabel={
+                  r === 'VIEWER' ? 'Invite as viewer' : 'Invite as collaborator'
+                }
+                accessibilityState={{ selected: inviteRole === r }}
                 onPress={() => setInviteRole(r)}
                 className={`flex-1 items-center rounded-skin border py-2 ${
                   inviteRole === r ? 'border-primary bg-primary' : 'border-border'
@@ -149,6 +197,8 @@ export default function ListMembers({
             ))}
           </View>
           <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Send invite"
             className="items-center rounded-skin bg-primary py-3"
             disabled={busy}
             onPress={invite}>
@@ -158,9 +208,12 @@ export default function ListMembers({
               <Text className="font-semibold text-primary-ink">Send invite</Text>
             )}
           </Pressable>
-          {msg && <Text className="text-muted">{msg}</Text>}
+          {okMsg && <Text className="text-success">{okMsg}</Text>}
+          {errMsg && <Text className="text-danger">{errMsg}</Text>}
           {offerFriend && (
             <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={`Send a friend request to @${offerFriend}`}
               className="items-center rounded-skin border-skin border-border py-2.5"
               onPress={() => sendFriendRequest(offerFriend)}>
               <Text className="text-primary">
@@ -185,13 +238,26 @@ export default function ListMembers({
               <Text className="text-xs text-muted">{m.role.toLowerCase()}</Text>
             </View>
             {isOwner && m.role !== 'OWNER' && (
-              <View className="flex-row items-center gap-3">
-                <Pressable onPress={() => toggleRole(m.user.id, m.role as InviteRole)}>
+              <View className="flex-row items-center gap-2">
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel={`${
+                    m.role === 'VIEWER' ? 'Make collaborator' : 'Make viewer'
+                  }: ${atHandle(m.user.handle)}`}
+                  onPress={() => toggleRole(m.user.id, m.role as InviteRole)}
+                  hitSlop={6}
+                  style={TAP_TARGET}
+                  className="rounded-skin-sm border-skin border-border px-3">
                   <Text className="text-xs text-primary">
                     {m.role === 'VIEWER' ? 'Make collab' : 'Make viewer'}
                   </Text>
                 </Pressable>
-                <Pressable onPress={() => remove(m.user.id)} hitSlop={8}>
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel={`Remove ${atHandle(m.user.handle)} from this list`}
+                  onPress={() => confirmRemove(m.user.id, m.user.handle)}
+                  hitSlop={6}
+                  style={ICON_TAP_TARGET}>
                   <Text className="text-danger">✕</Text>
                 </Pressable>
               </View>
@@ -202,7 +268,7 @@ export default function ListMembers({
 
       {isOwner && invites.length > 0 && (
         <View className="gap-2">
-          <Text className="text-sm uppercase text-muted">Pending requests</Text>
+          <Text className="text-sm uppercase text-muted">Sent invites</Text>
           {invites.map((inv) => (
             <View
               key={inv.id}
@@ -211,7 +277,13 @@ export default function ListMembers({
                 <Text className="text-base text-ink">{atHandle(inv.handle)}</Text>
                 <Text className="text-xs text-muted">{inv.role.toLowerCase()}</Text>
               </View>
-              <Pressable onPress={() => revoke(inv.id)} hitSlop={8}>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={`Revoke the invite to ${atHandle(inv.handle)}`}
+                onPress={() => revoke(inv.id)}
+                hitSlop={6}
+                style={TAP_TARGET}
+                className="rounded-skin-sm border-skin border-border px-3">
                 <Text className="text-danger">Revoke</Text>
               </Pressable>
             </View>
@@ -221,6 +293,8 @@ export default function ListMembers({
 
       {loaded && !isOwner && (
         <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Leave list"
           className="items-center rounded-skin border-skin border-border py-3"
           onPress={leave}>
           <Text className="font-semibold text-danger">Leave list</Text>

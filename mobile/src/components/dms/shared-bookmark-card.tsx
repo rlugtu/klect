@@ -41,6 +41,8 @@ export default function SharedBookmarkCard({
   const [saveOpen, setSaveOpen] = useState(false);
 
   const [lists, setLists] = useState<Memberships>([]);
+  // Kept apart from "loaded with zero lists" so a failed fetch can't read as an empty picker.
+  const [listsError, setListsError] = useState<string | null>(null);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [newListNames, setNewListNames] = useState<string[]>([]);
   const [newListsPublic, setNewListsPublic] = useState(false);
@@ -48,7 +50,13 @@ export default function SharedBookmarkCard({
 
   const openSave = useCallback(() => {
     setSaveOpen(true);
-    trpc.lists.mine.query().then(setLists).catch(() => {});
+    trpc.lists.mine
+      .query()
+      .then((res) => {
+        setLists(res);
+        setListsError(null);
+      })
+      .catch((e) => setListsError(errorMessage(e, 'Could not load your lists')));
   }, []);
 
   const count = selectedIds.length + newListNames.length;
@@ -113,12 +121,18 @@ export default function SharedBookmarkCard({
       )}
 
       <View className="mt-1 flex-row items-center justify-between">
-        <Pressable onPress={() => setExpanded((v) => !v)}>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={expanded ? 'Hide preview' : 'Show preview'}
+          accessibilityState={{ expanded }}
+          onPress={() => setExpanded((v) => !v)}>
           <Text className="font-sans text-xs text-muted underline">
             {expanded ? 'Hide preview' : 'Preview'}
           </Text>
         </Pressable>
         <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={`Save ${snapshot.name} to your lists`}
           className="rounded-skin bg-primary px-4 py-1.5"
           onPress={openSave}>
           <Text className="font-sans-semibold text-sm text-primary-ink">Save</Text>
@@ -131,16 +145,29 @@ export default function SharedBookmarkCard({
         animationType="slide"
         onRequestClose={() => setSaveOpen(false)}>
         <View className="flex-1 justify-end" style={{ backgroundColor: 'rgba(0,0,0,0.45)' }}>
-          <Pressable className="flex-1" onPress={() => setSaveOpen(false)} />
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Close save to lists"
+            className="flex-1"
+            onPress={() => setSaveOpen(false)}
+          />
           <View
             className="gap-3 rounded-t-3xl border-skin border-border bg-bg px-4 pt-4"
             style={{ paddingBottom: 16 + insets.bottom }}>
             <View className="flex-row items-center justify-between">
               <Text className="font-serif text-xl text-ink">Save to lists</Text>
-              <Pressable hitSlop={8} onPress={() => setSaveOpen(false)}>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="Cancel"
+                hitSlop={8}
+                onPress={() => setSaveOpen(false)}>
                 <Text className="font-sans-medium text-primary">Cancel</Text>
               </Pressable>
             </View>
+
+            {listsError && (
+              <Text className="font-sans text-sm text-danger">{listsError}</Text>
+            )}
 
             <ScrollView keyboardShouldPersistTaps="handled">
               <ListPicker
@@ -164,6 +191,10 @@ export default function SharedBookmarkCard({
             </ScrollView>
 
             <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={
+                count > 0 ? `Save to ${count} ${count === 1 ? 'list' : 'lists'}` : 'Save'
+              }
               className={`items-center rounded-skin py-3 ${
                 count === 0 || saving ? 'bg-muted/40' : 'bg-primary'
               }`}

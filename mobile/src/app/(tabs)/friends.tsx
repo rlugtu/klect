@@ -51,6 +51,7 @@ export default function FriendsScreen() {
   const [lists, setLists] = useState<Memberships>([]);
   const [handle, setHandle] = useState('');
   const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [loaded, setLoaded] = useState(false);
 
   const ownedLists = useMemo(
@@ -61,8 +62,11 @@ export default function FriendsScreen() {
   const load = useCallback(() => {
     trpc.friends.list
       .query()
-      .then(setData)
-      .catch(() => {})
+      .then((d) => {
+        setData(d);
+        setError(null);
+      })
+      .catch((e) => setError(errorMessage(e, 'Could not load friends')))
       .finally(() => setLoaded(true));
     trpc.lists.mine.query().then(setLists).catch(() => {});
     trpc.dms.unreadCount.query().then(setDmUnread).catch(() => {});
@@ -117,8 +121,15 @@ export default function FriendsScreen() {
     ]);
   }
 
-  const segmented = (
-    <SegmentedTabs tab={tab} onChange={setTab} unread={dmUnread} theme={theme} />
+  // Both tabs share this header, so the title tracks the active segment instead of
+  // appearing and disappearing (which would jump the layout on every switch).
+  const header = (
+    <View className="gap-3">
+      <Text className="font-serif text-3xl text-ink">
+        {tab === 'dms' ? 'Messages' : 'Friends'}
+      </Text>
+      <SegmentedTabs tab={tab} onChange={setTab} unread={dmUnread} theme={theme} />
+    </View>
   );
 
   return (
@@ -129,7 +140,7 @@ export default function FriendsScreen() {
       {tab === 'dms' ? (
         <DmInbox
           myId={myId}
-          header={segmented}
+          header={header}
           onScroll={onScroll}
           onCounts={setDmUnread}
         />
@@ -143,29 +154,42 @@ export default function FriendsScreen() {
             paddingBottom: 120,
             gap: 20,
           }}>
-          {segmented}
+          {header}
 
-        {/* Pending and Requests pushed to opposite edges so they read as a pair of
+        {/* Sent and Received pushed to opposite edges so they read as a pair of
             balanced actions rather than a left-packed cluster. */}
         <View className="flex-row items-center justify-between">
           <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={`Sent requests${
+              data.outgoing.length > 0 ? `, ${data.outgoing.length} awaiting a reply` : ''
+            }`}
             onPress={() => router.push('/pending-requests')}
             className="flex-row items-center gap-1.5 rounded-skin border-skin border-border bg-panel px-3 py-2">
             <Ionicons name="paper-plane-outline" size={16} color={muted} />
-            <Text className="font-sans-medium text-sm text-ink">Pending</Text>
+            <Text className="font-sans-medium text-sm text-ink">Sent</Text>
+            {/* Muted, not danger: your own outgoing requests are informational, with
+                nothing for you to act on. The tint is applied as hex alpha because
+                Tailwind drops `/opacity` modifiers on our var()-based color tokens. */}
             {data.outgoing.length > 0 && (
-              <View className="rounded-full bg-danger px-2 py-0.5">
-                <Text className="font-sans-semibold text-xs text-white">
+              <View
+                className="rounded-full px-2 py-0.5"
+                style={{ backgroundColor: `${t.muted}33` }}>
+                <Text className="font-sans-semibold text-xs text-muted">
                   {data.outgoing.length}
                 </Text>
               </View>
             )}
           </Pressable>
           <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={`Received requests${
+              data.incoming.length > 0 ? `, ${data.incoming.length} to review` : ''
+            }`}
             onPress={() => router.push('/friend-requests')}
             className="flex-row items-center gap-1.5 rounded-skin border-skin border-border bg-panel px-3 py-2">
             <Ionicons name="file-tray-outline" size={16} color={muted} />
-            <Text className="font-sans-medium text-sm text-ink">Requests</Text>
+            <Text className="font-sans-medium text-sm text-ink">Received</Text>
             {data.incoming.length > 0 && (
               <View className="rounded-full bg-danger px-2 py-0.5">
                 <Text className="font-sans-semibold text-xs text-white">
@@ -188,6 +212,8 @@ export default function FriendsScreen() {
             onChangeText={setHandle}
           />
           <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Send friend request"
             className="items-center rounded-skin bg-primary py-3"
             disabled={busy}
             onPress={addFriend}>
@@ -205,7 +231,8 @@ export default function FriendsScreen() {
 
         <View className="gap-2">
           <Text className="text-sm uppercase text-muted">Your friends</Text>
-          {loaded && data.friends.length === 0 && (
+          {error && <Text className="font-sans text-danger">{error}</Text>}
+          {loaded && !error && data.friends.length === 0 && (
             <Text className="font-serif-italic text-muted">
               No friends yet — add someone by @handle above.
             </Text>
@@ -251,6 +278,11 @@ function SegmentedTabs({
         return (
           <Pressable
             key={it.key}
+            accessibilityRole="button"
+            accessibilityLabel={`${it.label}${
+              it.key === 'dms' && unread > 0 ? `, ${unread} unread` : ''
+            }`}
+            accessibilityState={{ selected: on }}
             onPress={() => onChange(it.key)}
             className={`flex-1 flex-row items-center justify-center gap-2 rounded-skin-sm py-2.5 ${
               on ? 'bg-primary' : ''
@@ -369,6 +401,11 @@ function FriendCard({
       className="rounded-skin border-skin border-border bg-panel p-3">
       {/* The whole row is the toggle for the actions panel. */}
       <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={`${atHandle(friend.friend.handle)}, ${
+          open ? 'hide' : 'show'
+        } actions`}
+        accessibilityState={{ expanded: open }}
         className="flex-row items-center justify-between"
         onPress={togglePanel}>
         <View className="flex-1 pr-2">
@@ -389,12 +426,16 @@ function FriendCard({
           {/* Remove + View profile, above the add-to-lists section. */}
           <View className="flex-row gap-2">
             <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={`Remove ${atHandle(friend.friend.handle)} as a friend`}
               className="flex-1 flex-row items-center justify-center gap-1.5 rounded-skin border-skin border-border py-2.5"
               onPress={onRemove}>
               <Ionicons name="person-remove-outline" size={16} color={t.danger} />
               <Text className="font-sans-semibold text-danger">Remove</Text>
             </Pressable>
             <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={`View ${atHandle(friend.friend.handle)}'s profile`}
               className="flex-1 flex-row items-center justify-center gap-1.5 rounded-skin border-skin border-border py-2.5"
               onPress={viewProfile}>
               <Ionicons name="person-circle-outline" size={16} color={t.primary} />
@@ -428,6 +469,9 @@ function FriendCard({
                   return (
                     <Pressable
                       key={m.list.id}
+                      accessibilityRole="button"
+                      accessibilityLabel={`Add to ${m.list.name}`}
+                      accessibilityState={{ selected: on }}
                       onPress={() => toggle(m.list.id)}
                       className={`flex-row items-center gap-1.5 rounded-skin-sm border-skin px-2 py-1 ${
                         on ? 'border-primary bg-primary/20' : 'border-border bg-panel'
@@ -444,6 +488,11 @@ function FriendCard({
                 {(['VIEWER', 'COLLABORATOR'] as InviteRole[]).map((r) => (
                   <Pressable
                     key={r}
+                    accessibilityRole="button"
+                    accessibilityLabel={
+                      r === 'VIEWER' ? 'Invite as viewer' : 'Invite as collaborator'
+                    }
+                    accessibilityState={{ selected: role === r }}
                     onPress={() => setRole(r)}
                     className={`flex-1 items-center rounded-skin border py-1.5 ${
                       role === r ? 'border-primary bg-primary' : 'border-border'
@@ -456,6 +505,8 @@ function FriendCard({
                 ))}
               </View>
               <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="Send invites"
                 className={`items-center rounded-skin bg-primary py-2 ${
                   selected.length === 0 ? 'opacity-50' : ''
                 }`}
@@ -465,7 +516,7 @@ function FriendCard({
                   <ActivityIndicator color={THEME_TOKENS[theme].primaryInk} />
                 ) : (
                   <Text className="font-sans-semibold text-sm text-primary-ink">
-                    Send requests
+                    Send invites
                   </Text>
                 )}
               </Pressable>

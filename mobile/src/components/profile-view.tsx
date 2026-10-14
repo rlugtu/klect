@@ -47,6 +47,7 @@ export default function ProfileView({
 
   const [profile, setProfile] = useState<Profile | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [notFound, setNotFound] = useState(false);
   const [loading, setLoading] = useState(true);
   const [requested, setRequested] = useState(false);
   const [reportVisible, setReportVisible] = useState(false);
@@ -58,7 +59,12 @@ export default function ProfileView({
     setLoading(true);
     trpc.profile.get
       .query({ handleOrId })
-      .then(setProfile)
+      .then((p) => {
+        setProfile(p);
+        // An unknown handle resolves to null rather than throwing, so without this flag
+        // the screen would finish loading with no profile, no error, and nothing to show.
+        setNotFound(!p);
+      })
       .catch((e) => setError(e instanceof Error ? e.message : 'Request failed'))
       .finally(() => setLoading(false));
   }, [handleOrId]);
@@ -140,6 +146,11 @@ export default function ProfileView({
           <Text className="font-sans text-muted">Loading…</Text>
         )}
         {error && <Text className="font-sans text-danger">{error}</Text>}
+        {!loading && notFound && !error && (
+          <Text className="font-serif-italic text-muted">
+            User not found.
+          </Text>
+        )}
 
         {profile && (
           <>
@@ -175,6 +186,8 @@ export default function ProfileView({
             {/* Friend action */}
             {profile.friendship === 'none' && (
               <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={requested ? 'Request sent' : 'Add friend'}
                 disabled={requested}
                 onPress={addFriend}
                 className="items-center rounded-skin bg-primary py-3">
@@ -200,6 +213,8 @@ export default function ProfileView({
                   You blocked this user
                 </Text>
                 <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel={`Unblock ${name}`}
                   disabled={busy}
                   onPress={unblock}
                   className="rounded-skin border-skin border-border px-4 py-2">
@@ -213,6 +228,8 @@ export default function ProfileView({
               profile.friendship !== 'blocked' && (
                 <View className="flex-row justify-center gap-4">
                   <Pressable
+                    accessibilityRole="button"
+                    accessibilityLabel={`Block ${name}`}
                     disabled={busy}
                     onPress={confirmBlock}
                     className="flex-row items-center gap-1.5">
@@ -224,6 +241,8 @@ export default function ProfileView({
                     <Text className="font-sans text-sm text-muted">Block</Text>
                   </Pressable>
                   <Pressable
+                    accessibilityRole="button"
+                    accessibilityLabel={`Report ${name}`}
                     onPress={() => setReportVisible(true)}
                     className="flex-row items-center gap-1.5">
                     <Ionicons
@@ -252,6 +271,11 @@ export default function ProfileView({
                 profile.publicLists.map((list) => (
                   <Pressable
                     key={list.id}
+                    accessibilityRole="button"
+                    accessibilityLabel={`${list.name}, ${plural(
+                      list._count.bookmarks,
+                      'bookmark',
+                    )}`}
                     onPress={() =>
                       router.push({
                         pathname: '/lists/[id]',
@@ -276,6 +300,7 @@ export default function ProfileView({
       </Animated.ScrollView>
       {frostedStatusBar && profile?.friendship === 'self' && (
         <Pressable
+          accessibilityRole="button"
           accessibilityLabel="Settings"
           hitSlop={8}
           onPress={() => router.push('/settings')}

@@ -40,6 +40,8 @@ export default function ShareBookmarkScreen() {
 
   const [friends, setFriends] = useState<Friend[]>([]);
   const [loaded, setLoaded] = useState(false);
+  // Kept apart from "loaded with zero friends" so a failed fetch can't read as an empty list.
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [selected, setSelected] = useState<string[]>([]);
   const [caption, setCaption] = useState('');
   const [sending, setSending] = useState(false);
@@ -62,8 +64,11 @@ export default function ShareBookmarkScreen() {
     useCallback(() => {
       trpc.friends.list
         .query()
-        .then((d) => setFriends(d.friends))
-        .catch(() => {})
+        .then((d) => {
+          setFriends(d.friends);
+          setLoadError(null);
+        })
+        .catch((e) => setLoadError(errorMessage(e, 'Could not load your friends')))
         .finally(() => setLoaded(true));
     }, []),
   );
@@ -118,7 +123,9 @@ export default function ShareBookmarkScreen() {
           }}>
         <Text className="font-serif text-3xl text-ink">Send to…</Text>
 
-        {loaded && friends.length === 0 && (
+        {loadError && <Text className="font-sans text-danger">{loadError}</Text>}
+
+        {loaded && !loadError && friends.length === 0 && (
           <Text className="font-serif-italic text-muted">
             Add friends to share bookmarks with them.
           </Text>
@@ -129,6 +136,9 @@ export default function ShareBookmarkScreen() {
           return (
             <Pressable
               key={f.friendshipId}
+              accessibilityRole="button"
+              accessibilityLabel={`Send to ${atHandle(f.friend.handle)}`}
+              accessibilityState={{ selected: on }}
               style={cardShadow}
               onPress={() => toggle(f.friend.id)}
               className={`flex-row items-center gap-3 rounded-skin border-skin p-4 ${
@@ -155,6 +165,10 @@ export default function ShareBookmarkScreen() {
           onChangeText={setCaption}
         />
         <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={
+            selected.length > 1 ? `Send to ${selected.length} friends` : 'Send'
+          }
           className={`flex-row items-center justify-center gap-2 rounded-skin py-3 ${
             selected.length === 0 || sending ? 'bg-muted/40' : 'bg-primary'
           }`}
