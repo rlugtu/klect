@@ -10,6 +10,7 @@
     "ios": {
       "bundleIdentifier": "com.klect.app",
       "associatedDomains": ["applinks:klect.vercel.app"],
+      "usesAppleSignIn": true,
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false
       },

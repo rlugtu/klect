@@ -29,6 +29,17 @@ export const auth = betterAuth({
       clientId: process.env.GOOGLE_CLIENT_ID as string,
       clientSecret: process.env.GOOGLE_CLIENT_SECRET as string,
     },
+    // iOS-only, and native-only (App Store Guideline 4.8 requires it alongside Google;
+    // there's deliberately no Apple button on web). The app calls /sign-in/social with
+    // Apple's `idToken`, so the server takes better-auth's verifyIdToken path, which checks
+    // the token's `aud` claim against `appBundleIdentifier`. No Apple client secret /
+    // Services ID / signing key is needed: those are only consumed by createAuthorizationURL,
+    // the web redirect flow, which nothing triggers. `clientId` is required by the type but
+    // unused on this path, so the Bundle ID stands in for it.
+    apple: {
+      clientId: "com.klect.app",
+      appBundleIdentifier: "com.klect.app",
+    },
   },
   // No signup hook to auto-join invited users: list invites are now request-based, so
   // a new user's PENDING invites (keyed by their email) surface as "collab requests" on

@@ -73,6 +73,14 @@ function skinFor(name: ThemeName) {
 }
 
 /**
+ * The `rounded-skin` radius as a plain number, for native components that take a numeric
+ * prop instead of a className (Apple's `AppleAuthenticationButton` cornerRadius).
+ */
+export function radiusFor(name: ThemeName) {
+  return parseInt(skinFor(name).radius, 10);
+}
+
+/**
  * Per-family fonts. Values are loaded font-family names (see _layout.tsx `useFonts`);
  * RN doesn't synthesize weights, so each weight is its own family. Modern uses Geist
  * (sleek all-sans — titles + body); Journal/Pixel keep Newsreader titles + Work Sans.
