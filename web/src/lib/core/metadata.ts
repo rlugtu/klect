@@ -7,18 +7,22 @@ import { cached } from "@/lib/core/cache";
 import { searchPlaces, retrievePlace } from "@/lib/core/places";
 
 /**
- * Link unfurl for bookmark autofill. Auth-gated by the caller. Runs in two phases
- * so the UI can fill fast then enrich:
- *   - Phase 1, {@link getLinkExtraction}: fetch the page ONCE ourselves (SSRF-guarded)
- *     and read OG/meta → title/description/images/video. Falls back to LinkPreview →
- *     Microlink when the self-fetch is blocked/empty; YouTube uses its own oEmbed.
- *     No LLM. Fast.
- *   - Phase 2, {@link getLinkComprehension}: from the same (cached) fetch, take a
- *     JSON-LD fast path when structured data is present (no LLM), else run Claude on
- *     the readable text (YouTube: the video description). Then geocode the location.
+ * Link unfurl for bookmark autofill. Auth-gated by the caller. Two stages, which the
+ * clients run CONCURRENTLY rather than surface as two visible steps:
+ *   - {@link getLinkExtraction}: fetch the page ONCE ourselves (SSRF-guarded) and read
+ *     OG/meta → title/description/images/video. Falls back to LinkPreview → Microlink
+ *     when the self-fetch is blocked/empty; YouTube uses its own oEmbed. No LLM. Fast.
+ *   - {@link getLinkComprehension}: from the same (cached) fetch, take a JSON-LD fast
+ *     path when structured data is present (no LLM), else run Claude on the readable
+ *     text (YouTube: the video description). Then geocode the location. Slow.
  *
- * Both phases are cached + coalesced by URL (see cache.ts); Phase 2 reuses Phase 1's
- * page fetch. {@link fetchLinkMetadata} composes both for one-shot callers.
+ * Both are cached + coalesced by URL (see cache.ts), which is what makes running them
+ * at once safe: comprehension's own internal extraction call joins the SAME in-flight
+ * promise as a parallel extraction call, so it stays one page fetch and one unfurl,
+ * not two. {@link fetchLinkMetadata} is the path the clients take — it starts both
+ * together and bounds comprehension with {@link COMPREHENSION_TIMEOUT_MS}, so latency
+ * is max(extraction, comprehension) and the form fills once instead of filling and
+ * then visibly changing again a moment later.
  */
 
 export type LinkMetadata = {
@@ -29,7 +33,7 @@ export type LinkMetadata = {
   publisher: string | null;
   sourceUrl: string;
   video: DetectedVideo | null;
-  // Phase-2 (comprehension) fields; empty/null until comprehension runs.
+  // Comprehension fields; empty/null when comprehension found nothing (or timed out).
   tags: string[];
   location: string | null;
   latitude: number | null;
@@ -40,7 +44,7 @@ export type MetadataResult =
   | { ok: true; data: LinkMetadata }
   | { ok: false; error: string; sourceUrl: string };
 
-/** Phase-2 patch: the comprehension-only fields, layered onto an extraction. */
+/** The comprehension-only fields, layered onto an extraction. */
 export type LinkComprehension = {
   title: string | null;
   description: string | null;
@@ -60,6 +64,11 @@ const EMPTY_COMPREHENSION: LinkComprehension = {
 };
 
 const CACHE_TTL_MS = 15 * 60 * 1000; // 15 min
+
+// How long {@link fetchLinkMetadata} waits on comprehension before answering with
+// extraction only. Sized to cover the JSON-LD fast path and a normal Haiku call plus
+// geocode, and to cut off the tail rather than make the user watch it.
+const COMPREHENSION_TIMEOUT_MS = 5000;
 
 function normalizeUrl(raw: string): string {
   const trimmed = raw.trim();
@@ -297,7 +306,7 @@ function fromPage(page: PageData, url: string): MetadataResult {
   }) };
 }
 
-/** Phase 1: extraction only. Cached + coalesced by URL. No LLM. */
+/** Extraction only: OG/meta via self-fetch or an unfurler. Cached + coalesced by URL. No LLM. */
 export async function getLinkExtraction(rawUrl: string): Promise<MetadataResult> {
   const url = normalizeUrl(rawUrl);
   if (!isHttpUrl(url)) return { ok: false, error: "Enter a valid http(s) URL.", sourceUrl: rawUrl };
@@ -355,7 +364,7 @@ async function geocodeLocation(
   }
 }
 
-/** Phase 2: comprehension (JSON-LD fast path or LLM) + geocode. Cached by URL. */
+/** Comprehension (JSON-LD fast path or LLM) + geocode. Cached by URL. */
 export async function getLinkComprehension(rawUrl: string): Promise<LinkComprehension> {
   const url = normalizeUrl(rawUrl);
   if (!isHttpUrl(url)) return EMPTY_COMPREHENSION;
@@ -368,7 +377,7 @@ async function comprehend(url: string): Promise<LinkComprehension> {
   const data = extraction.data;
 
   // Social is Microlink-only (login-walled) — no useful self-fetch. Everything
-  // else (incl. YouTube now) fetches the page once (cached, shared with Phase 1).
+  // else (incl. YouTube now) fetches the page once (cached, shared with extraction).
   const page = isSocialVideo(url) ? null : await cachedFetchPage(url);
 
   // F/I — JSON-LD fast path: deterministic, no LLM. Only when it yields real
@@ -421,17 +430,59 @@ async function comprehend(url: string): Promise<LinkComprehension> {
 }
 
 /**
- * One-shot unfurl = extraction then comprehension merged. Back-compat for callers
- * that want a single call; the clients prefer the two-phase pair for perceived speed.
+ * Comprehension bounded by {@link COMPREHENSION_TIMEOUT_MS}: resolves to
+ * EMPTY_COMPREHENSION if the budget runs out, which reads to the caller the same as
+ * "comprehension had nothing to add". The underlying call is NOT cancelled — it keeps
+ * running and populates the cache, so a retry or the next paste of the same URL gets
+ * the full result for free (best-effort: a serverless instance may be frozen first).
+ *
+ * The `.catch()` is belt-and-braces. Comprehension swallows its own errors today, but
+ * a reject here must still degrade to extraction-only rather than fail the unfurl.
+ *
+ * The budget is measured from the start of the unfurl, not from when extraction lands.
+ * Comprehension awaits extraction internally, so a slow page eats into it on purpose:
+ * it keeps the whole operation bounded by max(extraction, COMPREHENSION_TIMEOUT_MS)
+ * instead of letting a slow page and a slow LLM stack up on the user.
+ */
+function comprehensionWithinBudget(rawUrl: string): Promise<LinkComprehension> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const budget = new Promise<LinkComprehension>((resolve) => {
+    timer = setTimeout(() => {
+      console.warn(
+        `[link-metadata] comprehension exceeded ${COMPREHENSION_TIMEOUT_MS}ms, ` +
+          `answering with extraction only: ${rawUrl}`,
+      );
+      resolve(EMPTY_COMPREHENSION);
+    }, COMPREHENSION_TIMEOUT_MS);
+  });
+
+  return Promise.race([getLinkComprehension(rawUrl), budget])
+    .catch(() => EMPTY_COMPREHENSION)
+    .finally(() => clearTimeout(timer));
+}
+
+/**
+ * One-shot unfurl: extraction and comprehension merged. This is what both clients call.
+ *
+ * Both start together — no await between them — so the cost is max(extraction,
+ * comprehension), not the sum. That's safe because comprehension calls
+ * {@link getLinkExtraction} itself and `cached()` coalesces in-flight calls by key:
+ * the two extractions are one execution, so no duplicate page fetch, no duplicate
+ * LinkPreview/Microlink spend, no doubled rate-limit pressure.
+ *
+ * Extraction decides the outcome. A failed extraction returns immediately and whatever
+ * comprehension produces is discarded — a clear error shouldn't wait on a slow LLM.
  */
 export async function fetchLinkMetadata(rawUrl: string): Promise<MetadataResult> {
+  const comprehension = comprehensionWithinBudget(rawUrl);
+
   const extraction = await getLinkExtraction(rawUrl);
   if (!extraction.ok) {
     console.warn(`[link-metadata] result for ${rawUrl}:`, { ok: false, error: extraction.error });
     return extraction;
   }
 
-  const c = await getLinkComprehension(rawUrl);
+  const c = await comprehension;
   // Clone so we never mutate the cached extraction object.
   const data: LinkMetadata = { ...extraction.data };
   if (c.title) data.title = c.title;

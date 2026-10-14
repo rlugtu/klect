@@ -60,16 +60,16 @@ Run these from `web/` (the app no longer lives at the repo root).
   documents them. `MAPBOX_TOKEN` must also be set in the deploy host's env (not just local). These
   secrets stay **only in web** — mobile reaches Mapbox/Microlink/Anthropic capabilities through
   tRPC procedures, so no keys ship in the app.
-- Link autofill (`core/metadata.ts`, `[link-metadata]` log) is a **two-phase** pipeline so the UI
-  fills fast then enriches. **Phase 1 — extraction** (`getLinkExtraction`, `metadata.extract`):
-  we fetch the page **once ourselves** (`core/page-text.ts` `fetchPage`, `[page-text]` log) and read
-  OG/meta → title/description/image + `detectVideo`; this **warms a shared page cache** (`core/cache.ts`).
-  Falls back to **LinkPreview** (`LINKPREVIEW_API_KEY`) → **Microlink** (free tier, IP-rate-limited)
-  only when the self-fetch is blocked/empty; YouTube still uses oEmbed; social reels
-  (Instagram/Facebook/TikTok, `isSocialVideo`) still prefer Microlink first (better caption coverage).
-  No LLM — returns immediately. **Phase 2 — comprehension** (`getLinkComprehension`,
-  `metadata.comprehend`, non-blocking): from the same cached fetch it first tries a **JSON-LD fast
-  path** (`core/structured-data.ts`, `structuredDataFromJsonLd`) — schema.org
+- Link autofill (`core/metadata.ts`, `[link-metadata]` log) has two stages that run
+  **concurrently**, behind the single `fetchLinkMetadata` / `metadata.fetch` call both clients make.
+  **Extraction** (`getLinkExtraction`): we fetch the page **once ourselves** (`core/page-text.ts`
+  `fetchPage`, `[page-text]` log) and read OG/meta → title/description/image + `detectVideo`; this
+  **warms a shared page cache** (`core/cache.ts`). Falls back to **LinkPreview**
+  (`LINKPREVIEW_API_KEY`) → **Microlink** (free tier, IP-rate-limited) only when the self-fetch is
+  blocked/empty; YouTube still uses oEmbed; social reels (Instagram/Facebook/TikTok, `isSocialVideo`)
+  still prefer Microlink first (better caption coverage). No LLM — fast.
+  **Comprehension** (`getLinkComprehension`): from the same cached fetch it first tries a **JSON-LD
+  fast path** (`core/structured-data.ts`, `structuredDataFromJsonLd`) — schema.org
   Recipe/HowTo/Event/Product/LocalBusiness parsed straight into `{heading, items}` detail sections,
   **no LLM**; otherwise runs `comprehendMetadata` (`core/comprehend.ts`, `claude-haiku-4-5`,
   `[comprehend]` log) on the readable text (for **YouTube**, the video's `og:description`), cleaning
@@ -78,15 +78,19 @@ Run these from `web/` (the app no longer lives at the repo root).
   **geocoded** (`searchPlaces`→`retrievePlace`, shared session token) into `latitude`/`longitude` on
   `LinkComprehension`, so autofilled bookmarks appear in **Near me**. `fetchPage` is **SSRF-guarded**
   (http(s) only; rejects hosts resolving to private/loopback/link-local IPs; manual redirects
-  re-validated per hop; timeout + html-only + byte cap). Both phases are **cached + coalesced by URL**
-  (in-memory, per-instance/ephemeral on serverless — dedupes double-taps + fan-out + warm repeats).
-  Both clients call `metadata.extract` then `metadata.comprehend` and patch phase-2 fields in as they
-  land (web reuses the `BookmarkForm` seed+remount; mobile fills-when-empty with an "Enhancing…" row).
+  re-validated per hop; timeout + html-only + byte cap). Both stages are **cached + coalesced by URL**
+  (in-memory, per-instance/ephemeral on serverless — dedupes double-taps + fan-out + warm repeats),
+  and that coalescing is **why starting both at once is free**: comprehension awaits
+  `getLinkExtraction` itself, so it joins the same in-flight promise instead of refetching. Latency is
+  the slower stage, not the sum, and comprehension is capped at `COMPREHENSION_TIMEOUT_MS` (5s) —
+  past that `fetchLinkMetadata` answers with extraction-only data and leaves comprehension running to
+  warm the cache. **Don't go back to awaiting them in sequence**: that's the old design, and it made
+  the form fill and then visibly rewrite itself a moment later. `metadata.extract` /
+  `metadata.comprehend` are still exposed as the individual stages, but no UI calls them.
   Everything degrades gracefully: no `ANTHROPIC_API_KEY` → JSON-LD/raw metadata only, no
   `Link Summary:`; no `LINKPREVIEW_API_KEY` → self-fetch/Microlink. Social reel captions are still
   often truncated/login-walled — reliable reel extraction needs a social-scraper API
-  (`SOCIAL_SCRAPER_TOKEN` / `comprehend.caption` stubbed, not wired). `metadata.fetch` still composes
-  both phases for one-shot callers.
+  (`SOCIAL_SCRAPER_TOKEN` / `comprehend.caption` stubbed, not wired).
 - Location field is a **Mapbox Search Box** autocomplete (`lib/actions/places.ts`, proxied
   server-side, `[places]` log prefix, `proximity=ip` bias). It's two-step: `searchPlaces`
   (/suggest) returns coordinate-less suggestions, `retrievePlace` (/retrieve) resolves the

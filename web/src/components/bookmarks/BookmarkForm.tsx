@@ -10,7 +10,7 @@ import { RatingInput } from "./RatingInput";
 import { VisitedField } from "./VisitedField";
 import { TagInput } from "./TagInput";
 import { LocationInput } from "./LocationInput";
-import { fetchLinkExtraction, fetchLinkComprehension } from "@/lib/actions/metadata";
+import { fetchLinkMetadata } from "@/lib/actions/metadata";
 import type { RetrievedPlace } from "@/lib/actions/places";
 
 export type BookmarkDefaults = {
@@ -65,12 +65,11 @@ export function BookmarkForm({
   const [videoType, setVideoType] = useState(defaults?.videoType ?? "");
 
   const [link, setLink] = useState("");
-  const [loading, setLoading] = useState(false); // phase 1 (blocking)
-  const [enhancing, setEnhancing] = useState(false); // phase 2 (non-blocking)
+  const [loading, setLoading] = useState(false); // covers the whole unfurl
   const [error, setError] = useState<string | null>(null);
 
   // TagInput / LocationInput are self-managed (seeded from their defaults), so we
-  // push comprehension-suggested tags/location by re-seeding + remounting via `key`.
+  // push autofilled tags/location by re-seeding + remounting via `key`.
   const [seedTags, setSeedTags] = useState<string[]>(defaults?.tags ?? []);
   const [tagKey, setTagKey] = useState(0);
   const [seedLocation, setSeedLocation] = useState(defaults?.location ?? "");
@@ -89,40 +88,17 @@ export function BookmarkForm({
     });
   }
 
-  // Layer comprehension (tags/location/coords + refined title/description) onto the
-  // form. Runs after extraction, non-blocking; re-seeds the self-managed children.
-  async function enhance(target: string, { reseedLocation }: { reseedLocation: boolean }) {
-    setEnhancing(true);
-    try {
-      const c = await fetchLinkComprehension(target);
-      if (c.title) setName(c.title);
-      if (c.description) setDescription(c.description);
-      if (c.tags.length) {
-        setSeedTags(c.tags);
-        setTagKey((k) => k + 1);
-      }
-      // Only reseed location for a link unfurl — a picked place already set it.
-      if (reseedLocation && c.location) {
-        setSeedLocation(c.location);
-        setSeedLat(c.latitude); // real coords now (geocoded), or null
-        setSeedLon(c.longitude);
-        setLocKey((k) => k + 1);
-      }
-    } finally {
-      setEnhancing(false);
-    }
-  }
-
+  // One unfurl, one fill. The server runs extraction and comprehension concurrently
+  // (see core/metadata.ts), so there's no second pass that visibly rewrites the form.
   async function autofill() {
     const target = link.trim();
     if (!target || loading) return;
     setLoading(true);
     setError(null);
 
-    // Phase 1 — fast extraction; fill the visible fields and drop the overlay.
-    const result = await fetchLinkExtraction(target);
+    const result = await fetchLinkMetadata(target);
     setLoading(false);
-    console.log("[autofill] link:", target, "→ extraction:", result);
+    console.log("[autofill] link:", target, "→", result);
 
     // Always keep the original source link, even on failure.
     addSourceUrl(result.ok ? result.data.sourceUrl : result.sourceUrl);
@@ -142,15 +118,23 @@ export function BookmarkForm({
       setVideoUrl(d.video.url);
       setVideoType(d.video.type);
     }
+    if (d.tags.length) {
+      setSeedTags(d.tags);
+      setTagKey((k) => k + 1);
+    }
+    if (d.location) {
+      setSeedLocation(d.location);
+      setSeedLat(d.latitude); // geocoded coords, or null when geocoding found nothing
+      setSeedLon(d.longitude);
+      setLocKey((k) => k + 1);
+    }
     setLink("");
-
-    // Phase 2 — comprehension, in the background.
-    await enhance(target, { reseedLocation: true });
   }
 
   // Autofill the bookmark when a business is picked in the Location field. Each pick overwrites
   // the managed fields to reflect the newly-picked business (name/url/description/images/video),
-  // then enriches from the website unfurl when present. Location/coords are set by LocationInput.
+  // then fills the rest from the website unfurl when present. Location/coords are set by
+  // LocationInput, so this path takes tags from the unfurl but leaves location alone.
   async function handleLocationAutofill(place: RetrievedPlace) {
     if (!place.isPoi) return; // plain address — location only, unchanged behavior
 
@@ -165,7 +149,7 @@ export function BookmarkForm({
     if (!place.website) return;
 
     setLoading(true);
-    const result = await fetchLinkExtraction(place.website);
+    const result = await fetchLinkMetadata(place.website);
     setLoading(false);
     if (!result.ok) return; // keep the basics set above
 
@@ -177,9 +161,10 @@ export function BookmarkForm({
       setVideoUrl(d.video.url);
       setVideoType(d.video.type);
     }
-
-    // Phase 2 — enrich description/tags (location already set by the picked place).
-    await enhance(place.website, { reseedLocation: false });
+    if (d.tags.length) {
+      setSeedTags(d.tags);
+      setTagKey((k) => k + 1);
+    }
   }
 
   return (
@@ -222,15 +207,6 @@ export function BookmarkForm({
             </PixelButton>
           </div>
           {error && <p className="text-danger text-sm">{error}</p>}
-          {enhancing && (
-            <p className="text-muted flex items-center gap-2 text-sm">
-              <span
-                aria-hidden
-                className="border-border border-t-primary size-3 animate-spin rounded-full border-2"
-              />
-              ✨ Enhancing details…
-            </p>
-          )}
         </div>
 
         {/* divider */}

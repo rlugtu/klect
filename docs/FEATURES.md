@@ -181,7 +181,7 @@ never trapped on the wrong screen.
 | Home search | ⚠️ | ⚠️ | Web: unified list + cross-list tag filter · Mobile: local name search |
 | Bookmarks — CRUD & fields | ✅ | ✅ | URLs, images, notes, rating, visited, location, tags |
 | Standalone multi-list bookmark create | ✅ | ✅ | One independent copy per selected list |
-| Link metadata autofill | ✅ | ✅ | Paste URL → two-phase: self-fetch/LinkPreview extract (fast) then JSON-LD/LLM comprehension + geocode → clean name/description/tags/location/coords/images/video |
+| Link metadata autofill | ✅ | ✅ | Paste URL → one call, two stages run concurrently server-side: self-fetch/LinkPreview extract + JSON-LD/LLM comprehension & geocode (capped at 5s) → clean name/description/tags/location/coords/images/video, filled in one pass |
 | Location autocomplete + business autofill | ✅ | ✅ | Mapbox Search Box |
 | Video detection & player | ⚠️ | ⚠️ | Web iframe click-to-play · Mobile `expo-video` + WebView |
 | Tags (user-scoped, auto-colored, OR filter) | ✅ | ✅ | Per-list filter: web dropdown · mobile bottom sheet. Collaborators can remove a tag from the whole list (list-scoped, `tags.removeFromList`) |
@@ -206,7 +206,7 @@ never trapped on the wrong screen.
 | Send feedback | ✅ | ✅ | Settings → Send feedback; category (bug/idea/other) + message → `Feedback` table (`feedback.submit`) |
 | Toast notifications | ✅ | ✅ | Non-intrusive confirmation/error toasts with a 3s countdown bar + type colors (success/error/info); web bottom-right/top-center · mobile top, swipe-to-dismiss + haptics |
 | PWA install | ✅ | ➖ | Web-only (mobile is a native app) |
-| AI caption extraction | ➖ | ➖ | **Backend only, no UI on either platform.** The `comprehend.caption` procedure and web's `comprehendCaption` server action exist (Claude-backed), but nothing calls either, so there is no paste-a-caption input anywhere. Distinct from the shipped *link* autofill, which uses `metadata.comprehend` |
+| AI caption extraction | ➖ | ➖ | **Backend only, no UI on either platform.** The `comprehend.caption` procedure and web's `comprehendCaption` server action exist (Claude-backed), but nothing calls either, so there is no paste-a-caption input anywhere. Distinct from the shipped *link* autofill, which reaches Claude through `metadata.fetch` |
 
 ---
 
@@ -335,21 +335,25 @@ lists (so a long list of lists never floods the form). Same picker is reused by 
 **Description.** Paste a link and the bookmark auto-fills with clean, readable fields — a
 tidied name, a `Link Summary:`-prefixed description that also breaks out vital details
 (Ingredients, Steps, Hours, Event Details, …) when the page has them, up to 3 suggested tags, and
-an inferred + geocoded location — plus images and a detected playable video. It fills in **two
-phases** so the visible fields appear fast (~1–2s) and the richer details patch in a moment later.
-**Web / Mobile.** Both call **`metadata.extract`** (Phase 1) then **`metadata.comprehend`** (Phase 2).
-Phase 1 fetches the page **once** server-side (`core/page-text.ts` `fetchPage`, SSRF-guarded) for
-OG/meta → name/description/image + `detectVideo`, falling back to **LinkPreview → Microlink** when
-blocked (YouTube via oEmbed; social reels prefer Microlink). Phase 2 takes a **JSON-LD fast path**
-(`structuredDataFromJsonLd` — recipes/events/products/places, no LLM) or else `comprehendMetadata`
-(`claude-haiku-4-5`) on the readable text (YouTube: the video description), then **geocodes** the
-location to coordinates (so it shows in Near me). Both phases are cached + coalesced by URL. Web: the
-loading overlay drops after Phase 1, then an "Enhancing…" indicator while Phase 2 patches via
-seed+remount. Mobile: manual button **and** auto-trigger when opened with a `?url=` param (e.g. from
-a share); Phase 2 fills-when-empty with an inline "Enhancing…" row. Both keys are optional — autofill
-degrades to JSON-LD/raw metadata when unset. (`metadata.fetch` still does both in one call.)
-**Differences.** Mobile auto-fires autofill on mount for shared URLs and fills Phase-2
-tags/location only when empty (web overwrites via remount); otherwise identical.
+an inferred + geocoded location — plus images and a detected playable video. The form fills **once**,
+in a single pass: there's no second visible step that rewrites what you were just shown.
+**Web / Mobile.** Both call **`metadata.fetch`** once. Server-side it runs two stages
+**concurrently**: **extraction** fetches the page **once** (`core/page-text.ts` `fetchPage`,
+SSRF-guarded) for OG/meta → name/description/image + `detectVideo`, falling back to **LinkPreview →
+Microlink** when blocked (YouTube via oEmbed; social reels prefer Microlink); **comprehension** takes
+a **JSON-LD fast path** (`structuredDataFromJsonLd` — recipes/events/products/places, no LLM) or else
+`comprehendMetadata` (`claude-haiku-4-5`) on the readable text (YouTube: the video description), then
+**geocodes** the location to coordinates (so it shows in Near me). Both stages are cached + coalesced
+by URL, so comprehension's internal extraction call joins the same in-flight promise — running them
+together costs one page fetch, not two, and total latency is the slower of the two rather than their
+sum. Comprehension is capped at `COMPREHENSION_TIMEOUT_MS` (5s); past that the response carries
+extraction-only data while comprehension finishes in the background and warms the cache for next
+time. Web: one loading overlay for the whole unfurl, then tags/location land via seed+remount.
+Mobile: manual button **and** auto-trigger when opened with a `?url=` param (e.g. from a share).
+Both keys are optional — autofill degrades to JSON-LD/raw metadata when unset. (`metadata.extract`
+and `metadata.comprehend` remain exposed as the individual stages; neither client calls them.)
+**Differences.** Mobile auto-fires autofill on mount for shared URLs and fills tags/location only
+when empty (web overwrites via remount); otherwise identical.
 
 ### Location autocomplete + business autofill
 **Description.** Type-ahead for addresses and businesses (POIs). Picking a plain address stores the
@@ -641,7 +645,7 @@ Light, mobile follows the system light/dark setting between Modern Light and Mod
 **Description.** Share a URL into Klect from any other app's native share sheet to save a bookmark —
 filled out and saved **inside the share sheet**, without opening the app.
 **Mobile.** `expo-share-extension` (iOS only) renders the full `BookmarkForm` + list picker in the
-share sheet (auto-autofill on mount, two-phase via `metadata.extract` + `metadata.comprehend`),
+share sheet (auto-autofill on mount, one `metadata.fetch` call),
 saving through `bookmarks.createInLists`. Auth uses
 a bearer token read from the shared keychain; if none is present it prompts to open Klect and sign in.
 The drawer stays responsive throughout: on-mount autofill is **non-blocking** — the loading state is
@@ -697,9 +701,8 @@ tRPC procedure (`src/server/trpc/routers/external.ts`) and the `comprehendCaptio
 action or calls the procedure, so there is no paste-a-caption input in the web app.
 **Mobile.** ➖ No mobile screen calls it either.
 **Differences.** None in practice, since it is unreachable from both UIs. Not to be confused with the shipped
-**link** autofill, which calls `metadata.extract` + `metadata.comprehend` and reaches the same core
-module through a different function (`comprehendMetadata`); caption-only comprehension is the unused
-part.
+**link** autofill, which calls `metadata.fetch` and reaches the same core module through a different
+function (`comprehendMetadata`); caption-only comprehension is the unused part.
 
 ### Toast notifications
 **Description.** Lightweight, non-intrusive confirmations (and clearer error reporting) that appear

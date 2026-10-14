@@ -29,19 +29,21 @@ export const placesRouter = router({
 });
 
 export const metadataRouter = router({
-  // Phase 1 — fast extraction (no LLM). Clients call this first.
+  // Extraction only — fast, no LLM. One of the two underlying pieces of `fetch`,
+  // still exposed for anything that wants the cheap half on its own.
   extract: protectedProcedure
     .input(z.object({ url: z.string() }))
     .query(({ input }) => getLinkExtraction(input.url)),
 
-  // Phase 2 — comprehension (JSON-LD / LLM) + geocode. Clients call this after
-  // extract to patch tags/location/coords/details into the form.
+  // Comprehension only (JSON-LD / LLM) + geocode: tags/location/coords/details.
+  // The other underlying piece of `fetch`, likewise still exposed on its own.
   comprehend: protectedProcedure
     .input(z.object({ url: z.string() }))
     .query(({ input }) => getLinkComprehension(input.url)),
 
-  // One-shot (extraction + comprehension merged). Kept for callers that want a
-  // single round trip.
+  // The autofill path both clients use: extraction + comprehension run concurrently
+  // server-side (comprehension bounded by a timeout) and merged, so the form fills
+  // once in a single round trip.
   fetch: protectedProcedure
     .input(z.object({ url: z.string() }))
     .query(({ input }) => fetchLinkMetadata(input.url)),

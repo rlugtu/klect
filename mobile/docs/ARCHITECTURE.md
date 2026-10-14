@@ -438,9 +438,10 @@ modal with `router.back()` (or `router.dismissAll()` after leaving a list).
 
 ### The shared `BookmarkForm` (`components/bookmark-form.tsx`)
 
-Reusable editor for create + edit. Surfaces a URL with **Autofill** (`metadata.fetch` unfurls
-title/description/images **and any detected `video`**, stored as `videoUrl`/`videoType` so the detail
-player has data), a **location search** (`LocationInput`), name, description, comma-separated tags,
+Reusable editor for create + edit. Surfaces a URL with **Autofill** — **one** `metadata.fetch` call
+that unfurls title/description/images/tags/location **and any detected `video`** (stored as
+`videoUrl`/`videoType` so the detail player has data) — a **location search** (`LocationInput`),
+name, description, comma-separated tags,
 and a 0–5 star rating. It **merges edited fields over `initial`**, preserving fields it doesn't
 surface (notes, coords when free-typed, extra urls, visited) so editing never wipes them. `EMPTY_BOOKMARK`
 is the create baseline. An optional `header` slot renders above the form — the standalone flow passes
@@ -451,11 +452,10 @@ fields — visually splitting the drawer into its list and bookmark sections.
 `onSubmit(data)` is provided by each screen; throwing from it surfaces the message inline (used to
 enforce "pick at least one list"). A **manual** Autofill button press is blocking (a full-screen
 overlay while it overwrites the fields); `autofillOnMount` (guarded to run once, for a shared URL)
-is **non-blocking** instead — while phase 1 runs it scopes the loading state to the **Bookmark
-section** (dimmed + touch-blocked, with an "Autofilling…" indicator on its divider row) so the rest
-of the drawer (notably the list picker header) stays usable, then leaves the fields editable for
-phase-2 comprehension (a subtle "✨ Enhancing details…" row). It fills/refines name & description
-**without clobbering** anything the user hand-edited meanwhile (tracked via dirty refs). Tags are entered
+is **non-blocking** instead — it scopes the loading state to the **Bookmark section** (dimmed +
+touch-blocked, with an "Autofilling…" indicator on its divider row) so the rest of the drawer
+(notably the list picker header) stays usable. It fills/refines name & description **without
+clobbering** anything the user hand-edited meanwhile (tracked via dirty refs). Tags are entered
 comma-separated; a leading `#` is stripped on input
 (the `#` is display-only) and web's core lowercases + dedupes on save, so casing variants never
 create duplicate tags. The scroll view uses `automaticallyAdjustKeyboardInsets` (not a

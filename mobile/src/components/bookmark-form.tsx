@@ -21,7 +21,9 @@ import { useTheme } from '@/theme/theme-provider';
 import { THEME_TOKENS } from '@/theme/tokens';
 import type { RetrievedPlace } from '@web/lib/core/places';
 
-// Hard cap on the blocking autofill fetch so the loading overlay can never hang.
+// Hard cap on the autofill fetch so the loading overlay can never hang. Defense in depth
+// only: the server already bounds the slow half of the unfurl (COMPREHENSION_TIMEOUT_MS in
+// web's core/metadata.ts), so this only fires if the server itself stops answering.
 const AUTOFILL_TIMEOUT_MS = 15000;
 
 // Ties the iOS "Done" keyboard accessory bar to the multiline Description field.
@@ -89,9 +91,8 @@ export default function BookmarkForm({
   const [longitude, setLongitude] = useState<number | null>(initial.longitude);
   const [videoUrl, setVideoUrl] = useState(initial.videoUrl);
   const [videoType, setVideoType] = useState(initial.videoType);
-  const [autofilling, setAutofilling] = useState(false); // phase 1, manual (blocking overlay)
-  const [prefilling, setPrefilling] = useState(false); // phase 1, on-mount (non-blocking)
-  const [enhancing, setEnhancing] = useState(false); // phase 2 (non-blocking)
+  const [autofilling, setAutofilling] = useState(false); // manual (blocking overlay)
+  const [prefilling, setPrefilling] = useState(false); // on-mount (non-blocking)
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -114,26 +115,12 @@ export default function BookmarkForm({
     setAutofilling(false);
   }
 
-  // Phase 2 — comprehension. Its own abort/timeout; returns null on failure so the
-  // fast fields from phase 1 stand.
-  async function comprehendUrl(target: string) {
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), AUTOFILL_TIMEOUT_MS);
-    try {
-      return await trpc.metadata.comprehend.query(
-        { url: target },
-        { signal: controller.signal },
-      );
-    } catch {
-      return null;
-    } finally {
-      clearTimeout(timer);
-    }
-  }
-
   // `blocking` (manual Autofill button) drops the full-screen overlay and overwrites the fields
   // unconditionally. Non-blocking (on-mount, e.g. a shared URL) keeps the whole drawer — notably
   // the list picker — interactive: it shows only an inline indicator and respects hand-edits.
+  //
+  // One round trip: `metadata.fetch` runs extraction and comprehension concurrently server-side
+  // and bounds the slow half, so the fields fill once instead of filling then changing again.
   async function autofill(blocking = true) {
     const target = url.trim();
     if (!target) return;
@@ -142,7 +129,6 @@ export default function BookmarkForm({
     if (blocking) Keyboard.dismiss();
     (blocking ? setAutofilling : setPrefilling)(true);
     setError(null);
-    // Phase 1 — fast extraction. Always resolve — cap it.
     const controller = new AbortController();
     if (blocking) {
       cancelled.current = false;
@@ -150,21 +136,36 @@ export default function BookmarkForm({
     }
     const timer = setTimeout(() => controller.abort(), AUTOFILL_TIMEOUT_MS);
     try {
-      const res = await trpc.metadata.extract.query(
+      const res = await trpc.metadata.fetch.query(
         { url: target },
         { signal: controller.signal },
       );
       if (blocking && cancelled.current) return; // cancelled mid-flight, discard the result
-      if (res.ok) {
-        const { title, description: desc, images: imgs, video } = res.data;
-        if (title && (!respectDirty || !nameDirty.current)) setName(title);
-        if (desc && (!respectDirty || !descDirty.current)) setDescription(desc);
-        if (imgs.length) setImages(imgs);
-        setVideoUrl(video?.url ?? '');
-        setVideoType(video?.type ?? '');
-      } else {
+      if (!res.ok) {
         setError(res.error);
-        return; // extraction failed — skip phase 2
+        return;
+      }
+      const {
+        title,
+        description: desc,
+        images: imgs,
+        video,
+        tags,
+        location: loc,
+        latitude: lat,
+        longitude: lon,
+      } = res.data;
+      if (title && (!respectDirty || !nameDirty.current)) setName(title);
+      if (desc && (!respectDirty || !descDirty.current)) setDescription(desc);
+      if (imgs.length) setImages(imgs);
+      setVideoUrl(video?.url ?? '');
+      setVideoType(video?.type ?? '');
+      // Tags/location fill only when still empty — never overwrite what's already there.
+      if (tags.length && !tagsText.trim()) setTagsText(tags.join(', '));
+      if (loc && !location.trim()) {
+        setLocation(loc);
+        setLatitude(lat);
+        setLongitude(lon);
       }
     } catch (e) {
       if (blocking && cancelled.current) return; // user cancelled, not an error to report
@@ -175,28 +176,11 @@ export default function BookmarkForm({
             ? e.message
             : 'Autofill failed',
       );
-      return;
     } finally {
       clearTimeout(timer);
       if (blocking) blockingAbort.current = null;
       (blocking ? setAutofilling : setPrefilling)(false);
     }
-
-    // Phase 2 — comprehension, non-blocking (form stays editable). Refined title/description win
-    // (unless the user has hand-edited them); tags/location fill only when still empty.
-    setEnhancing(true);
-    const c = await comprehendUrl(target);
-    if (c) {
-      if (c.title && (!respectDirty || !nameDirty.current)) setName(c.title);
-      if (c.description && (!respectDirty || !descDirty.current)) setDescription(c.description);
-      if (c.tags.length && !tagsText.trim()) setTagsText(c.tags.join(', '));
-      if (c.location && !location.trim()) {
-        setLocation(c.location);
-        setLatitude(c.latitude);
-        setLongitude(c.longitude);
-      }
-    }
-    setEnhancing(false);
   }
 
   // Auto-fetch page metadata once when the form opens with a prefilled URL
@@ -234,13 +218,13 @@ export default function BookmarkForm({
     if (!place.website) return;
     Keyboard.dismiss();
     setAutofilling(true);
-    // Phase 1 — extract the website (blocking).
+    // Unfurl the business's website (blocking), in one round trip.
     const controller = new AbortController();
     cancelled.current = false;
     blockingAbort.current = controller;
     const timer = setTimeout(() => controller.abort(), AUTOFILL_TIMEOUT_MS);
     try {
-      const res = await trpc.metadata.extract.query(
+      const res = await trpc.metadata.fetch.query(
         { url: place.website },
         { signal: controller.signal },
       );
@@ -256,6 +240,10 @@ export default function BookmarkForm({
           setVideoUrl(res.data.video?.url ?? '');
           setVideoType(res.data.video?.type ?? '');
         }
+        // Tags only — location + coords are already set by the picked place.
+        if (res.data.tags.length && !tagsText.trim()) {
+          setTagsText(res.data.tags.join(', '));
+        }
       }
     } catch {
       // Keep the basics set above.
@@ -264,16 +252,6 @@ export default function BookmarkForm({
       blockingAbort.current = null;
       setAutofilling(false);
     }
-    if (cancelled.current) return; // cancelled, skip the enrich pass too
-
-    // Phase 2 — enrich description/tags (location + coords already set by the place).
-    setEnhancing(true);
-    const c = await comprehendUrl(place.website);
-    if (c) {
-      if (fillDescription && c.description) setDescription(c.description);
-      if (c.tags.length && !tagsText.trim()) setTagsText(c.tags.join(', '));
-    }
-    setEnhancing(false);
   }
 
   async function submit() {
@@ -355,7 +333,7 @@ export default function BookmarkForm({
         ) : null}
         {/* Bookmark fields — dimmed + touch-blocked while the on-mount autofill (prefilling) is in
             flight, so the user can't edit values that are about to be overwritten. The list picker
-            (header, above) stays interactive. Phase-2 enhancing stays non-blocking (editable). */}
+            (header, above) stays interactive. */}
         <View
           pointerEvents={prefilling ? 'none' : 'auto'}
           style={{ gap: 12, opacity: prefilling ? 0.5 : 1 }}>
@@ -374,7 +352,7 @@ export default function BookmarkForm({
             accessibilityRole="button"
             accessibilityLabel="Autofill from the link"
             className="items-center justify-center rounded-skin border-skin border-border px-3"
-            disabled={autofilling || prefilling || enhancing}
+            disabled={autofilling || prefilling}
             onPress={() => autofill(true)}>
             {autofilling ? (
               <ActivityIndicator />
@@ -383,15 +361,6 @@ export default function BookmarkForm({
             )}
           </Pressable>
         </View>
-
-        {/* Phase-2 comprehension enrichment — non-blocking, fields stay editable. (Phase-1
-            on-mount fetch surfaces as the "Autofilling…" indicator on the Bookmark divider.) */}
-        {enhancing && (
-          <View className="flex-row items-center gap-2">
-            <ActivityIndicator size="small" />
-            <Text className="text-sm text-muted">✨ Enhancing details…</Text>
-          </View>
-        )}
 
         <View className="gap-1">
           <LocationInput

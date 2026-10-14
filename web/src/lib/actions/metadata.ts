@@ -13,19 +13,22 @@ export type {
   LinkComprehension,
 } from "@/lib/core/metadata";
 
-/** One-shot unfurl (extraction + comprehension). */
+/**
+ * The autofill path the UI uses: extraction + comprehension, run concurrently
+ * server-side (comprehension bounded by a timeout) and merged into one result.
+ */
 export async function fetchLinkMetadata(rawUrl: string) {
   await requireUser();
   return fetchMetadata(rawUrl);
 }
 
-/** Phase 1: fast extraction — fill name/description/images/video immediately. */
+/** Extraction only — the fast, no-LLM half of the unfurl, exposed on its own. */
 export async function fetchLinkExtraction(rawUrl: string) {
   await requireUser();
   return getLinkExtraction(rawUrl);
 }
 
-/** Phase 2: comprehension — patch tags/location/coords/details in the background. */
+/** Comprehension only — tags/location/coords/details, exposed on its own. */
 export async function fetchLinkComprehension(rawUrl: string) {
   await requireUser();
   return getLinkComprehension(rawUrl);
