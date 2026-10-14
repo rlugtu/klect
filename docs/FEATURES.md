@@ -172,6 +172,7 @@ never trapped on the wrong screen.
 | Feature | Web | Mobile | Notes |
 |---|:---:|:---:|---|
 | Auth (email/password + Google) | ✅ | ✅ | Same better-auth backend |
+| Password reset | ✅ | ⚠️ | Web `/forgot-password` + `/reset-password` (emailed one-time link). Mobile links out to the same web pages in an in-app browser: clicking a mailed link is a browser interaction, so there's no native flow |
 | Onboarding (profile setup) | ✅ | ✅ | **@handle** (required), first/last name, emoji avatar, theme. No birthday input on either platform |
 | Lists — CRUD | ✅ | ✅ | |
 | Lists — public/private visibility | ✅ | ✅ | Owner-only toggle; **private by default**; public = read-only for anyone (`lists.setVisibility`) |
@@ -218,6 +219,20 @@ stays logged in.
 session cookies; `?next=` redirect is same-origin-guarded.
 **Mobile.** `src/components/login-screen.tsx`, `@better-auth/expo` against the same server; tokens in
 `expo-secure-store`. Dual-mode sign-in/sign-up toggle.
+
+### Password reset
+**Description.** A locked-out email/password user requests a reset, gets a one-time link by email
+(valid 1 hour), and sets a new password. The request always answers with the same generic
+confirmation, so it never leaks whether an address has an account.
+**Web.** `/forgot-password` → `authClient.requestPasswordReset({ email, redirectTo: "/reset-password" })`;
+better-auth's `emailAndPassword.sendResetPassword` hook (`web/src/lib/auth.ts`) mails the
+verification URL through `sendPasswordResetEmail` (`web/src/lib/core/email.ts`, EmailJS, needs
+`EMAILJS_RESET_PASSWORD_TEMPLATE_ID`). The link hits better-auth's own
+`/api/auth/reset-password/<token>` verifier, which redirects to `/reset-password?token=…` (or
+`?error=INVALID_TOKEN`); that page calls `authClient.resetPassword({ newPassword, token })` and,
+since a reset opens no session, finishes at `/login?reset=1`.
+**Mobile.** A **Forgot password?** link on the sign-in screen opens `${API_URL}/forgot-password` with
+`WebBrowser.openBrowserAsync`, the same way Terms/Privacy open. No native reset screen by design.
 
 ### Onboarding
 **Description.** First-run profile setup for a new user: a unique **@handle** (required — the
@@ -411,6 +426,9 @@ the **Members tab** (`?tab=members`) + `/requests` page (linked from a home butt
 **Mobile.** `src/components/list-members.tsx` rendered by the **Members tab** on
 `src/app/lists/[id].tsx` (owner controls gated on `isOwner`) + a pushed `src/app/requests.tsx`
 screen (reached from a **List requests** button above the home search), same `sharing.*` procedures.
+An invite **link** (`/invite/<token>`) opens in-app as a universal link / Android app link →
+`src/app/invite/[token].tsx` (`sharing.inviteByToken` + `sharing.accept`); one that arrives before
+sign-in is parked (`src/client/pending-invite.ts`) and opened right after the session gate clears.
 **Differences.** None — permission logic is server-side and shared.
 
 ### Friends

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { authClient } from "@/lib/auth-client";
 import { PixelButton } from "@/components/ui/PixelButton";
@@ -9,7 +10,14 @@ import { FieldLabel } from "@/components/ui/FieldLabel";
 
 type Mode = "signin" | "signup";
 
-export function LoginForm({ next = "/" }: { next?: string }) {
+export function LoginForm({
+  next = "/",
+  resetDone = false,
+}: {
+  next?: string;
+  /** Set by `/login?reset=1`, the landing spot after a completed password reset. */
+  resetDone?: boolean;
+}) {
   const router = useRouter();
   const [mode, setMode] = useState<Mode>("signin");
   const [name, setName] = useState("");
@@ -44,6 +52,12 @@ export function LoginForm({ next = "/" }: { next?: string }) {
 
   return (
     <div className="flex flex-col gap-6">
+      {resetDone && (
+        <p className="text-success text-sm" role="status">
+          Password reset. Sign in with your new password.
+        </p>
+      )}
+
       <PixelButton
         type="button"
         variant="secondary"
@@ -116,6 +130,15 @@ export function LoginForm({ next = "/" }: { next?: string }) {
               : "Create account"}
         </PixelButton>
       </form>
+
+      {mode === "signin" && (
+        <Link
+          href="/forgot-password"
+          className="text-muted text-center text-sm hover:text-ink"
+        >
+          Forgot password?
+        </Link>
+      )}
 
       <button
         type="button"

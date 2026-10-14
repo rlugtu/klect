@@ -11,9 +11,10 @@ function safeNext(raw: string | undefined): string {
 export default async function LoginPage({
   searchParams,
 }: {
-  searchParams: Promise<{ next?: string }>;
+  searchParams: Promise<{ next?: string; reset?: string }>;
 }) {
-  const next = safeNext((await searchParams).next);
+  const { next: rawNext, reset } = await searchParams;
+  const next = safeNext(rawNext);
   const session = await getSession();
   if (session) redirect(next);
 
@@ -24,7 +25,7 @@ export default async function LoginPage({
         <p className="mt-3 text-muted">More than links. Everything in one place.</p>
       </div>
       <PixelCard>
-        <LoginForm next={next} />
+        <LoginForm next={next} resetDone={reset === "1"} />
       </PixelCard>
     </main>
   );

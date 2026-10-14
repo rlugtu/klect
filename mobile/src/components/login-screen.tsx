@@ -152,6 +152,19 @@ export default function LoginScreen() {
             <Text className="font-sans-semibold text-ink">Continue with Google</Text>
           </Pressable>
 
+          {/* Reset is a web flow on purpose: the user has to click a link in their email
+              client, so there's nothing for a native screen to own. Opens web's
+              /forgot-password in an in-app browser, same as Terms/Privacy below. */}
+          {mode === 'signin' && (
+            <Pressable
+              accessibilityRole="link"
+              accessibilityLabel="Forgot password, opens in a browser"
+              className="items-center py-1"
+              onPress={() => WebBrowser.openBrowserAsync(`${API_URL}/forgot-password`)}>
+              <Text className="text-sm text-muted">Forgot password?</Text>
+            </Pressable>
+          )}
+
           <Pressable
             accessibilityRole="button"
             accessibilityLabel={

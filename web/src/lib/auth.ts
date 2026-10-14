@@ -4,6 +4,7 @@ import { nextCookies } from "better-auth/next-js";
 import { bearer } from "better-auth/plugins";
 import { expo } from "@better-auth/expo";
 import { prisma } from "@/lib/db";
+import { sendPasswordResetEmail } from "@/lib/core/email";
 
 export const auth = betterAuth({
   database: prismaAdapter(prisma, { provider: "postgresql" }),
@@ -12,6 +13,16 @@ export const auth = betterAuth({
   trustedOrigins: ["klect://"],
   emailAndPassword: {
     enabled: true,
+    // Forgot-password flow. better-auth builds `url` as its own
+    // `/api/auth/reset-password/<token>?callbackURL=/reset-password` endpoint, which verifies
+    // the token server-side then bounces the user to our page with `?token=…` (or
+    // `?error=INVALID_TOKEN`), so we mail it verbatim rather than hand-building a link.
+    // sendPasswordResetEmail never throws, so an unconfigured mailer can't fail the request.
+    sendResetPassword: async ({ user, url }) => {
+      await sendPasswordResetEmail(user.email, url);
+    },
+    // Same as the library default; pinned so the link's lifetime is stated here, not implied.
+    resetPasswordTokenExpiresIn: 60 * 60,
   },
   socialProviders: {
     google: {
