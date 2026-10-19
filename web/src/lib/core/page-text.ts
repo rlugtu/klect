@@ -176,13 +176,19 @@ function parseJsonLd(html: string): unknown[] {
   return out;
 }
 
-/** Resolve possibly-relative image URLs against the final URL; keep http(s), dedupe. */
+/**
+ * Resolve possibly-relative image URLs against the final URL; keep http(s), dedupe.
+ * `http:` images are upgraded to `https:`: iOS (ATS) and browsers (mixed content) block
+ * plain-http images, so the card would otherwise fall back to a page screenshot.
+ */
 function resolveImages(images: string[], base: string): string[] {
   const seen = new Set<string>();
   const out: string[] = [];
   for (const raw of images) {
     try {
-      const abs = new URL(raw, base).href;
+      const url = new URL(raw, base);
+      if (url.protocol === "http:") url.protocol = "https:";
+      const abs = url.href;
       if (!/^https?:\/\//i.test(abs) || seen.has(abs)) continue;
       seen.add(abs);
       out.push(abs);
