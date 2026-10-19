@@ -19,6 +19,7 @@ import { ConfirmDeleteButton } from "@/components/ui/ConfirmDeleteButton";
 import { PixelButton } from "@/components/ui/PixelButton";
 import { PixelCard } from "@/components/ui/PixelCard";
 import { PixelBadge } from "@/components/ui/PixelBadge";
+import { LockedNotice } from "@/components/entitlements/LockedState";
 
 function toHref(url: string): string {
   return /^https?:\/\//i.test(url) ? url : `https://${url}`;
@@ -37,11 +38,23 @@ export default async function BookmarkPage({
 
   const { bookmark, role } = result;
   const canEdit = roleAtLeast(role, "COLLABORATOR");
+  // Which lock is in force, or null. `listIdOfWritableBookmark` refuses an edit
+  // when the bookmark is locked OR its list is, so both cases have to be read
+  // here; the bookmark's own lock wins the copy because it is the more specific
+  // thing to say. `canWrite` gates every affordance the server would refuse —
+  // delete is deliberately not one of them (trimming back under the cap is how a
+  // lapsed account gets out), so it stays on `canEdit`.
+  const lockedKind = bookmark.lockedAt
+    ? ("bookmark" as const)
+    : bookmark.list.lockedAt
+      ? ("list" as const)
+      : null;
+  const canWrite = canEdit && lockedKind === null;
   const tagNames = bookmark.tags.map((bt) => bt.tag.name);
   const [primaryUrl, ...otherUrls] = bookmark.urls;
 
   const [userTags, comments, friends] = await Promise.all([
-    canEdit
+    canWrite
       ? getUserTags(user.id)
       : Promise.resolve<{ name: string; color: string }[]>([]),
     getBookmarkComments(bid, user.id),
@@ -71,11 +84,16 @@ export default async function BookmarkPage({
       <BookmarkHeader
         listId={bookmark.list.id}
         canEdit={canEdit}
+        locked={lockedKind !== null}
         bookmarkId={bookmark.id}
         defaults={editDefaults}
         tagSuggestions={tagSuggestions}
         tagColors={tagColors}
       />
+
+      {lockedKind && (
+        <LockedNotice kind={lockedKind} canUpgrade={role === "OWNER"} />
+      )}
 
       {/* Hero */}
       <PixelCard className="flex flex-col gap-4">
@@ -90,8 +108,10 @@ export default async function BookmarkPage({
             />
           </div>
 
+          {/* Locked falls back to the same read-only rating/visited pair a
+              viewer sees, rather than controls whose write would be refused. */}
           <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
-            {canEdit ? (
+            {canWrite ? (
               <>
                 <InlineRating bookmarkId={bookmark.id} value={bookmark.rating} />
                 <VisitedToggle

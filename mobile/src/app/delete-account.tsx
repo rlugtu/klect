@@ -5,6 +5,7 @@ import { useHeaderHeight } from '@react-navigation/elements';
 
 import { trpc } from '@/client/api';
 import { authClient, clearBearerToken } from '@/client/auth';
+import { signOutRevenueCat } from '@/client/revenuecat';
 import { useTheme } from '@/theme/theme-provider';
 import { THEME_TOKENS } from '@/theme/tokens';
 
@@ -46,6 +47,9 @@ export default function DeleteAccountScreen() {
       // Expected after a successful delete. Not an error worth showing.
     }
     clearBearerToken();
+    // Same teardown as the settings sign-out: release the RevenueCat identity so the deleted
+    // user's app_user_id isn't still attached on this device.
+    signOutRevenueCat();
     // Root layout re-reads the (now empty) session and shows the login screen.
   }
 

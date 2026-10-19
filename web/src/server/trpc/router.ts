@@ -14,6 +14,7 @@ import { nearbyRouter } from "./routers/nearby";
 import { notificationsRouter } from "./routers/notifications";
 import { feedbackRouter } from "./routers/feedback";
 import { moderationRouter } from "./routers/moderation";
+import { entitlementsRouter } from "./routers/entitlements";
 import {
   placesRouter,
   metadataRouter,
@@ -42,6 +43,7 @@ export const appRouter = router({
   notifications: notificationsRouter,
   feedback: feedbackRouter,
   moderation: moderationRouter,
+  entitlements: entitlementsRouter,
   places: placesRouter,
   metadata: metadataRouter,
   comprehend: comprehendRouter,

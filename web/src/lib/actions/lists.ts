@@ -1,8 +1,13 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { redirect } from "next/navigation";
+import { redirect, unstable_rethrow } from "next/navigation";
 import { requireUser } from "@/lib/session";
+import {
+  isFreeLimitError,
+  toFreeLimitResult,
+  type CappedCreateResult,
+} from "@/lib/core/entitlements";
 import { setFlashToast } from "@/lib/toast-flash";
 import * as core from "@/lib/core/lists";
 import {
@@ -19,9 +24,26 @@ function listInputFromFormData(formData: FormData): core.ListInput {
   };
 }
 
-export async function createList(formData: FormData) {
+/**
+ * Returns a {@link CappedCreateResult}: `undefined` on success (the redirect
+ * below takes over), or the structured refusal when the free list cap is hit,
+ * so the caller can show the paywall instead of Next's generic error boundary.
+ */
+export async function createList(formData: FormData): Promise<CappedCreateResult> {
   const user = await requireUser();
-  const list = await core.createList(user.id, listInputFromFormData(formData));
+
+  // Only the core call is guarded. `redirect()` signals by throwing
+  // (NEXT_REDIRECT), so it stays outside the try where nothing can swallow it;
+  // `unstable_rethrow` re-throws that signal anyway if a later edit ever moves a
+  // redirect, notFound, or dynamic-rendering bailout inside.
+  let list;
+  try {
+    list = await core.createList(user.id, listInputFromFormData(formData));
+  } catch (e) {
+    unstable_rethrow(e);
+    if (isFreeLimitError(e)) return toFreeLimitResult(e);
+    throw e;
+  }
 
   revalidatePath("/");
   await setFlashToast("success", "List created");
@@ -61,13 +83,35 @@ export async function reorderLists(orderedListIds: string[]) {
   revalidatePath("/");
 }
 
-export async function duplicateList(sourceListId: string, formData: FormData) {
+/**
+ * Returns a {@link CappedCreateResult}: `undefined` on success (the redirect
+ * below takes over), or the structured refusal when a free cap is hit.
+ *
+ * Duplicating can trip *either* cap, since it creates one owned list plus a copy
+ * of every bookmark in the source, so `core.duplicateList` calls both guards and
+ * either `FreeLimitError` lands here. Same catch shape as `createList`: the
+ * `redirect()` stays outside the try because it signals by throwing, and
+ * `unstable_rethrow` re-throws any Next control-flow signal that a later edit
+ * might move inside.
+ */
+export async function duplicateList(
+  sourceListId: string,
+  formData: FormData,
+): Promise<CappedCreateResult> {
   const user = await requireUser();
-  const list = await duplicateListCore(
-    user.id,
-    sourceListId,
-    String(formData.get("name") ?? ""),
-  );
+
+  let list;
+  try {
+    list = await duplicateListCore(
+      user.id,
+      sourceListId,
+      String(formData.get("name") ?? ""),
+    );
+  } catch (e) {
+    unstable_rethrow(e);
+    if (isFreeLimitError(e)) return toFreeLimitResult(e);
+    throw e;
+  }
 
   revalidatePath("/");
   await setFlashToast("success", "List duplicated");

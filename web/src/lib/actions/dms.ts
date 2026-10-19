@@ -84,10 +84,12 @@ export async function loadUnreadCount() {
 
 // The lists the user can add a bookmark to (COLLABORATOR+), for the shared-bookmark save
 // picker. Fetched lazily when the recipient opens the picker so threads don't load it eagerly.
+// Locked lists are excluded on the same rule as /bookmarks/new: a lock means "cannot add
+// to or modify", so a locked list is not a destination, only a thing you can still read.
 export async function loadMyListOptions() {
   const user = await requireUser();
   const memberships = await getUserLists(user.id);
   return memberships
-    .filter((m) => roleAtLeast(m.role, "COLLABORATOR"))
+    .filter((m) => roleAtLeast(m.role, "COLLABORATOR") && m.list.lockedAt === null)
     .map((m) => ({ id: m.listId, name: m.list.name, icon: m.list.icon }));
 }

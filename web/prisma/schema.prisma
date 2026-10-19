@@ -85,6 +85,10 @@ model User {
   deviceTokens           DeviceToken[]
   notificationPreference NotificationPreference?
 
+  // Billing: the user's subscription entitlement, synced from RevenueCat. An absent
+  // row means the free tier (see core/entitlements.ts); no row is created at signup.
+  entitlement Entitlement?
+
   feedback Feedback[]
 
   // Moderation (Apple UGC-safety: block + report).
@@ -204,15 +208,21 @@ model Verification {
 }
 
 model List {
-  id          String   @id @default(uuid())
+  id          String    @id @default(uuid())
   name        String
-  description String   @default("")
-  icon        String   @default("📁") // emoji
-  isPublic    Boolean  @default(false) // private by default; public = read-only viewable by anyone
+  description String    @default("")
+  icon        String    @default("📁") // emoji
+  isPublic    Boolean   @default(false) // private by default; public = read-only viewable by anyone
+  // Free-tier lock state: null = active, a timestamp = locked because the owner went
+  // over the free cap after a subscription lapsed and did not keep this list in the
+  // downgrade-selection flow. Locked rows are preserved and readable but not writable,
+  // and they do not count toward the cap; the lock clears when the owner re-subscribes
+  // or trims back under it. Never a deletion. See core/entitlements.ts.
+  lockedAt    DateTime?
   ownerId     String
-  owner       User     @relation("ListOwner", fields: [ownerId], references: [id], onDelete: Cascade)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  owner       User      @relation("ListOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
 
   memberships  ListMembership[]
   invites      ListInvite[]
@@ -364,8 +374,8 @@ model Report {
   targetUserId String?
   reason       String // spam | harassment | hate | sexual | violence | other
   note         String?
-  status       String   @default("open") // open | actioned | dismissed
-  createdAt    DateTime @default(now())
+  status       String           @default("open") // open | actioned | dismissed
+  createdAt    DateTime         @default(now())
 
   @@index([status, createdAt])
   @@index([targetUserId])
@@ -383,23 +393,26 @@ model WaitlistSignup {
 }
 
 model Bookmark {
-  id          String   @id @default(uuid())
+  id          String    @id @default(uuid())
   listId      String
-  list        List     @relation(fields: [listId], references: [id], onDelete: Cascade)
+  list        List      @relation(fields: [listId], references: [id], onDelete: Cascade)
   name        String
-  description String   @default("")
+  description String    @default("")
   urls        String[] // first entry is the primary "open" / original source link
-  images      String[] @default([]) // extracted photo URLs (remote)
-  notes       String   @default("")
-  location    String   @default("")
+  images      String[]  @default([]) // extracted photo URLs (remote)
+  notes       String    @default("")
+  location    String    @default("")
   latitude    Float? // set when location is picked from autocomplete; null for free text / old rows
   longitude   Float?
-  rating      Float    @default(0) // 0–5 in half-steps (0, 0.5, 1, … 5)
-  visited     Boolean  @default(false)
-  videoUrl    String   @default("") // detected playable video (embed src or media file)
-  videoType   String   @default("") // "" | "iframe" | "file"
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  rating      Float     @default(0) // 0–5 in half-steps (0, 0.5, 1, … 5)
+  visited     Boolean   @default(false)
+  videoUrl    String    @default("") // detected playable video (embed src or media file)
+  videoType   String    @default("") // "" | "iframe" | "file"
+  // Free-tier lock state, same semantics as List.lockedAt: null = active, a timestamp =
+  // locked and read-only after an over-cap downgrade, excluded from the cap count.
+  lockedAt    DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
 
   tags        BookmarkTag[]
   comments    Comment[]
@@ -455,20 +468,20 @@ model Comment {
 // members vote on them (PollVote). `creatorId` drives the "collaborator edits
 // only their own poll; owner edits any" rule (see core/polls.ts).
 model Poll {
-  id             String   @id @default(uuid())
+  id             String    @id @default(uuid())
   listId         String
-  list           List     @relation(fields: [listId], references: [id], onDelete: Cascade)
+  list           List      @relation(fields: [listId], references: [id], onDelete: Cascade)
   creatorId      String
-  creator        User     @relation("PollCreator", fields: [creatorId], references: [id], onDelete: Cascade)
+  creator        User      @relation("PollCreator", fields: [creatorId], references: [id], onDelete: Cascade)
   name           String
-  description    String   @default("")
-  startAt        DateTime @default(now())
+  description    String    @default("")
+  startAt        DateTime  @default(now())
   endAt          DateTime? // null = no end (open indefinitely)
   maxVotes       Int? // votes per participant; null = unlimited
-  revotesAllowed Boolean  @default(false)
-  isAnonymous    Boolean  @default(false) // set only at creation; hides who voted for what
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  revotesAllowed Boolean   @default(false)
+  isAnonymous    Boolean   @default(false) // set only at creation; hides who voted for what
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
 
   options PollOption[]
   votes   PollVote[]
@@ -510,4 +523,39 @@ model PollVote {
   @@unique([optionId, userId])
   @@index([pollId])
   @@index([userId])
+}
+
+// ---- Billing / subscriptions (RevenueCat) ----
+
+// The user's paid entitlement, mirrored locally from RevenueCat so every cap check is
+// a cheap local read instead of a network call on the write path. At most one row per
+// user (the "pro" entitlement is the only one that exists); no row at all means the
+// free tier, so absence is the default and nothing is created at signup. The row is
+// written only by the RevenueCat webhook handler, never by normal app flows.
+//
+// `store` and `status` are Strings rather than enums on purpose. Both are vendor
+// vocabulary owned by RevenueCat, which adds values (new stores, new lifecycle states)
+// on its own schedule, and a String avoids a migration every time it does. This matches
+// how the schema already treats externally-sourced values like DeviceToken.platform and
+// Report.status. The app-side union types and the "active" constant live in
+// core/entitlements.ts, so application code still gets a checked vocabulary.
+model Entitlement {
+  id                  String    @id @default(uuid())
+  userId              String    @unique
+  user                User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  store               String // which billing path paid for it: "app_store" | "play_store" | "stripe"
+  plan                String // product identifier, e.g. "klect_pro_annual" | "klect_pro_monthly"
+  status              String // "active" | "expired" | "grace"
+  // When the current period ends. Null means no known expiry (a lifetime or
+  // promotional grant); a past timestamp means lapsed even if `status` is stale,
+  // so isPro() checks both.
+  expiresAt           DateTime?
+  // RevenueCat's own subscriber id for this user. Nullable because a row can be
+  // seeded before the id is known; indexed because webhooks arrive keyed by it
+  // rather than by our userId.
+  revenueCatAppUserId String?
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+
+  @@index([revenueCatAppUserId])
 }

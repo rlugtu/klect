@@ -63,6 +63,9 @@ export async function findNearbyBookmarks(
               visited: b.visited,
               tags: b.tags.map((bt) => bt.tag),
               commentCount: b._count.comments,
+              // Locked bookmarks still have a location worth finding, so they
+              // are kept in the results and flagged read-only instead.
+              locked: b.lockedAt !== null || b.list.lockedAt !== null,
             },
             listId: b.list.id,
             listLabel: { icon: b.list.icon, name: b.list.name },

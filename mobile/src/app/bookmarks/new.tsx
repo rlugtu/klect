@@ -3,6 +3,7 @@ import { Pressable, Text, View } from 'react-native';
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 
 import { trpc } from '@/client/api';
+import { freeLimitFrom, paywallRouteFor } from '@/client/free-limit';
 import { toast } from '@/client/toast';
 import { toListOptions } from '@/client/shared-lists-cache';
 import BookmarkForm, { EMPTY_BOOKMARK } from '@/components/bookmark-form';
@@ -66,7 +67,17 @@ export default function NewBookmarkScreen() {
       autofillOnMount={autofillOnMount}
       submitLabel="Save bookmark"
       onSubmit={async (data) => {
-        await trpc.bookmarks.create.mutate({ listId, data });
+        try {
+          await trpc.bookmarks.create.mutate({ listId, data });
+        } catch (e) {
+          // Cap hit: open the paywall rather than leaving a bare failure. Read off the
+          // structured `error.data.freeLimit`, never the message text. Re-thrown either way
+          // so BookmarkForm clears its submitting state and keeps the draft usable — it only
+          // resets on failure, because a success navigates away and this does not.
+          const cap = freeLimitFrom(e);
+          if (cap) router.push(paywallRouteFor(cap));
+          throw e;
+        }
         toast.success('Bookmark saved');
         router.back();
       }}
@@ -103,12 +114,38 @@ export default function NewBookmarkScreen() {
           throw new Error('Pick at least one list for the bookmark.');
         }
         const count = selectedIds.length + newListNames.length;
-        await trpc.bookmarks.createInLists.mutate({
-          existingListIds: selectedIds,
-          newListNames,
-          data,
-          newListsPublic,
-        });
+        try {
+          await trpc.bookmarks.createInLists.mutate({
+            existingListIds: selectedIds,
+            newListNames,
+            data,
+            newListsPublic,
+          });
+        } catch (e) {
+          const cap = freeLimitFrom(e);
+          if (!cap) throw e;
+          // Same re-throw contract as the single-list path above: the paywall opens, and the
+          // error still reaches BookmarkForm so its Save button comes back.
+          //
+          // This path writes one bookmark per target list and the server checks the *total*
+          // it would add, so a single tap can be several over the cap at once. Telling the
+          // paywall how many makes it say "you'd need 3 more" rather than quoting a flat
+          // limit the user is currently under (see capHitMessage in client/free-limit.ts).
+          //
+          // The two caps count different things, mirroring core.createBookmarkInLists:
+          // only brand-new lists add list capacity, while bookmark capacity is consumed by
+          // every target the user *owns* (a collaborator's list is their capacity, never
+          // ours), plus the new lists, which the user owns by definition.
+          const ownedExisting = selectedIds.filter((id) =>
+            lists.some((m) => m.list.id === id && m.role === 'OWNER'),
+          ).length;
+          const adding =
+            cap.limit === 'lists'
+              ? newListNames.length
+              : ownedExisting + newListNames.length;
+          router.push(paywallRouteFor(cap, adding));
+          throw e;
+        }
         toast.success(`Saved to ${count} ${count === 1 ? 'list' : 'lists'}`);
         router.back();
       }}

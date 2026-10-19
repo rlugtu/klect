@@ -22,6 +22,22 @@ export type ListOption = {
   name: string;
   icon: string;
   role: Memberships[number]['role'];
+  /**
+   * Nullish = active; a timestamp = frozen by the free-tier downgrade flow. Cached because
+   * `ListPicker` has to drop locked lists: the server refuses writes into one, and the cap
+   * count ignores a locked list's contents, so offering it as a save target would let a free
+   * user pile up bookmarks the cap never sees.
+   *
+   * Optional because this value is *persisted*: a snapshot written before this field was
+   * cached parses back with `lockedAt` undefined, and that has to read as *unlocked*
+   * (treating a stale cache as locked would empty the picker for everyone who had one).
+   * So every consumer nullish-checks it (`== null`) rather than comparing against `null`.
+   *
+   * `string`, not `Date`: the router has no superjson transformer, so `lists.mine` already
+   * hands mobile an ISO string, which is also exactly what survives the JSON round-trip
+   * through the keychain.
+   */
+  lockedAt?: string | null;
 };
 
 const SHARED_LISTS_KEY = 'klect.lists.shared';
@@ -39,6 +55,7 @@ export function toListOptions(memberships: Memberships): ListOption[] {
     name: m.list.name,
     icon: m.list.icon,
     role: m.role,
+    lockedAt: m.list.lockedAt,
   }));
 }
 

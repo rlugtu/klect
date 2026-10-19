@@ -3,7 +3,11 @@ import { prisma } from "@/lib/db";
 import { getBookmarkForUser } from "@/lib/bookmarks";
 import { assertRole } from "@/lib/permissions";
 import { createListRecord } from "@/lib/lists";
-import { LIST_NAME_MAX } from "@/lib/core/lists";
+import { LIST_NAME_MAX, LockedError, assertListUnlocked } from "@/lib/core/lists";
+import {
+  assertCanCreateBookmark,
+  assertCanCreateList,
+} from "@/lib/core/entitlements";
 import { randomTagColor } from "@/lib/tag-colors";
 import { isTrustedIframeUrl } from "@/lib/video";
 
@@ -165,7 +169,12 @@ async function syncBookmarkTags(
   }
 }
 
-async function listIdOf(bookmarkId: string): Promise<string> {
+/**
+ * The id of the list a bookmark lives in, with no lock check. Used by the mutations
+ * that stay available on a locked bookmark (deleting one), where the only thing
+ * needed is the list to revalidate afterwards.
+ */
+async function listIdOfBookmark(bookmarkId: string): Promise<string> {
   const bookmark = await prisma.bookmark.findUnique({
     where: { id: bookmarkId },
     select: { listId: true },
@@ -174,13 +183,66 @@ async function listIdOf(bookmarkId: string): Promise<string> {
   return bookmark.listId;
 }
 
-/** Create a bookmark in a list — requires COLLABORATOR or higher. */
+/**
+ * The id of the list a bookmark lives in, refusing locked targets. A bookmark is
+ * unwritable both when it is itself locked and when its list is, since a locked
+ * list is wholly read-only; either case throws {@link LockedError} so the caller
+ * can branch on the cause rather than on the message text.
+ *
+ * Edit-style mutations only. Deletes use {@link listIdOfBookmark} instead, because
+ * removing your own content is how an over-cap user trims back under the free cap
+ * (see the note on `LockedError` in core/lists.ts).
+ */
+async function listIdOfWritableBookmark(bookmarkId: string): Promise<string> {
+  const bookmark = await prisma.bookmark.findUnique({
+    where: { id: bookmarkId },
+    select: { listId: true, lockedAt: true, list: { select: { lockedAt: true } } },
+  });
+  if (!bookmark) throw new Error("Bookmark not found.");
+  if (bookmark.lockedAt) throw new LockedError("bookmark");
+  if (bookmark.list.lockedAt) throw new LockedError("list");
+  return bookmark.listId;
+}
+
+/**
+ * How many of `listIds` the user owns. Ownership is what the free bookmark cap
+ * counts: a bookmark saved into someone else's list is collaboration, which is
+ * never capped, so it must not be counted here.
+ */
+async function countOwnedLists(userId: string, listIds: string[]): Promise<number> {
+  if (listIds.length === 0) return 0;
+  return prisma.list.count({ where: { id: { in: listIds }, ownerId: userId } });
+}
+
+/**
+ * Create a bookmark in a list — requires COLLABORATOR or higher.
+ *
+ * Counts against the free bookmark cap only when the target list is one the caller
+ * owns. Saving into a friend's list is collaboration, which is never gated, and it
+ * consumes the list owner's capacity rather than the adder's.
+ *
+ * Refuses a locked target list. A locked list is read-only everywhere else (see
+ * {@link LockedError} in core/lists.ts), and this is the write path that makes that
+ * matter most for the cap: `countActiveOwnedBookmarks` excludes everything inside a
+ * locked list, so a bookmark written into one would never count against the free
+ * limit. Without this guard that is unbounded free storage, not an edge case. Both
+ * pickers already hide locked lists; this is the server-side backstop that makes the
+ * client filter a convenience rather than the enforcement.
+ */
 export async function createBookmark(
   userId: string,
   listId: string,
   input: BookmarkInput,
 ) {
   await assertRole(userId, listId, "COLLABORATOR");
+  await assertListUnlocked(listId);
+
+  const list = await prisma.list.findUnique({
+    where: { id: listId },
+    select: { ownerId: true },
+  });
+  if (!list) throw new Error("List not found.");
+  if (list.ownerId === userId) await assertCanCreateBookmark(userId, 1);
 
   const bookmark = await prisma.bookmark.create({
     data: { ...normalizeFields(input), listId },
@@ -211,10 +273,30 @@ export async function createBookmarkInLists(
     throw new Error("Pick at least one list for the bookmark.");
   }
 
-  // Must be allowed to add to each existing list.
+  // Must be allowed to add to each existing list, and the list must not be locked.
+  // Rejecting rather than quietly dropping a locked target: same reasoning as
+  // `createBookmark` above (a write into a locked list sits outside the cap count
+  // forever), and a silent skip would report a successful multi-list save that did
+  // not actually happen everywhere the user asked for.
   for (const listId of existing) {
     await assertRole(userId, listId, "COLLABORATOR");
+    await assertListUnlocked(listId);
   }
+
+  // Free-tier capacity, checked once against everything this call would add to the
+  // caller's own capacity, before any write. One check per list would let a free
+  // user with 19 bookmarks slip three more in with a single multi-list create.
+  //
+  // Owned targets are the existing target lists whose owner is the caller, plus
+  // every list being created inline here (those are always owned by their creator).
+  // Copies landing in lists owned by someone else are collaboration and are left
+  // out of the count entirely, so they never consume the adder's quota. When no
+  // target is the caller's own, both guards are skipped rather than called with 0,
+  // so a user already over the cap can still contribute to other people's lists.
+  if (newNames.length > 0) await assertCanCreateList(userId, newNames.length);
+  const ownedTargetCount =
+    (await countOwnedLists(userId, existing)) + newNames.length;
+  if (ownedTargetCount > 0) await assertCanCreateBookmark(userId, ownedTargetCount);
 
   // Create any new lists (owned by the user), collecting their ids. The
   // bookmark-create flow's Public/Private toggle sets these new lists' visibility.
@@ -313,7 +395,7 @@ export async function updateBookmark(
   bookmarkId: string,
   input: BookmarkInput,
 ) {
-  const listId = await listIdOf(bookmarkId);
+  const listId = await listIdOfWritableBookmark(bookmarkId);
   await assertRole(userId, listId, "COLLABORATOR");
 
   await prisma.bookmark.update({
@@ -324,9 +406,14 @@ export async function updateBookmark(
   return { listId };
 }
 
-/** Delete a bookmark — requires COLLABORATOR. Returns its list. */
+/**
+ * Delete a bookmark — requires COLLABORATOR. Returns its list.
+ *
+ * Deliberately allowed on a locked bookmark (and inside a locked list): deleting is
+ * the self-service way back under the free cap for a lapsed over-cap user.
+ */
 export async function deleteBookmark(userId: string, bookmarkId: string) {
-  const listId = await listIdOf(bookmarkId);
+  const listId = await listIdOfBookmark(bookmarkId);
   await assertRole(userId, listId, "COLLABORATOR");
 
   await prisma.bookmark.delete({ where: { id: bookmarkId } });
@@ -380,6 +467,10 @@ export async function setRating(
  * own row, so later edits/deletes on either list never affect the other. Tags are
  * re-created as the acting user's own tags (fresh per-list colors). Returns the
  * new list.
+ *
+ * Counts against both free caps: the copy is a new list the caller owns, holding a
+ * new owned bookmark per source bookmark. Without that, duplicating someone's
+ * 50-bookmark list would blow straight past both limits in one call.
  */
 export async function duplicateList(
   userId: string,
@@ -412,6 +503,17 @@ export async function duplicateList(
     },
   });
   if (!source) throw new Error("List not found.");
+
+  // Free-tier capacity, checked against everything this call would add before any
+  // write: exactly one new owned list, plus one new owned bookmark per source
+  // bookmark. Both guards no-op for pro. The bookmark guard is skipped for an empty
+  // source rather than called with 0, so a user already over the cap can still
+  // duplicate an empty list. Either guard's FreeLimitError propagates untouched, the
+  // same as in createList/createBookmark, so the paywall can branch on it.
+  await assertCanCreateList(userId, 1);
+  if (source.bookmarks.length > 0) {
+    await assertCanCreateBookmark(userId, source.bookmarks.length);
+  }
 
   const name =
     newName.trim().slice(0, LIST_NAME_MAX) ||

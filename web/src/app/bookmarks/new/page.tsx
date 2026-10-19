@@ -16,9 +16,13 @@ export default async function NewBookmarkPage() {
   const tagSuggestions = userTags.map((t) => t.name);
   const tagColors = Object.fromEntries(userTags.map((t) => [t.name, t.color]));
 
-  // Only lists the user can add bookmarks to.
+  // Only lists the user can add bookmarks to. Locked lists are left out for the
+  // same reason a viewer's lists are: a lock means "cannot add to or modify"
+  // (see LockedError in core/lists.ts), so offering one as a destination would
+  // be offering a write that the list is not open to. They stay fully readable
+  // from the home page, where they render in the locked state.
   const listOptions = memberships
-    .filter((m) => roleAtLeast(m.role, "COLLABORATOR"))
+    .filter((m) => roleAtLeast(m.role, "COLLABORATOR") && m.list.lockedAt === null)
     .map((m) => ({ id: m.listId, name: m.list.name, icon: m.list.icon }));
 
   return (

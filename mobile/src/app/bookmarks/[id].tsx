@@ -23,6 +23,7 @@ import { authClient } from '@/client/auth';
 import { toast, errorMessage } from '@/client/toast';
 import BookmarkVideo from '@/components/bookmark-video';
 import CommentsSection, { type CommentItem } from '@/components/comments-section';
+import { LockedNotice } from '@/components/locked-badge';
 import RatingStars from '@/components/rating-stars';
 import Skeleton from '@/components/skeleton';
 import VisitedPill from '@/components/visited-pill';
@@ -86,6 +87,15 @@ export default function BookmarkScreen() {
     isMember && (data?.role === 'OWNER' || data?.role === 'COLLABORATOR');
   const canModerate = isMember && data?.role === 'OWNER';
 
+  // Frozen by the free-tier downgrade flow. Both flags count: `listIdOfWritableBookmark`
+  // refuses an edit when the bookmark is locked OR when its list is, since a locked
+  // list is wholly read-only. Role says who may write, the lock says whether anyone may.
+  const locked = b != null && (b.lockedAt != null || b.list.lockedAt != null);
+  // Delete stays on `canEdit` on purpose: it is deliberately still allowed against a
+  // locked row, because removing your own content is the only way back under the free
+  // cap without paying (see the `LockedError` note in web/src/lib/core/lists.ts).
+  const canWrite = canEdit && !locked;
+
   async function toggleVisited() {
     if (!id || !b) return;
     const next = !b.visited;
@@ -140,11 +150,19 @@ export default function BookmarkScreen() {
       <Stack.Screen
         options={{
           headerTitle: '',
+          // Locked keeps the slot but swaps the pencil for a muted, unpressable
+          // padlock, so the control reads as disabled rather than missing.
           headerRight: () =>
             b && canEdit ? (
               <Pressable
                 accessibilityRole="button"
-                accessibilityLabel="Edit bookmark"
+                accessibilityLabel={
+                  locked
+                    ? 'Editing unavailable, this bookmark is locked'
+                    : 'Edit bookmark'
+                }
+                accessibilityState={{ disabled: locked }}
+                disabled={locked}
                 hitSlop={8}
                 onPress={() =>
                   router.push({ pathname: '/bookmarks/edit', params: { id } })
@@ -155,7 +173,11 @@ export default function BookmarkScreen() {
                   alignItems: 'center',
                   justifyContent: 'center',
                 }}>
-                <Ionicons name="create-outline" size={24} color={t.primary} />
+                <Ionicons
+                  name={locked ? 'lock-closed-outline' : 'create-outline'}
+                  size={24}
+                  color={locked ? t.muted : t.primary}
+                />
               </Pressable>
             ) : null,
         }}
@@ -225,6 +247,12 @@ export default function BookmarkScreen() {
 
           <Text className="font-serif text-3xl text-ink">{b.name}</Text>
 
+          {/* Why the pencil, the stars and the visited pill are dead. Same shape as
+              the list screen's locked notice. */}
+          {locked && (
+            <LockedNotice kind={b.lockedAt != null ? 'bookmark' : 'list'} />
+          )}
+
           {/* Action row above the rating/visited row. Holds every action on this
               bookmark except Edit, which lives in the header. */}
           <View className="flex-row items-center justify-between gap-4 border-b border-border pb-3">
@@ -256,11 +284,14 @@ export default function BookmarkScreen() {
             )}
           </View>
 
+          {/* Both fall back to their existing read-only renderings (static stars,
+              a "Visited"/"Not visited" state badge) when the row is locked: the
+              same treatment a VIEWER already gets, reached by `canWrite`. */}
           <View className="flex-row items-center justify-between">
-            <RatingStars value={b.rating} onChange={canEdit ? setRating : undefined} />
+            <RatingStars value={b.rating} onChange={canWrite ? setRating : undefined} />
             <VisitedPill
               visited={b.visited}
-              onToggle={canEdit ? toggleVisited : undefined}
+              onToggle={canWrite ? toggleVisited : undefined}
               size="md"
             />
           </View>

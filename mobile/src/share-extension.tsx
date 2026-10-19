@@ -28,6 +28,7 @@ import { close, openHostApp, type InitialProps } from 'expo-share-extension';
 
 import { trpc } from '@/client/api';
 import { readStoredBearerToken } from '@/client/bearer-store';
+import { capHitMessage, freeLimitFrom, type FreeLimit } from '@/client/free-limit';
 import {
   type ListOption,
   readSharedLists,
@@ -88,6 +89,10 @@ function SaveScreen({ url, text }: InitialProps) {
     : EMPTY_BOOKMARK;
 
   const [auth, setAuth] = useState<'checking' | 'in' | 'out'>('checking');
+  // A free-tier cap refusal, plus how many rows the blocked save would have added. The
+  // extension cannot host a paywall (see the branch that renders it below), so this replaces
+  // the form with a nudge rather than opening anything.
+  const [capHit, setCapHit] = useState<{ limit: FreeLimit; adding: number } | null>(null);
   const [lists, setLists] = useState<ListOption[]>([]);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [newListNames, setNewListNames] = useState<string[]>([]);
@@ -126,6 +131,39 @@ function SaveScreen({ url, text }: InitialProps) {
     return (
       <View className="flex-1 items-center justify-center bg-bg">
         <ActivityIndicator />
+      </View>
+    );
+  }
+
+  // A cap hit here is a dead end by design. The extension runs in a **separate process**: no
+  // expo-router navigator to push a screen into, no auth client (it would crash this process —
+  // see client/api.ts), and no StoreKit presentation context. So it states the limit plainly
+  // and hands off to the host app, reusing the same `openHostApp` nudge the signed-out branch
+  // below already uses. `/paywall` is a real route in the app (app/paywall.tsx), so the deep
+  // link lands on the upgrade screen rather than just the home tab.
+  if (capHit) {
+    return (
+      <View className="flex-1 bg-bg">
+        <TopBar title="Save to Klect" />
+        <View className="flex-1 items-center justify-center gap-4 px-8">
+          <Text className="text-center text-lg font-semibold text-ink">
+            You&apos;ve hit your free plan limit
+          </Text>
+          <Text className="text-center text-ink">
+            {capHitMessage(capHit.limit, capHit.adding)}
+          </Text>
+          <Text className="text-center text-sm text-muted">
+            Upgrading has to happen in the app — the share sheet can&apos;t open the App Store
+            purchase screen.
+          </Text>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Open Klect to upgrade"
+            className="rounded-skin bg-primary px-6 py-3"
+            onPress={() => openHostApp('/paywall')}>
+            <Text className="font-semibold text-primary-ink">Open Klect to upgrade</Text>
+          </Pressable>
+        </View>
       </View>
     );
   }
@@ -183,12 +221,32 @@ function SaveScreen({ url, text }: InitialProps) {
           if (selectedIds.length + newListNames.length === 0) {
             throw new Error('Pick at least one list for the bookmark.');
           }
-          await trpc.bookmarks.createInLists.mutate({
-            existingListIds: selectedIds,
-            newListNames,
-            data,
-            newListsPublic,
-          });
+          try {
+            await trpc.bookmarks.createInLists.mutate({
+              existingListIds: selectedIds,
+              newListNames,
+              data,
+              newListsPublic,
+            });
+          } catch (e) {
+            // Structured cap refusal off `error.data.freeLimit`, never the message text.
+            const cap = freeLimitFrom(e);
+            if (!cap) throw e;
+            // Same split as app/bookmarks/new.tsx, mirroring core.createBookmarkInLists:
+            // only new lists consume list capacity, while bookmark capacity is consumed by
+            // every target the user owns plus those new lists.
+            const ownedExisting = selectedIds.filter((id) =>
+              lists.some((l) => l.id === id && l.role === 'OWNER'),
+            ).length;
+            setCapHit({
+              limit: cap,
+              adding:
+                cap.limit === 'lists'
+                  ? newListNames.length
+                  : ownedExisting + newListNames.length,
+            });
+            return;
+          }
           close();
         }}
       />

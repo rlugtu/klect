@@ -36,7 +36,15 @@ export function createListRecord(
   });
 }
 
-/** All lists the user participates in, in their personal order. */
+/**
+ * All lists the user participates in, in their personal order.
+ *
+ * Locked lists are deliberately included rather than filtered out: a lock means
+ * read-only, never hidden, so the home page still shows them and renders them in
+ * the locked state. `include` (not `select`) means every scalar on the list comes
+ * back, `lockedAt` among them — if this is ever narrowed to a `select`, keep
+ * `lockedAt` or the cards go back to rendering locked lists as active.
+ */
 export function getUserLists(userId: string) {
   return prisma.listMembership.findMany({
     where: { userId },
@@ -51,6 +59,9 @@ export function getUserLists(userId: string) {
   });
 }
 
+// `include` keeps every scalar on the list, so `lockedAt` reaches the detail page
+// and its header can render the read-only state. Same caveat as getUserLists: do
+// not narrow this to a `select` without carrying `lockedAt` across.
 const listDetailInclude = {
   owner: { select: { id: true, handle: true, icon: true } },
   _count: { select: { bookmarks: true, memberships: true } },

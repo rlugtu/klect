@@ -5,9 +5,11 @@ import { LandingPage } from "@/components/marketing/LandingPage";
 import { getUserLists } from "@/lib/lists";
 import { getBookmarksByTags } from "@/lib/bookmarks";
 import { getIncomingRequests } from "@/lib/sharing";
+import { getSelectionStatus } from "@/lib/actions/entitlements";
 import { getUserTags } from "@/lib/tags";
 import type { ListCardData } from "@/lib/types";
 import { CreateListPanel } from "@/components/lists/CreateListPanel";
+import { ReclaimBanner } from "@/components/entitlements/ReclaimBanner";
 import { HomeLists } from "@/components/lists/HomeLists";
 import { SearchBar } from "@/components/search/SearchBar";
 import { BookmarkCard } from "@/components/bookmarks/BookmarkCard";
@@ -41,14 +43,29 @@ export default async function Home({
 
   const selectedTags = parseTags((await searchParams).tags);
 
-  const [memberships, userTags, incomingRequests] = await Promise.all([
+  const [memberships, userTags, incomingRequests, selection] = await Promise.all([
     getUserLists(user.id),
     getUserTags(user.id),
     getIncomingRequests(user.email),
+    // No argument by design: the action resolves the acting user from the
+    // session itself, so a user id is never something a caller can supply.
+    getSelectionStatus(),
   ]);
+
+  // Forced-state gate, same shape as the onboarding redirect above: a lapsed
+  // account that is over a free cap owes a selection before the app makes
+  // sense. Folded into the Promise.all so it costs no extra round trip, and
+  // kept here rather than in `requireOnboardedUser` so every other
+  // authenticated page doesn't pay for an entitlement read. See
+  // app/downgrade/page.tsx for the reasoning.
+  if (selection.needsSelection) redirect("/downgrade");
+
   const tagOptions = userTags.map((t) => t.name);
   const tagColors = Object.fromEntries(userTags.map((t) => [t.name, t.color]));
 
+  // Locked lists are listed alongside active ones rather than filtered out: the
+  // lock preserves them read-only, and hiding them would look like deletion. The
+  // card renders them as inactive (see ListCard).
   const lists: ListCardData[] = memberships.map((m) => ({
     id: m.listId,
     name: m.list.name,
@@ -57,6 +74,7 @@ export default async function Home({
     role: m.role,
     bookmarkCount: m.list._count.bookmarks,
     memberCount: m.list._count.memberships,
+    locked: m.list.lockedAt !== null,
   }));
 
   const listOptions = lists.map((l) => ({
@@ -122,6 +140,14 @@ export default async function Home({
         </Link>
       </div>
 
+      {/* The other half of the entitlement status read above. `needsSelection` is a
+          redirect because the account is incoherent until it is answered;
+          `canReclaim` is under-cap with locks still held, which is coherent, so it
+          gets a closeable card instead of a gate. The two are mutually exclusive
+          (reclaim is defined as under-cap), so this never renders alongside the
+          redirect above. */}
+      {selection.canReclaim && <ReclaimBanner />}
+
       <SearchBar
         lists={listOptions}
         tags={tagOptions}
@@ -152,6 +178,9 @@ export default async function Home({
                     visited: b.visited,
                     tags: b.tags.map((bt) => bt.tag),
                     commentCount: b._count.comments,
+                    // Read-only if the bookmark is locked or its list is — a
+                    // cross-list result has to check both.
+                    locked: b.lockedAt !== null || b.list.lockedAt !== null,
                   }}
                 />
               ))}

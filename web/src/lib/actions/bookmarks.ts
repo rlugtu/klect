@@ -1,10 +1,15 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { redirect } from "next/navigation";
+import { redirect, unstable_rethrow } from "next/navigation";
 import { requireUser } from "@/lib/session";
 import { setFlashToast } from "@/lib/toast-flash";
 import * as core from "@/lib/core/bookmarks";
+import {
+  isFreeLimitError,
+  toFreeLimitResult,
+  type CappedCreateResult,
+} from "@/lib/core/entitlements";
 
 /** Extract a bookmark's fields + tags from submitted FormData. */
 function bookmarkInputFromFormData(formData: FormData): core.BookmarkInput {
@@ -32,27 +37,59 @@ function bookmarkInputFromFormData(formData: FormData): core.BookmarkInput {
   };
 }
 
-export async function createBookmark(listId: string, formData: FormData) {
+/**
+ * Returns a {@link CappedCreateResult}: `undefined` once saved, or the
+ * structured refusal when the free bookmark cap is hit, so the caller can show
+ * the paywall instead of Next's generic error boundary.
+ */
+export async function createBookmark(
+  listId: string,
+  formData: FormData,
+): Promise<CappedCreateResult> {
   const user = await requireUser();
-  await core.createBookmark(user.id, listId, bookmarkInputFromFormData(formData));
+
+  // Guards the core call only. `unstable_rethrow` is first in the catch so any
+  // Next control-flow signal (redirect, notFound, dynamic-rendering bailout)
+  // thrown from inside is re-thrown rather than mistaken for a failure.
+  try {
+    await core.createBookmark(user.id, listId, bookmarkInputFromFormData(formData));
+  } catch (e) {
+    unstable_rethrow(e);
+    if (isFreeLimitError(e)) return toFreeLimitResult(e);
+    throw e;
+  }
 
   // Stay on the list so the create panel can close and the new card appears.
   revalidatePath(`/lists/${listId}`);
 }
 
+/**
+ * Returns a {@link CappedCreateResult}: `undefined` once saved, or the
+ * structured refusal when the free bookmark or list cap is hit — this flow can
+ * create lists too, so either cap can stop it.
+ */
 export async function createBookmarkInLists(
   existingListIds: string[],
   newListNames: string[],
   formData: FormData,
-) {
+): Promise<CappedCreateResult> {
   const user = await requireUser();
-  const { targetIds } = await core.createBookmarkInLists(
-    user.id,
-    existingListIds,
-    newListNames,
-    bookmarkInputFromFormData(formData),
-    formData.get("newListsPublic") === "on",
-  );
+
+  // Guards the core call only; see the note in `createBookmark` on the rethrow.
+  let targetIds: string[];
+  try {
+    ({ targetIds } = await core.createBookmarkInLists(
+      user.id,
+      existingListIds,
+      newListNames,
+      bookmarkInputFromFormData(formData),
+      formData.get("newListsPublic") === "on",
+    ));
+  } catch (e) {
+    unstable_rethrow(e);
+    if (isFreeLimitError(e)) return toFreeLimitResult(e);
+    throw e;
+  }
 
   revalidatePath("/");
   for (const listId of targetIds) revalidatePath(`/lists/${listId}`);

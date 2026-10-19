@@ -76,9 +76,21 @@ export function ListPicker({
     };
   }, []);
 
-  // Only lists the user can add bookmarks to (COLLABORATOR+). Matches web's role filter.
+  // Only lists the user can add bookmarks to (COLLABORATOR+) *and* that aren't frozen by the
+  // free-tier downgrade flow. Both halves match web's own picker filter in
+  // `web/src/app/bookmarks/new/page.tsx`, which excludes locked lists outright rather than
+  // showing them disabled. Excluded, not disabled, on purpose: the cap count ignores a locked
+  // list's contents, so a locked list left selectable is a hole a free user can save through
+  // forever without the cap ever noticing.
+  //
+  // Nullish-checked (`== null`), never `=== null`: the share extension hydrates from a
+  // persisted keychain snapshot, and one written before `lockedAt` was cached has the field
+  // undefined, which means unlocked, not locked.
   const editable = useMemo(
-    () => lists.filter((l) => l.role === 'OWNER' || l.role === 'COLLABORATOR'),
+    () =>
+      lists.filter(
+        (l) => (l.role === 'OWNER' || l.role === 'COLLABORATOR') && l.lockedAt == null,
+      ),
     [lists],
   );
   const selected = editable.filter((l) => selectedIds.includes(l.id));

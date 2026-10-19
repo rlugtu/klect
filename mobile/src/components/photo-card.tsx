@@ -2,6 +2,7 @@ import { type ReactNode, useEffect, useState } from 'react';
 import { Pressable, Text, View } from 'react-native';
 import { Image } from 'expo-image';
 
+import { LOCKED_OPACITY } from '@/components/locked-badge';
 import { cardShadow } from '@/theme/shadows';
 
 type Props = {
@@ -12,6 +13,12 @@ type Props = {
   fallbackImage?: string | null;
   placeholderEmoji?: string;
   onPress?: () => void;
+  /**
+   * Fades the photo only, for a locked (read-only) bookmark. The card
+   * surface and `onPress` are untouched on purpose: locked means read-only, not
+   * hidden, so the card must still open. Caller dims its own `children`.
+   */
+  dimmed?: boolean;
   /** Content rendered below the photo (title, meta, tags…). */
   children: ReactNode;
 };
@@ -26,6 +33,7 @@ export default function PhotoCard({
   fallbackImage,
   placeholderEmoji = '🔖',
   onPress,
+  dimmed = false,
   children,
 }: Props) {
   // Walk candidates on load error: image → fallbackImage → placeholder. Reset
@@ -44,7 +52,7 @@ export default function PhotoCard({
       style={cardShadow}
       className="overflow-hidden rounded-skin border-skin border-border bg-panel">
       {/* p-1.5 leaves a panel-colored "print border" around the photo */}
-      <View className="p-1.5">
+      <View className="p-1.5" style={dimmed ? { opacity: LOCKED_OPACITY } : undefined}>
         <View className="overflow-hidden rounded-skin-sm">
           {src ? (
             <Image

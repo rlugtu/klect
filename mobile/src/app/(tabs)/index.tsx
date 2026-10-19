@@ -9,9 +9,11 @@ import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect, useRouter } from 'expo-router';
 
 import { trpc } from '@/client/api';
+import { useEntitlements } from '@/client/entitlements';
 import { writeSharedLists } from '@/client/shared-lists-cache';
 import { toast, errorMessage } from '@/client/toast';
 import FloatingStatusBar from '@/components/floating-status-bar';
+import LockedBadge, { LOCKED_OPACITY, ReclaimBanner } from '@/components/locked-badge';
 import Skeleton from '@/components/skeleton';
 import { useTheme } from '@/theme/theme-provider';
 import { THEME_TOKENS } from '@/theme/tokens';
@@ -74,13 +76,21 @@ function CardBody({
   onOpen: () => void;
   onLongPress?: () => void;
 }) {
+  // Frozen by the free-tier downgrade flow. Locked is read-only, never hidden, so
+  // the card keeps its full surface and stays tappable (and draggable). Only its
+  // contents dim, and a Locked pill says why.
+  const locked = item.list.lockedAt != null;
+  const dim = locked ? { opacity: LOCKED_OPACITY } : undefined;
+
   return (
     <Pressable
       accessibilityRole="button"
       accessibilityLabel={`${item.list.name}, ${plural(
         item.list._count.bookmarks,
         'bookmark',
-      )}, ${plural(item.list._count.memberships, 'member')}`}
+      )}, ${plural(item.list._count.memberships, 'member')}${
+        locked ? ', locked, read only' : ''
+      }`}
       accessibilityHint={
         onLongPress ? 'Double tap and hold to reorder this list' : undefined
       }
@@ -90,12 +100,16 @@ function CardBody({
       style={cardShadow}
       className="rounded-skin border-skin border-border bg-panel p-4">
       <View className="flex-row items-center gap-2">
-        <Text className="flex-shrink font-serif text-xl text-ink">
+        <Text className="flex-shrink font-serif text-xl text-ink" style={dim}>
           {item.list.icon} {item.list.name}
         </Text>
+        {/* Role stays at full strength: it's a fact about the list, not part of
+            what the lock greys out. (And RoleBadge renders nothing for OWNER, so
+            it must not be wrapped: a wrapper View would leave a stray gap.) */}
         <RoleBadge role={item.role} />
+        {locked && <LockedBadge />}
       </View>
-      <Text className="mt-0.5 font-sans text-sm text-muted">
+      <Text className="mt-0.5 font-sans text-sm text-muted" style={dim}>
         {plural(item.list._count.bookmarks, 'bookmark')} ·{' '}
         {plural(item.list._count.memberships, 'member')}
       </Text>
@@ -109,12 +123,20 @@ export default function HomeScreen() {
   const muted = THEME_TOKENS[theme].muted;
   const insets = useSafeAreaInsets();
   const onScroll = useTabBarScrollHandler();
+  // Whether the account has room to unlock rows it locked on a past downgrade. Read from the
+  // shared entitlements status, never recomputed from the counts below. Web's
+  // `core/active-selection.ts` is the single authority on that.
+  const { status } = useEntitlements();
 
   const [lists, setLists] = useState<Memberships>([]);
   const [requestCount, setRequestCount] = useState(0);
   const [query, setQuery] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  // Dismissal is for this run of the app only, not persisted. Reclaiming is a transient state
+  // the user can act on in one tap, and it stops being offered the moment they do (or the
+  // moment the room disappears), so there is nothing here worth remembering across launches.
+  const [reclaimDismissed, setReclaimDismissed] = useState(false);
 
   const load = useCallback(() => {
     trpc.lists.mine
@@ -192,6 +214,15 @@ export default function HomeScreen() {
           <Text className="font-sans-semibold text-lg text-primary">+ List</Text>
         </Pressable>
       </View>
+
+      {/* Only entry point back into the downgrade-selection screen once `needsSelection` has
+          gone false. A prompt, never a gate. See the note on EntitlementGate in _layout.tsx. */}
+      {status?.canReclaim && !reclaimDismissed && (
+        <ReclaimBanner
+          onReview={() => router.push('/downgrade')}
+          onDismiss={() => setReclaimDismissed(true)}
+        />
+      )}
 
       <View className="flex-row items-center gap-2 rounded-skin border-skin border-border bg-panel px-3">
         <Ionicons name="search" size={18} color={muted} />

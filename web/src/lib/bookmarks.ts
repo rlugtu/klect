@@ -2,7 +2,14 @@ import "server-only";
 import { prisma } from "@/lib/db";
 import { getViewerAccess } from "@/lib/permissions";
 
-/** Bookmarks in a list, newest first, with their tags + comment counts. */
+/**
+ * Bookmarks in a list, newest first, with their tags + comment counts.
+ *
+ * Locked bookmarks are included, not filtered: locked means read-only, not hidden.
+ * `lockedAt` rides along because this is an `include` over the full row — keep it
+ * if this is ever narrowed to a `select`, or the list page renders locked
+ * bookmarks as if they were editable.
+ */
 export function getBookmarksForList(listId: string) {
   return prisma.bookmark.findMany({
     where: { listId },
@@ -26,7 +33,10 @@ export function getBookmarksByTags(userId: string, tagNames: string[]) {
     },
     orderBy: { createdAt: "desc" },
     include: {
-      list: { select: { id: true, name: true, icon: true } },
+      // The list's own `lockedAt` too: a bookmark in a locked list is read-only
+      // even when the bookmark itself was never stamped, and a cross-list result
+      // has no other way to know that.
+      list: { select: { id: true, name: true, icon: true, lockedAt: true } },
       tags: { include: { tag: { select: { id: true, name: true, color: true } } } },
       _count: { select: { comments: true } },
     },
@@ -48,7 +58,8 @@ export function getBookmarksWithCoords(userId: string, listIds?: string[]) {
       ...(listIds?.length ? { listId: { in: listIds } } : {}),
     },
     include: {
-      list: { select: { id: true, name: true, icon: true } },
+      // `lockedAt` for the same reason as getBookmarksByTags above.
+      list: { select: { id: true, name: true, icon: true, lockedAt: true } },
       tags: { include: { tag: { select: { id: true, name: true, color: true } } } },
       _count: { select: { comments: true } },
     },
@@ -79,7 +90,10 @@ export async function getBookmarkForUser(userId: string, bookmarkId: string) {
   const bookmark = await prisma.bookmark.findUnique({
     where: { id: bookmarkId },
     include: {
-      list: { select: { id: true, name: true, icon: true } },
+      // `lockedAt` on the parent list matters to the client as much as the
+      // bookmark's own: `listIdOfWritableBookmark` refuses an edit when either is
+      // locked, so a read-only UI can't be drawn from the bookmark's flag alone.
+      list: { select: { id: true, name: true, icon: true, lockedAt: true } },
       tags: { include: { tag: { select: { id: true, name: true, color: true } } } },
     },
   });

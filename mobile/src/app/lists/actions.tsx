@@ -17,6 +17,7 @@ import {
 import { useHeaderHeight } from '@react-navigation/elements';
 
 import { trpc } from '@/client/api';
+import { freeLimitFrom, paywallRouteFor } from '@/client/free-limit';
 import { toast, errorMessage } from '@/client/toast';
 import { useTheme } from '@/theme/theme-provider';
 import { THEME_TOKENS } from '@/theme/tokens';
@@ -34,6 +35,9 @@ export default function ListActionsScreen() {
   const headerHeight = useHeaderHeight();
 
   const [isOwner, setIsOwner] = useState(false);
+  // How many bookmarks the source list holds. One copy of each is what a duplicate would
+  // add, so it's the `adding` count the bookmark paywall needs. Null until the fetch lands.
+  const [sourceBookmarks, setSourceBookmarks] = useState<number | null>(null);
   const [newName, setNewName] = useState(`Copy of ${name ?? 'list'}`.slice(0, 30));
   const [duplicating, setDuplicating] = useState(false);
   const [clearing, setClearing] = useState(false);
@@ -44,7 +48,10 @@ export default function ListActionsScreen() {
       if (!id) return;
       trpc.lists.get
         .query({ listId: id })
-        .then((access) => setIsOwner(access?.role === 'OWNER'))
+        .then((access) => {
+          setIsOwner(access?.role === 'OWNER');
+          setSourceBookmarks(access?.list._count.bookmarks ?? null);
+        })
         .catch(() => {});
     }, [id]),
   );
@@ -64,8 +71,29 @@ export default function ListActionsScreen() {
         params: { id: list.id, name: list.name },
       });
     } catch (e) {
+      // A free-tier cap refusal is an upgrade prompt, not a failure. Same contract as
+      // lists/new.tsx and bookmarks/new.tsx. Detected off the structured
+      // `error.data.freeLimit`, never by matching the message text, which is copy.
+      const cap = freeLimitFrom(e);
+      // The reason stays on screen either way, so dismissing the paywall without buying
+      // doesn't leave the user looking at an unexplained Duplicate button.
       setError(e instanceof Error ? e.message : 'Duplicate failed');
-      toast.error(errorMessage(e, 'Duplicate failed'));
+      if (cap) {
+        // Duplicating adds exactly one owned list plus one owned bookmark per bookmark in
+        // the source, and `core.duplicateList` checks each cap against its own count, so
+        // either can be the one that threw. The list cap is always a single row; the
+        // bookmark cap is the source list's whole size, which the ownership query above
+        // already fetched. If that fetch never landed, fall back to the smallest count that
+        // could have tripped the cap (the guard throws on `current + adding > max`), so the
+        // paywall understates the overflow rather than inventing a number.
+        const adding =
+          cap.limit === 'lists'
+            ? 1
+            : (sourceBookmarks ?? Math.max(1, cap.max - cap.current + 1));
+        router.push(paywallRouteFor(cap, adding));
+      } else {
+        toast.error(errorMessage(e, 'Duplicate failed'));
+      }
       setDuplicating(false);
     }
   }

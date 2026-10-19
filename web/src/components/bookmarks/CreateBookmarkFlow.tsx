@@ -1,12 +1,16 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { BookmarkForm } from "./BookmarkForm";
 import { PixelInput } from "@/components/ui/PixelInput";
 import { PixelBadge } from "@/components/ui/PixelBadge";
+import { PixelButton } from "@/components/ui/PixelButton";
 import { FieldLabel } from "@/components/ui/FieldLabel";
 import { cn } from "@/lib/utils";
+import { upgradeHref } from "@/lib/free-limit";
+import type { FreeLimitResult } from "@/lib/core/entitlements";
 import { createBookmarkInLists } from "@/lib/actions/bookmarks";
 
 /**
@@ -29,11 +33,15 @@ export function CreateBookmarkFlow({
   const [draftList, setDraftList] = useState("");
   const [newListsPublic, setNewListsPublic] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // A cap refusal is held separately from `error` because it gets a different
+  // treatment: the message plus a link to the paywall. This flow can create
+  // lists as well as bookmarks, so either cap can land here.
+  const [refusal, setRefusal] = useState<FreeLimitResult | null>(null);
 
   const targetCount = selectedListIds.length + newListNames.length;
 
   function toggleList(id: string) {
-    setError(null);
+    clearErrors();
     setSelectedListIds((cur) =>
       cur.includes(id) ? cur.filter((x) => x !== id) : [...cur, id],
     );
@@ -42,7 +50,7 @@ export function CreateBookmarkFlow({
   function addNewList(raw: string) {
     const value = raw.trim();
     if (!value) return;
-    setError(null);
+    clearErrors();
     setNewListNames((cur) =>
       cur.some((n) => n.toLowerCase() === value.toLowerCase())
         ? cur
@@ -55,14 +63,32 @@ export function CreateBookmarkFlow({
     setNewListNames((cur) => cur.filter((n) => n !== name));
   }
 
+  function clearErrors() {
+    setError(null);
+    setRefusal(null);
+  }
+
   async function handleCreate(formData: FormData) {
+    clearErrors();
     if (targetCount === 0) {
       setError("Pick at least one list for the bookmark.");
       return;
     }
     // Only new lists carry visibility; existing lists keep theirs.
     formData.set("newListsPublic", newListsPublic ? "on" : "");
-    await createBookmarkInLists(selectedListIds, newListNames, formData);
+    const capRefusal = await createBookmarkInLists(
+      selectedListIds,
+      newListNames,
+      formData,
+    );
+    // Cap hit: surface it where the other blocking errors in this flow show,
+    // with a link to the paywall beside it. Navigating straight there would
+    // throw away the bookmark the user has already typed in, so the move to the
+    // upgrade page stays their call.
+    if (capRefusal) {
+      setRefusal(capRefusal);
+      return;
+    }
     router.push("/");
   }
 
@@ -136,6 +162,15 @@ export function CreateBookmarkFlow({
         />
 
         {error && <p className="text-danger text-sm">{error}</p>}
+
+        {refusal && (
+          <div className="border-danger flex flex-wrap items-center justify-between gap-3 border-2 px-3 py-2.5">
+            <p className="text-danger text-sm">{refusal.message}</p>
+            <Link href={upgradeHref(refusal)} className="shrink-0">
+              <PixelButton size="xs">Upgrade</PixelButton>
+            </Link>
+          </div>
+        )}
       </div>
 
       <BookmarkForm

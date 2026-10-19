@@ -31,6 +31,7 @@ import {
   Geist_600SemiBold,
 } from '@expo-google-fonts/geist';
 
+import DowngradeScreen from '@/components/downgrade-screen';
 import ErrorBoundary from '@/components/error-boundary';
 import HeaderBlurBackground from '@/components/header-blur-background';
 import LoginScreen from '@/components/login-screen';
@@ -38,6 +39,7 @@ import OnboardingScreen from '@/components/onboarding-screen';
 import ShareNudgePopup from '@/components/share-nudge-popup';
 import ToastHost from '@/components/toast/ToastHost';
 import { authClient } from '@/client/auth';
+import { EntitlementsProvider, useEntitlements } from '@/client/entitlements';
 import {
   rememberPendingInvite,
   takePendingInvite,
@@ -161,6 +163,14 @@ function AppStack() {
       <Stack.Screen name="polls/[pollId]" options={{ ...blankTitle }} />
       <Stack.Screen name="users/[handle]" options={{ ...transparentHeader }} />
       <Stack.Screen name="settings" options={{ ...blankTitle }} />
+      {/* Klect Pro upgrade. Pushed on a free-tier cap hit (see client/free-limit.ts's
+          paywallRouteFor) and the target of the Share Extension's "Open Klect to upgrade"
+          nudge, which can only deep-link because it runs in a separate process. */}
+      <Stack.Screen name="paywall" options={{ ...opaqueModal }} />
+      {/* The downgrade-selection flow, pushed by the home screen's reclaim banner when the
+          server says locked rows can be brought back. Distinct from the blocking gate below
+          (EntitlementGate), which renders the same screen instead of this whole navigator. */}
+      <Stack.Screen name="downgrade" options={{ ...opaqueModal }} />
       <Stack.Screen name="share-help" options={{ ...blankTitle }} />
       <Stack.Screen name="feedback" options={{ ...blankTitle }} />
       <Stack.Screen name="delete-account" options={{ ...blankTitle }} />
@@ -189,6 +199,44 @@ function SessionLoadingScreen() {
       <ActivityIndicator color={THEME_TOKENS[theme].primary} />
     </View>
   );
+}
+
+/**
+ * The free-tier capacity gate, third in the chain after login and onboarding.
+ *
+ * A lapsed subscriber who still owns more than the free plan allows has no coherent app to
+ * browse — the caps are ownership caps, so "which 3 lists are mine now?" has no answer until
+ * they choose. `entitlements.status.needsSelection` is that condition, computed server-side
+ * from the same counts the create guards use, and this swaps the whole navigator for the
+ * selection screen while it holds.
+ *
+ * Fails open in both directions that matter: the brief spinner only covers the very first
+ * status fetch of a session, and a fetch that *fails* lets the app through rather than
+ * stranding the user behind an unanswerable gate. That is safe because the caps are enforced
+ * in `core()` on every mutation regardless of what the client shows.
+ *
+ * `needsSelection` is the only condition that belongs here. `status.canReclaim` (room to
+ * *unlock* rows after trimming back under the cap) must never be added to `blocking`: an
+ * account with reclaimable rows is already coherent, so blocking it would hold the app hostage
+ * over something the user does not owe. That path is the dismissible `ReclaimBanner` on the home
+ * screen, which pushes the `/downgrade` route instead (see app/downgrade.tsx).
+ */
+function EntitlementGate() {
+  const { status, loading } = useEntitlements();
+  const linkingUrl = useLinkingURL();
+  // True whenever this gate renders something other than <AppStack />, i.e. while there is no
+  // navigator for expo-router to route a link into. Same contract as RootLayout's `gated`
+  // below, which can't see this state because it lives outside the entitlements provider —
+  // without this, an invite link arriving during the selection flow would be silently dropped.
+  const blocking = (loading && !status) || Boolean(status?.needsSelection);
+
+  useEffect(() => {
+    if (blocking) rememberPendingInvite(linkingUrl);
+  }, [blocking, linkingUrl]);
+
+  if (loading && !status) return <SessionLoadingScreen />;
+  if (status?.needsSelection) return <DowngradeScreen />;
+  return <AppStack />;
 }
 
 export default function RootLayout() {
@@ -242,7 +290,13 @@ export default function RootLayout() {
                 // Signed in but no handle yet — mirror web's onboarding gate.
                 <OnboardingScreen onDone={() => refetch()} />
               ) : (
-                <AppStack />
+                // Signed in and onboarded. The provider owns the entitlement status every
+                // paywall and cap check reads, and is also where RevenueCat is told who this
+                // user is — it's the one place that mounts exactly once per signed-in user,
+                // and it mounts before any paywall can open.
+                <EntitlementsProvider userId={session.user.id}>
+                  <EntitlementGate />
+                </EntitlementsProvider>
               )}
             </ErrorBoundary>
             {/* Global toast overlay — sits above every screen, reads the theme. */}

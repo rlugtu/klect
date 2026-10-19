@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { Lock } from "lucide-react";
 import { updateBookmark } from "@/lib/actions/bookmarks";
 import { BookmarkForm, type BookmarkDefaults } from "./BookmarkForm";
 import { PixelButton } from "@/components/ui/PixelButton";
@@ -10,10 +11,17 @@ import { PixelCard } from "@/components/ui/PixelCard";
 /**
  * Bookmark page header: a "back" button (left) that returns to the previous page,
  * and an Edit trigger (top right). The edit form expands full-width below the header.
+ *
+ * When `locked`, the Edit trigger is replaced by a visibly disabled "Locked"
+ * button instead of disappearing: a collaborator who knows they can normally edit
+ * here should see *why* the control is gone, and the page's locked notice right
+ * below spells out the rest. The alternative, leaving Edit live, means a filled-in
+ * form that throws on Save.
  */
 export function BookmarkHeader({
   listId,
   canEdit,
+  locked = false,
   bookmarkId,
   defaults,
   tagSuggestions,
@@ -21,6 +29,8 @@ export function BookmarkHeader({
 }: {
   listId: string;
   canEdit: boolean;
+  /** The bookmark (or its list) is locked — the server refuses edits either way. */
+  locked?: boolean;
   bookmarkId: string;
   defaults: BookmarkDefaults;
   tagSuggestions: string[];
@@ -42,18 +52,23 @@ export function BookmarkHeader({
         <PixelButton variant="ghost" size="sm" onClick={handleBack}>
           ← Back
         </PixelButton>
-        {canEdit && (
-          <PixelButton
-            variant="secondary"
-            size="sm"
-            onClick={() => setEditOpen((o) => !o)}
-          >
-            {editOpen ? "Close" : "Edit"}
-          </PixelButton>
-        )}
+        {canEdit &&
+          (locked ? (
+            <PixelButton variant="secondary" size="sm" disabled>
+              <Lock size={14} aria-hidden /> Locked
+            </PixelButton>
+          ) : (
+            <PixelButton
+              variant="secondary"
+              size="sm"
+              onClick={() => setEditOpen((o) => !o)}
+            >
+              {editOpen ? "Close" : "Edit"}
+            </PixelButton>
+          ))}
       </div>
 
-      {editOpen && canEdit && (
+      {editOpen && canEdit && !locked && (
         <PixelCard className="flex flex-col gap-4">
           <div className="flex items-center justify-between">
             <h2 className="text-sm">Edit bookmark</h2>

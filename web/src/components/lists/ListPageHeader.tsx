@@ -21,6 +21,7 @@ import { ListTabs } from "@/components/lists/ListTabs";
 import { ListVisibilityToggle } from "@/components/lists/ListVisibilityToggle";
 import { PixelButton } from "@/components/ui/PixelButton";
 import { PixelBadge } from "@/components/ui/PixelBadge";
+import { LockedBadge } from "@/components/entitlements/LockedState";
 
 type ListAccess = NonNullable<Awaited<ReturnType<typeof getListForViewer>>>;
 
@@ -46,6 +47,11 @@ export async function ListPageHeader({
   const id = list.id;
   const canEdit = isMember && roleAtLeast(role, "COLLABORATOR");
   const isOwner = isMember && role === "OWNER";
+  // Read-only because the owner is over a free cap and left this list out of the
+  // downgrade selection. `canEdit` is left alone and the lock is passed down
+  // separately: the toolbar still needs to open for the actions a lock does not
+  // take away (delete, visibility), it just must not offer the edit form.
+  const locked = list.lockedAt !== null;
   const ownerName = atHandle(list.owner.handle);
 
   // Members-only group chatroom: load the first page + unread badge server-side.
@@ -75,6 +81,7 @@ export async function ListPageHeader({
           </PixelButton>
         </Link>
         <div className="flex items-center gap-3">
+          {locked && <LockedBadge />}
           {!isMember ? (
             <PixelBadge tone="accent" className="gap-1.5">
               <Globe size={12} aria-hidden /> Public · view only
@@ -139,6 +146,7 @@ export async function ListPageHeader({
     <ListToolbar
       sourceName={list.name}
       canEdit={canEdit}
+      locked={locked}
       canClear={isOwner}
       editAction={updateList.bind(null, id)}
       defaults={{

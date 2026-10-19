@@ -10,20 +10,28 @@ import {
 } from "react";
 import { useRouter } from "next/navigation";
 import { ListForm, type ListDefaults } from "./ListForm";
+import { showFreeLimitToast, upgradeHref } from "@/lib/free-limit";
+import type { CappedCreateResult } from "@/lib/core/entitlements";
 import { BookmarkForm } from "@/components/bookmarks/BookmarkForm";
 import { ConfirmDeleteButton } from "@/components/ui/ConfirmDeleteButton";
+import { LockedExplainer } from "@/components/entitlements/LockedState";
 import { PixelButton } from "@/components/ui/PixelButton";
 import { PixelCard } from "@/components/ui/PixelCard";
 import { PixelInput } from "@/components/ui/PixelInput";
 import { FieldLabel } from "@/components/ui/FieldLabel";
 import { SubmitButton } from "@/components/ui/SubmitButton";
-import { Copy, EllipsisVertical, Pencil, Plus, Trash2 } from "lucide-react";
+import { Copy, EllipsisVertical, Lock, Pencil, Plus, Trash2 } from "lucide-react";
 
 type Panel = "create" | "edit" | "duplicate" | "clear" | null;
 
 /** Bookmark-create data threaded to the toolbar's "New bookmark" panel (collaborator+). */
 export type CreateBookmarkProps = {
-  action: (formData: FormData) => void | Promise<void>;
+  /**
+   * `createBookmark` from lib/actions/bookmarks, list id already bound. Resolves
+   * to the free-tier refusal instead of throwing when the cap is hit — hence the
+   * return value the other toolbar actions don't have.
+   */
+  action: (formData: FormData) => Promise<CappedCreateResult>;
   tagSuggestions: string[];
   listTags: string[];
   tagColors: Record<string, string>;
@@ -33,12 +41,25 @@ type ToolbarProps = {
   sourceName: string;
   /** Collaborator+ — may edit list details. */
   canEdit: boolean;
+  /**
+   * The list is locked (free-tier downgrade): `core.updateList` refuses the edit,
+   * so the menu says "Locked list" instead of "Edit list" and its panel explains
+   * the state rather than showing a form whose Save would throw. The panel is
+   * still reachable because delete and visibility are not taken away by a lock.
+   */
+  locked?: boolean;
   /** Owner — may clear all bookmarks. */
   canClear: boolean;
   editAction: (formData: FormData) => void | Promise<void>;
   defaults: ListDefaults;
   deleteAction?: (formData: FormData) => void | Promise<void>;
-  duplicateAction: (formData: FormData) => void | Promise<void>;
+  /**
+   * `duplicateList` from lib/actions/lists, source list id already bound.
+   * Duplicating creates one owned list plus a copy of every bookmark in the
+   * source, so either free cap can refuse it, hence the return value the other
+   * destructive toolbar actions don't have.
+   */
+  duplicateAction: (formData: FormData) => Promise<CappedCreateResult>;
   clearAction: (formData: FormData) => void | Promise<void>;
   /** Owner-only public/private control, rendered inside the edit panel. */
   visibilityChildren?: ReactNode;
@@ -89,7 +110,8 @@ export function ListToolbar({
  * The New bookmark button comes first, before the actions menu. (Members moved to a tab.)
  */
 export function ListToolbarTriggers({ slot }: { slot?: ReactNode } = {}) {
-  const { canEdit, canClear, createBookmark, panel, openPanel } = useToolbar();
+  const { canEdit, canClear, createBookmark, locked, panel, openPanel } =
+    useToolbar();
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
@@ -159,10 +181,21 @@ export function ListToolbarTriggers({ slot }: { slot?: ReactNode } = {}) {
                 type="button"
                 role="menuitem"
                 onClick={() => pick("edit")}
-                className={`${menuItem} hover:bg-primary/15`}
+                className={`${menuItem} hover:bg-primary/15 ${
+                  locked ? "text-muted" : ""
+                }`}
               >
-                <Pencil size={14} aria-hidden />
-                Edit list
+                {locked ? (
+                  <>
+                    <Lock size={14} aria-hidden />
+                    Locked list
+                  </>
+                ) : (
+                  <>
+                    <Pencil size={14} aria-hidden />
+                    Edit list
+                  </>
+                )}
               </button>
             )}
             <button
@@ -217,6 +250,8 @@ export function ListToolbarPanels() {
   const {
     sourceName,
     panel,
+    locked,
+    canClear,
     editAction,
     defaults,
     deleteAction,
@@ -237,7 +272,16 @@ export function ListToolbarPanels() {
           <PanelHeader title="New bookmark" />
           <BookmarkForm
             action={async (formData) => {
-              await createBookmark.action(formData);
+              const refusal = await createBookmark.action(formData);
+              if (refusal) {
+                // Cap hit: keep the panel (and the typed-in bookmark) open, and
+                // offer the paywall from the toast rather than navigating away
+                // from a form the user just filled in.
+                showFreeLimitToast(refusal, () =>
+                  router.push(upgradeHref(refusal)),
+                );
+                return;
+              }
               closePanel();
               // Called from inside this client wrapper, the action's revalidatePath
               // doesn't reach the router, so the new card would otherwise only show
@@ -254,8 +298,15 @@ export function ListToolbarPanels() {
 
       {panel === "edit" && (
         <PixelCard className="flex flex-col gap-4">
-          <PanelHeader title="Edit list" />
-          <ListForm action={editAction} defaults={defaults} submitLabel="Save" />
+          <PanelHeader title={locked ? "List locked" : "Edit list"} />
+          {locked ? (
+            // No form at all rather than a disabled one: everything in it would
+            // be refused. `canClear` is the owner flag (see ToolbarProps), and
+            // only the owner can lift the lock, so only they get the upgrade CTA.
+            <LockedExplainer kind="list" canUpgrade={canClear} />
+          ) : (
+            <ListForm action={editAction} defaults={defaults} submitLabel="Save" />
+          )}
           {visibilityChildren && (
             <div className="border-border flex flex-col gap-2 border-t-2 pt-4">
               <span className="font-pixel text-muted text-sm uppercase">
@@ -282,7 +333,20 @@ export function ListToolbarPanels() {
       {panel === "duplicate" && (
         <PixelCard className="flex flex-col gap-4">
           <PanelHeader title="Duplicate list" />
-          <form action={duplicateAction} className="flex flex-col gap-2">
+          <form
+            action={async (formData) => {
+              // Success redirects to the new copy, so a returned value only ever
+              // means a free cap refused it. Same treatment as the other three
+              // capped create paths: say why, and offer the way out.
+              const refusal = await duplicateAction(formData);
+              if (refusal) {
+                showFreeLimitToast(refusal, () =>
+                  router.push(upgradeHref(refusal)),
+                );
+              }
+            }}
+            className="flex flex-col gap-2"
+          >
             <FieldLabel>New list name</FieldLabel>
             <p className="text-muted text-xs">
               Makes a private copy you own with all the bookmarks — members,

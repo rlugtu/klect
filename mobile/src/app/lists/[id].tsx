@@ -24,6 +24,10 @@ import { toast } from '@/client/toast';
 import { subscribeListChat, realtimeEnabled } from '@/client/realtime';
 import CommentsSection, { type CommentItem } from '@/components/comments-section';
 import { ListChatSheet } from '@/components/list-chat/list-chat-sheet';
+import LockedBadge, {
+  LockedNotice,
+  LOCKED_OPACITY,
+} from '@/components/locked-badge';
 import PhotoCard from '@/components/photo-card';
 import PollRow from '@/components/poll-row';
 import RatingStars from '@/components/rating-stars';
@@ -228,6 +232,18 @@ export default function ListScreen() {
   const canEdit =
     isMember && (access?.role === 'OWNER' || access?.role === 'COLLABORATOR');
 
+  // Frozen by the free-tier downgrade flow (`lockedAt` stamped by
+  // `core.selectActiveLists`). A locked list is wholly read-only, so every
+  // add/modify affordance below branches on `canWrite` rather than `canEdit`:
+  // role says who may write, the lock says whether anyone may.
+  //
+  // Deletes are deliberately NOT gated. "Clear list", deleting the list, and
+  // deleting a bookmark stay live on a locked target, because trimming your own
+  // content is the only way back under the free cap without paying (see the
+  // `LockedError` note in web/src/lib/core/lists.ts).
+  const listLocked = access?.list.lockedAt != null;
+  const canWrite = canEdit && !listLocked;
+
   if (accessError) {
     return (
       <View className="flex-1 items-center justify-center gap-1 bg-bg p-6">
@@ -319,9 +335,18 @@ export default function ListScreen() {
                 <View className="flex-row items-center gap-2">
                   {canEdit && (
                     // Louder filled "New bookmark" action, before the ⋮ list actions.
+                    // On a locked list it stays put but goes visibly dead (dimmed,
+                    // lock glyph, not pressable) rather than disappearing or
+                    // tapping through to a form the server would refuse.
                     <Pressable
                       accessibilityRole="button"
-                      accessibilityLabel="Add bookmark"
+                      accessibilityLabel={
+                        listLocked
+                          ? 'Add bookmark, unavailable while this list is locked'
+                          : 'Add bookmark'
+                      }
+                      accessibilityState={{ disabled: listLocked }}
+                      disabled={listLocked}
                       hitSlop={8}
                       onPress={() =>
                         router.push({
@@ -329,8 +354,13 @@ export default function ListScreen() {
                           params: { listId: id, listName: name },
                         })
                       }
+                      style={listLocked ? { opacity: LOCKED_OPACITY } : undefined}
                       className="flex-row items-center gap-1 rounded-full bg-primary px-3 py-1.5">
-                      <Ionicons name="add" size={16} color={t.primaryInk} />
+                      <Ionicons
+                        name={listLocked ? 'lock-closed' : 'add'}
+                        size={16}
+                        color={t.primaryInk}
+                      />
                       <Text className="font-sans-semibold text-sm text-primary-ink">
                         New
                       </Text>
@@ -360,6 +390,10 @@ export default function ListScreen() {
                 </Text>
               </View>
             )}
+
+            {/* Why every edit control on this screen is dead. Sits in the same slot
+                and the same shape as the public-list notice above. */}
+            {listLocked && <LockedNotice kind="list" />}
 
             {isMember && (
               // Rounded-pill segmented control, echoing the floating nav bar.
@@ -518,7 +552,9 @@ export default function ListScreen() {
               />
             ) : (
               <>
-                {canEdit && (
+                {/* `canWrite`, not `canEdit`: a poll is new content added to the
+                    list, which a locked list can't take. */}
+                {canWrite && (
                   <Pressable
                     accessibilityRole="button"
                     accessibilityLabel="Create poll"
@@ -581,6 +617,13 @@ export default function ListScreen() {
             );
           }
           const b = item as Bookmarks[number];
+          // A bookmark is read-only when it's locked itself or when the whole list
+          // is: `listIdOfWritableBookmark` refuses the edit either way, so the card
+          // has to look the same either way. The pill is drawn in both cases rather
+          // than only for the individually-locked ones: the list banner scrolls off
+          // the top, and a dimmed card with no label is just ambiguous.
+          const bookmarkLocked = listLocked || b.lockedAt != null;
+          const dim = bookmarkLocked ? { opacity: LOCKED_OPACITY } : undefined;
           return (
             <PhotoCard
               // Never the video itself — always a static thumbnail. If the
@@ -591,19 +634,28 @@ export default function ListScreen() {
                 videoPosterUrl(b.videoUrl, b.videoType) ??
                 screenshotThumbUrl(b.urls[0])
               }
+              dimmed={bookmarkLocked}
               onPress={() =>
                 router.push({
                   pathname: '/bookmarks/[id]',
                   params: { id: b.id, name: b.name },
                 })
               }>
-              <Text className="font-serif text-lg text-ink">{b.name}</Text>
+              <View className="flex-row items-center gap-2">
+                <Text className="flex-shrink font-serif text-lg text-ink" style={dim}>
+                  {b.name}
+                </Text>
+                {bookmarkLocked && <LockedBadge />}
+              </View>
               {b.description ? (
-                <Text className="font-sans text-sm text-muted" numberOfLines={2}>
+                <Text
+                  className="font-sans text-sm text-muted"
+                  style={dim}
+                  numberOfLines={2}>
                   {b.description}
                 </Text>
               ) : null}
-              <View className="mt-1 flex-row flex-wrap items-center gap-1">
+              <View className="mt-1 flex-row flex-wrap items-center gap-1" style={dim}>
                 {b.rating > 0 && (
                   <View className="mr-1">
                     <RatingStars value={b.rating} size="sm" />
@@ -649,8 +701,10 @@ export default function ListScreen() {
                   </Text>
                   {on && <Text className="text-base text-primary">✓</Text>}
                 </Pressable>
-                {canEdit && (
+                {canWrite && (
                   // Collaborators can strip a tag off every bookmark in the list.
+                  // Hidden outright on a locked list: it rewrites every bookmark
+                  // it touches, which is exactly what the lock forbids.
                   <Pressable
                     accessibilityRole="button"
                     accessibilityLabel={`Remove ${tag.name} from this list`}
@@ -672,16 +726,36 @@ export default function ListScreen() {
         handleIndicatorStyle={{ backgroundColor: t.muted }}>
         <BottomSheetView style={{ paddingHorizontal: 16, paddingBottom: 32 }}>
           {canEdit && (
+            // Kept visible but dead on a locked list, with a trailing "Locked"
+            // label, so the reason is on screen instead of arriving as a server
+            // error after the edit form has already been filled in.
             <Pressable
               accessibilityRole="button"
-              accessibilityLabel="Edit list"
+              accessibilityLabel={
+                listLocked
+                  ? 'Edit list, unavailable while this list is locked'
+                  : 'Edit list'
+              }
+              accessibilityState={{ disabled: listLocked }}
+              disabled={listLocked}
               onPress={() => {
                 actionsSheetRef.current?.dismiss();
                 router.push({ pathname: '/lists/edit', params: { id } });
               }}
               className="flex-row items-center gap-3 border-b border-border py-3.5">
-              <Ionicons name="create-outline" size={20} color={t.ink} />
-              <Text className="font-sans text-ink">Edit list</Text>
+              <Ionicons
+                name={listLocked ? 'lock-closed-outline' : 'create-outline'}
+                size={20}
+                color={listLocked ? t.muted : t.ink}
+              />
+              <Text className={listLocked ? 'font-sans text-muted' : 'font-sans text-ink'}>
+                Edit list
+              </Text>
+              {listLocked && (
+                <Text className="ml-auto font-sans text-xs" style={{ color: t.warning }}>
+                  Locked
+                </Text>
+              )}
             </Pressable>
           )}
           <Pressable

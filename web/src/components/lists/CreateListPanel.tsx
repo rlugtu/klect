@@ -1,13 +1,16 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { createList } from "@/lib/actions/lists";
+import { showFreeLimitToast, upgradeHref } from "@/lib/free-limit";
 import { ListForm } from "./ListForm";
 import { PixelButton } from "@/components/ui/PixelButton";
 import { PixelCard } from "@/components/ui/PixelCard";
 
 /** "New list" button that reveals an inline create form. */
 export function CreateListPanel() {
+  const router = useRouter();
   const [open, setOpen] = useState(false);
 
   if (!open) {
@@ -29,7 +32,19 @@ export function CreateListPanel() {
           ×
         </button>
       </div>
-      <ListForm action={createList} submitLabel="Create" showVisibility />
+      <ListForm
+        action={async (formData) => {
+          // Success redirects, so a returned value only ever means the free list
+          // cap refused it. The toast carries an Upgrade action rather than
+          // navigating on its own, so the half-filled form survives the refusal.
+          const refusal = await createList(formData);
+          if (refusal) {
+            showFreeLimitToast(refusal, () => router.push(upgradeHref(refusal)));
+          }
+        }}
+        submitLabel="Create"
+        showVisibility
+      />
     </PixelCard>
   );
 }

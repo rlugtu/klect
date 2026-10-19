@@ -23,6 +23,7 @@ import {
   registerForPushNotificationsAsync,
   unregisterPushNotificationsAsync,
 } from '@/client/push';
+import { signOutRevenueCat } from '@/client/revenuecat';
 import { useTheme } from '@/theme/theme-provider';
 import { THEME_TOKENS, type ThemeName } from '@/theme/tokens';
 
@@ -102,6 +103,10 @@ export default function SettingsScreen() {
       await authClient.signOut();
     } finally {
       clearBearerToken();
+      // Drop the RevenueCat identity too, so the next account on this device starts from a
+      // clean app_user_id instead of inheriting this one's purchases view. Best-effort and
+      // a no-op when purchases aren't configured.
+      signOutRevenueCat();
     }
   };
 

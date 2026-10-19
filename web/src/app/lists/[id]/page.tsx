@@ -19,6 +19,7 @@ import { removeListTag } from "@/lib/actions/tags";
 import { PollsView } from "@/components/polls/PollsView";
 import { ConfirmDeleteButton } from "@/components/ui/ConfirmDeleteButton";
 import { ListBookmarks } from "@/components/bookmarks/ListBookmarks";
+import { LockedNotice } from "@/components/entitlements/LockedState";
 
 export default async function ListPage({
   params,
@@ -37,6 +38,13 @@ export default async function ListPage({
   const { role, isMember } = access;
   const canEdit = isMember && roleAtLeast(role, "COLLABORATOR");
   const isOwner = isMember && role === "OWNER";
+  // A locked list is read-only for everyone, whatever their role: the owner's
+  // account is over a free cap and chose not to keep this list active. Locked
+  // means "cannot add to or modify" (see LockedError in core/lists.ts), so the
+  // write affordances come off even though the role would allow them. Reads,
+  // and the deletes that let an over-cap user trim back under the cap, stay.
+  const listLocked = access.list.lockedAt !== null;
+  const canWrite = canEdit && !listLocked;
   // Members + Polls tabs are members-only; a public viewer never sees them.
   const showPolls = tab === "polls" && isMember;
   const showMembers = tab === "members" && isMember;
@@ -51,7 +59,7 @@ export default async function ListPage({
     );
   } else if (showPolls) {
     const polls = await getListPolls(id);
-    content = <PollsView listId={id} polls={polls} canCreate={canEdit} />;
+    content = <PollsView listId={id} polls={polls} canCreate={canWrite} />;
   } else {
     const [bookmarkRows, userTags, comments] = await Promise.all([
       getBookmarksForList(id),
@@ -61,6 +69,10 @@ export default async function ListPage({
     const tagSuggestions = userTags.map((t) => t.name);
     const tagColors = Object.fromEntries(userTags.map((t) => [t.name, t.color]));
 
+    // Two ways a card here is read-only: the list is locked (so everything in it
+    // is), or this individual bookmark was left out of the downgrade selection
+    // inside an otherwise-active list — the case `getSelectionStatus` counts as
+    // `lockedBookmarkCount`. The server refuses an edit identically either way.
     const bookmarks: BookmarkCardData[] = bookmarkRows.map((b) => ({
       id: b.id,
       name: b.name,
@@ -70,6 +82,7 @@ export default async function ListPage({
       visited: b.visited,
       tags: b.tags.map((bt) => bt.tag),
       commentCount: b._count.comments,
+      locked: listLocked || b.lockedAt !== null,
     }));
 
     // Tags already used on bookmarks in this list (for quick-add chips).
@@ -77,7 +90,7 @@ export default async function ListPage({
       ...new Set(bookmarkRows.flatMap((b) => b.tags.map((bt) => bt.tag.name))),
     ].sort((a, b) => a.localeCompare(b));
 
-    if (canEdit) {
+    if (canWrite) {
       createBookmark = {
         action: createBookmarkAction.bind(null, id),
         tagSuggestions,
@@ -88,6 +101,10 @@ export default async function ListPage({
 
     content = (
       <>
+        {listLocked && isMember && (
+          <LockedNotice kind="list" canUpgrade={isOwner} />
+        )}
+
         {isMember && role !== "OWNER" && (
           <ConfirmDeleteButton
             action={leaveList.bind(null, id)}
@@ -99,7 +116,7 @@ export default async function ListPage({
         <section className="flex flex-col gap-4">
           {bookmarks.length === 0 ? (
             <p className="text-muted text-sm text-center">
-              {canEdit
+              {canWrite
                 ? "No bookmarks yet — add your first one. 🔖"
                 : "No bookmarks here yet."}
             </p>
@@ -107,7 +124,7 @@ export default async function ListPage({
             <ListBookmarks
               listId={id}
               bookmarks={bookmarks}
-              canManageTags={canEdit}
+              canManageTags={canWrite}
               removeTagAction={removeListTag.bind(null, id)}
             />
           )}

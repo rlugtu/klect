@@ -2,8 +2,18 @@ import Link from "next/link";
 import type { BookmarkCardData } from "@/lib/types";
 import { StarRating } from "./StarRating";
 import { PixelBadge } from "@/components/ui/PixelBadge";
+import { LOCKED_ART, LockedBadge } from "@/components/entitlements/LockedState";
+import { cn } from "@/lib/utils";
 
-/** Compact bookmark card shown on the list page and in search results. */
+/**
+ * Compact bookmark card shown on the list page and in search results.
+ *
+ * Locked bookmarks (and bookmarks sitting in a locked list) render inactive —
+ * greyed thumbnail, muted title, a "Locked" badge in the same row as the visited
+ * tick — but stay clickable through to the detail page, where the read-only state
+ * is explained and the still-allowed actions remain. Same treatment as a locked
+ * list card, deliberately: one lock, one look.
+ */
 export function BookmarkCard({
   listId,
   bookmark,
@@ -40,15 +50,24 @@ export function BookmarkCard({
           src={bookmark.image}
           alt=""
           loading="lazy"
-          className="pixel-box-sm bg-panel block h-36 w-full max-w-full object-cover"
+          className={cn(
+            "pixel-box-sm bg-panel block h-36 w-full max-w-full object-cover",
+            bookmark.locked && LOCKED_ART,
+          )}
         />
       )}
       <div className="flex items-start gap-3">
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2 min-w-0">
-            <span className="font-pixel text-sm truncate min-w-0 flex-1">
+            <span
+              className={cn(
+                "font-pixel text-sm truncate min-w-0 flex-1",
+                bookmark.locked && "text-muted",
+              )}
+            >
               {bookmark.name}
             </span>
+            {bookmark.locked && <LockedBadge className="px-1.5 py-0.5" />}
             {bookmark.visited && (
               <PixelBadge tone="success" className="shrink-0">
                 ✔
