@@ -6,6 +6,8 @@ import {
   FreeLimitError,
   countActiveOwnedBookmarks,
   countActiveOwnedLists,
+  getEntitlement,
+  isEntitlementActive,
   isPro,
 } from "@/lib/core/entitlements";
 
@@ -98,6 +100,61 @@ export type SelectionList = {
  */
 export type SelectionStatus = {
   isPro: boolean;
+  /**
+   * The paid plan's product identifier, e.g. "klect_pro_monthly". Null when the user
+   * has never had an entitlement row at all.
+   *
+   * Deliberately the raw identifier rather than display copy: this is RevenueCat's
+   * vocabulary, and web and mobile word their membership screens differently, so
+   * each client formats it for itself. Handing over a pre-formatted string would
+   * mean a client that needs to *decide* something has to parse the prose back.
+   *
+   * Non-null does not mean pro. A lapsed subscriber keeps the row, and the plan
+   * written on it, after it expires. {@link isPro} answers "entitled?"; this answers
+   * "which plan?" and the two can disagree.
+   */
+  plan: string | null;
+  /**
+   * Which billing path paid for the plan ("stripe", "app_store", "play_store"), or
+   * null with no entitlement row.
+   *
+   * Exposed because it answers the one membership question the app cannot answer on
+   * the user's behalf: where to cancel. A Stripe (web) subscription is managed from
+   * the receipt email, an App Store one only from iOS Settings, and pointing someone
+   * at the wrong one is a support ticket rather than a cosmetic error.
+   *
+   * Typed `string` rather than `EntitlementStore` from core/entitlements.ts, and
+   * that is not laziness. The webhook's `mapStore` writes unmapped RevenueCat stores
+   * straight through, lowercased (amazon, roku, paddle, promotional, test_store),
+   * and falls back to "unknown", so the column genuinely holds values outside the
+   * checked union. Treat that union as the set worth writing copy for, and always
+   * keep a neutral fallback branch for the rest.
+   */
+  store: string | null;
+  /**
+   * Lifecycle state of the entitlement row ("active", "expired", "grace"), or null
+   * when there is no row. Same `string`-not-union typing as {@link store}, for the
+   * same reason: the column is a String that RevenueCat's vocabulary can extend.
+   *
+   * Worth carrying alongside {@link isPro} because the two differ in a state the
+   * user needs explained. "grace" is a failed renewal the store is still retrying:
+   * not pro, so no cap is lifted, but not the ordinary free tier either. A screen
+   * that reads only `isPro` tells a subscriber whose card just bounced that they are
+   * simply "on the free plan", which is both wrong and unactionable.
+   */
+  status: string | null;
+  /**
+   * End of the current paid period: the renewal date while active, the date it
+   * lapsed once expired. Null means either no entitlement row, or a row with no
+   * known expiry (a lifetime or promotional grant, which `isEntitlementActive`
+   * keeps active indefinitely). Null is therefore never on its own a reason to say
+   * "expired".
+   *
+   * Serialized exactly like {@link SelectionList.lockedAt}: typed `Date | null`
+   * here, but the router has no superjson transformer, so mobile receives
+   * `string | null` (an ISO string).
+   */
+  expiresAt: Date | null;
   /** The free-tier caps, echoed so clients never hardcode 3 and 20. */
   listLimit: number;
   bookmarkLimit: number;
@@ -191,7 +248,12 @@ async function hasAnyLock(userId: string): Promise<boolean> {
  * them before reporting. See the lock-clear contract at the top of this file.
  */
 export async function getSelectionStatus(userId: string): Promise<SelectionStatus> {
-  const pro = await isPro(userId);
+  // The whole row rather than `isPro(userId)`, which reads exactly this row and
+  // discards everything but the verdict. The membership fields below (plan, store,
+  // status, expiresAt) come off it for free, so the status stays one entitlement
+  // read instead of two.
+  const entitlement = await getEntitlement(userId);
+  const pro = isEntitlementActive(entitlement);
 
   // Read the lock state before any healing, because both consumers need it: the
   // self-heal below, and `hasLocks`/`canReclaim` in the returned status. Reset to
@@ -234,6 +296,10 @@ export async function getSelectionStatus(userId: string): Promise<SelectionStatu
 
   return {
     isPro: pro,
+    plan: entitlement?.plan ?? null,
+    store: entitlement?.store ?? null,
+    status: entitlement?.status ?? null,
+    expiresAt: entitlement?.expiresAt ?? null,
     listLimit: FREE_LIST_LIMIT,
     bookmarkLimit: FREE_BOOKMARK_LIMIT,
     lists: lists.map((list) => ({
