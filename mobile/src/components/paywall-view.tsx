@@ -8,8 +8,10 @@ import {
   type StyleProp,
   type ViewStyle,
 } from 'react-native';
+import * as WebBrowser from 'expo-web-browser';
 import type { PurchasesOffering, PurchasesPackage } from 'react-native-purchases';
 
+import { API_URL } from '@/client/bearer-store';
 import { toast } from '@/client/toast';
 import {
   getProOffering,
@@ -291,6 +293,24 @@ export default function PaywallView({
           in Settings.
         </Text>
       ) : null}
+
+      <Text className="text-center text-xs text-muted">
+        <Text
+          accessibilityRole="link"
+          accessibilityLabel="Terms of Use, opens in a browser"
+          className="text-primary underline"
+          onPress={() => WebBrowser.openBrowserAsync(`${API_URL}/terms`)}>
+          Terms of Use
+        </Text>{' '}
+        and{' '}
+        <Text
+          accessibilityRole="link"
+          accessibilityLabel="Privacy Policy, opens in a browser"
+          className="text-primary underline"
+          onPress={() => WebBrowser.openBrowserAsync(`${API_URL}/privacy`)}>
+          Privacy Policy
+        </Text>
+      </Text>
     </ScrollView>
   );
 }
