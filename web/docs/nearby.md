@@ -18,7 +18,7 @@ have none. Those with a typed location but no coordinates are excluded and surfa
 Geolocation is browser-only, so the page is an RSC shell around a client island, and the distance
 work happens in a server action (server-first, no separate HTTP API):
 
-1. **`src/app/nearby/page.tsx`** (RSC) — `requireOnboardedUser()` → `getUserLists()` → passes the
+1. **`src/app/(app)/nearby/page.tsx`** (RSC) — `requireOnboardedUser()` → `getUserLists()` → passes the
    user's lists to the client island.
 2. **`src/components/bookmarks/NearbyFinder.tsx`** (`"use client"`) — radius `<select>`
    (`NEARBY_RANGES_MI`), per-list toggle chips (all selected by default; Select-all / Clear-all),
@@ -33,6 +33,19 @@ work happens in a server action (server-first, no separate HTTP API):
    return `{ ok, data: NearbyBookmark[], skipped }`. `NearbyBookmark` carries the card data, list
    id/label, `distanceMiles`, and the bookmark's `lat`/`lon` (used by the mobile map to drop pins;
    the web list ignores them).
+
+### Desktop split (lg, 1024px and up)
+At lg+ the page becomes two panes; below lg it is the single column described above, unchanged.
+Left: the same controls, location banner, count and "N skipped" note, then the results as
+compact numbered rows (photo, name, list, distance). Right: the selected result's detail, rendered
+by the same `BookmarkPanelContent` the list page's side panel uses, with "open full page" and close
+(Esc also closes). Selecting a row sets **`?b=<bookmarkId>`** on `/nearby`; the page reads it with
+`getBookmarkDetail` (same permission and lock derivation as the full bookmark page), so an id the
+viewer cannot read shows a "not available" note. Results are client state in `NearbyFinder` and
+survive that navigation (the router keys the page segment without search params). Opening pushes a
+history entry, switching replaces it, closing pops it. Modified and middle clicks on a row still
+open the full bookmark page. There is **no map**: a web map is blocked on the public Mapbox token
+decision (desktop strategy, Open Decision 3), and no map slot is rendered until then.
 
 > **Mobile** consumes the same logic via the `nearby.find` tRPC procedure but renders a full-screen
 > Mapbox map with a bottom drawer instead of a plain list — see `mobile/docs/ARCHITECTURE.md`.

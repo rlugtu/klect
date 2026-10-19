@@ -9,6 +9,7 @@ export function CommentSection({
   currentUserId,
   canModerate,
   readOnly = false,
+  plain = false,
 }: {
   comments: CommentItem[];
   addAction: (formData: FormData) => void | Promise<void>;
@@ -16,9 +17,12 @@ export function CommentSection({
   canModerate: boolean;
   /** Hide the compose box (e.g. a non-member viewing a public list). */
   readOnly?: boolean;
+  /** Drop the card frame (inside a desktop side panel, which is already a surface). */
+  plain?: boolean;
 }) {
+  const Frame = plain ? "section" : PixelCard;
   return (
-    <PixelCard className="flex flex-col gap-4">
+    <Frame className="flex flex-col gap-4">
       <h2 className="text-sm">
         Comments {comments.length > 0 && `(${comments.length})`}
       </h2>
@@ -32,6 +36,6 @@ export function CommentSection({
           canModerate={canModerate}
         />
       )}
-    </PixelCard>
+    </Frame>
   );
 }

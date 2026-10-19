@@ -7,7 +7,9 @@ import { cn } from "@/lib/utils";
 import { atHandle } from "@/lib/handle";
 import { toast } from "@/lib/toast";
 import { PixelButton } from "@/components/ui/PixelButton";
+import { BodyPortal } from "@/components/ui/BodyPortal";
 import { shareBookmark } from "@/lib/actions/dms";
+import { UserIcon } from "@/components/ui/UserIcon";
 
 type Friend = { id: string; handle: string | null; icon: string | null };
 
@@ -15,6 +17,9 @@ type Friend = { id: string; handle: string | null; icon: string | null };
  * The bookmark "send" entry point: an icon button that opens a slide-up sheet to pick one or
  * more friends and (optionally) add a caption, then shares the bookmark into each friend's DM.
  * Mirrors Instagram's share-to-DM. Recipients are friends only (DMs are friend-gated).
+ *
+ * The sheet is portalled to <body> so that, opened from the desktop bookmark
+ * panel, it sits above the sticky top bar instead of sliding up under it.
  */
 export function ShareBookmarkSheet({
   bookmarkId,
@@ -74,6 +79,7 @@ export function ShareBookmarkSheet({
         <Send size={14} aria-hidden /> Send
       </button>
 
+      <BodyPortal>
       <AnimatePresence>
         {open && (
           <>
@@ -125,9 +131,7 @@ export function ShareBookmarkSheet({
                             on && "border-primary bg-primary/20",
                           )}
                         >
-                          <span aria-hidden className="text-lg">
-                            {f.icon ?? "🔖"}
-                          </span>
+                          <UserIcon icon={f.icon} className="text-lg" />
                           <span className="truncate text-sm font-semibold">
                             {atHandle(f.handle)}
                           </span>
@@ -169,6 +173,7 @@ export function ShareBookmarkSheet({
           </>
         )}
       </AnimatePresence>
+      </BodyPortal>
     </>
   );
 }

@@ -8,10 +8,13 @@ import { ListForm } from "./ListForm";
 import { PixelButton } from "@/components/ui/PixelButton";
 import { PixelCard } from "@/components/ui/PixelCard";
 
-/** "New list" button that reveals an inline create form. */
-export function CreateListPanel() {
+/**
+ * "New list" button that reveals an inline create form. `defaultOpen` starts it
+ * open (the desktop sidebar's "+" links to `/?newList=1` to land on it ready).
+ */
+export function CreateListPanel({ defaultOpen = false }: { defaultOpen?: boolean }) {
   const router = useRouter();
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(defaultOpen);
 
   if (!open) {
     return (

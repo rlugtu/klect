@@ -4,6 +4,7 @@ import { pollStatusLabel } from "@/lib/poll-status";
 import type { getListPolls } from "@/lib/polls";
 import { PixelButton } from "@/components/ui/PixelButton";
 import { PixelBadge } from "@/components/ui/PixelBadge";
+import { userIconOf } from "@/components/ui/UserIcon";
 
 type Polls = Awaited<ReturnType<typeof getListPolls>>;
 
@@ -61,7 +62,7 @@ export function PollsView({
                     </p>
                   )}
                   <span className="text-muted text-sm">
-                    {poll.creator.icon ? `${poll.creator.icon} ` : ""}
+                    {`${userIconOf(poll.creator.icon)} `}
                     {creator} · {poll._count.options} option
                     {poll._count.options === 1 ? "" : "s"} · {poll._count.votes}{" "}
                     vote{poll._count.votes === 1 ? "" : "s"}

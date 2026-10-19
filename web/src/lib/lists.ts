@@ -90,3 +90,60 @@ export async function getListForViewer(userId: string, listId: string) {
   if (!list) return null;
   return { list, role: access.role, isMember: access.isMember };
 }
+
+/** One thumbnail in a list card's preview strip. */
+/**
+ * One photo slot of a list card's strip. `images` (the bookmark's photos, first
+ * is `src`), `url` and `name` let the thumbnail fall back when `src` fails.
+ */
+export type ListPreviewImage = {
+  src: string;
+  images: string[];
+  url: string | null;
+  name: string;
+  locked: boolean;
+};
+
+/**
+ * The newest `perList` bookmark photos per list, for the desktop home's list
+ * cards (a 3-image thumbnail strip). One query: Prisma applies the nested `take`
+ * per parent list.
+ *
+ * Scoped to lists the user is a member of, regardless of the ids passed in, so a
+ * caller can never use this to read thumbnails from a list they cannot open.
+ * Bookmarks without a photo are skipped rather than leaving a gap. `locked` is
+ * true when the bookmark or its list is locked, so the strip can dim it with the
+ * same LOCKED_ART treatment as the cards.
+ */
+export async function getListPreviewImages(
+  userId: string,
+  listIds: string[],
+  perList = 3,
+): Promise<Record<string, ListPreviewImage[]>> {
+  if (listIds.length === 0) return {};
+  const lists = await prisma.list.findMany({
+    where: { id: { in: listIds }, memberships: { some: { userId } } },
+    select: {
+      id: true,
+      lockedAt: true,
+      bookmarks: {
+        where: { images: { isEmpty: false } },
+        orderBy: { createdAt: "desc" },
+        take: perList,
+        select: { name: true, images: true, urls: true, lockedAt: true },
+      },
+    },
+  });
+  return Object.fromEntries(
+    lists.map((l) => [
+      l.id,
+      l.bookmarks.map((b) => ({
+        src: b.images[0],
+        images: b.images.slice(0, 4),
+        url: b.urls[0] ?? null,
+        name: b.name,
+        locked: l.lockedAt !== null || b.lockedAt !== null,
+      })),
+    ]),
+  );
+}

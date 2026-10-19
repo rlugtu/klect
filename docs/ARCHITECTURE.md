@@ -24,34 +24,44 @@ Native **mobile** app.
 
 ---
 
-## 2. The big picture: two apps, one repo
+## 2. The big picture: three apps, one repo
 
 ```
 klect/                        one git repo — NO monorepo tooling (no workspaces/turbo)
-├─ CLAUDE.md  DESIGN.md        the SHARED SPEC (source of truth for both apps)
+├─ CLAUDE.md  DESIGN.md        the SHARED SPEC (source of truth for every app)
 ├─ docs/                       cross-cutting docs (this file, DEVELOPMENT.md, plans)
 ├─ web/                        Next.js 16 app — owns the DB, auth, ALL business logic,
 │                              and hosts the HTTP API. Deploys independently.
-└─ mobile/                     Expo (RN) app — a THIN CLIENT of web's API. UI only.
+├─ mobile/                     Expo (RN) app — a THIN CLIENT of web's API. UI only.
+└─ extension/                  Chrome MV3 extension — a THIRD TRANSPORT, lists only
+                               (save the current page / browse your lists). Vite +
+                               React + Tailwind. Popup, no side panel, no content
+                               script. Its own package.json + release cadence.
 ```
 
-The two apps are **independent** (own `package.json`, build, deploy, release cadence) and
+The apps are **independent** (own `package.json`, build, deploy, release cadence) and
 **never import each other's runtime code**. They are kept in sync by two seams, and only
 these two:
 
 1. **The spec** — `CLAUDE.md` + `DESIGN.md` at the root describe the product, data model,
-   permissions, and the API contract. Both apps build against it.
-2. **The runtime API** — `web` exposes a typed **tRPC** API at `/api/trpc`; `mobile`
-   consumes it. Backend logic is written **once** (in web); only the UI is built per platform.
+   permissions, and the API contract. Every app builds against it.
+2. **The runtime API** — `web` exposes a typed **tRPC** API at `/api/trpc`; `mobile` and
+   `extension` consume it. Backend logic is written **once** (in web); only the UI is built
+   per platform.
 
-The one compile-time link is a **type-only import**: mobile imports web's tRPC `AppRouter`
-*type* for end-to-end type safety. Because it's `import type`, it's erased at build time —
-there is **no runtime dependency** on web (see §6).
+The one compile-time link is a **type-only import**: mobile and the extension each import
+web's tRPC `AppRouter` *type* for end-to-end type safety. Because it's `import type`, it's
+erased at build time — there is **no runtime dependency** on web (see §6 for the tsconfig
+path trick that makes it resolve; `extension/tsconfig.json` reproduces it for a Vite build).
+
+The extension is explicitly **not** at parity with web and mobile: its whole scope is lists,
+and it mirrors only the Modern light/dark palette rather than all six themes. That is a scope
+decision, not an unfinished one.
 
 > **Why not a monorepo with shared packages?** A pnpm/Turborepo monorepo with shared `packages/*`
 > was considered and rejected. The chosen model keeps the apps genuinely decoupled while still
-> writing backend logic once, because the backend lives wholly inside `web` and mobile reaches it
-> only over HTTP.
+> writing backend logic once, because the backend lives wholly inside `web` and the other clients
+> reach it only over HTTP.
 
 ---
 
@@ -153,15 +163,31 @@ required rank. See `DESIGN.md §4`.
 
 ## 5. Auth
 
-better-auth backs both apps against **one** server (in `web/src/lib/auth.ts`): Google +
+better-auth backs all three apps against **one** server (in `web/src/lib/auth.ts`): Google +
 email/password, with a `databaseHooks.user.create.after` hook that auto-attaches any pending
 list invites when a user signs up, and profile `additionalFields` (handle, firstName, lastName,
 birthday, icon, theme). The unique `handle` is the public identity and the onboarding gate.
+
+**Three clients, three transports, one `bearer()`/cookie-resolving server.** Each client's
+transport is forced by its platform, not chosen: cookie (web), Bearer-from-keychain (mobile,
+because iOS release builds swallow `Secure` cookies), Bearer-from-`chrome.cookies` (the
+extension, which can read the browser's own session cookie directly). No server change was
+needed for any of them.
 
 - **Web** uses `better-auth/react` (`auth-client.ts`) and server guards in `session.ts`
   (`requireUser`, `requireOnboardedUser`) plus the `nextCookies()` plugin.
 - **Mobile** uses `@better-auth/expo` (`mobile/src/client/auth.ts`) against the same server,
   storing tokens in `expo-secure-store`.
+- **The Chrome extension** has no auth client at all. Its service worker reads the browser's
+  existing session cookie with `chrome.cookies.getAll({ domain: "klect.vercel.app" })` —
+  matching the cookie **by name suffix** (`endsWith("session_token")`), because the name is
+  `__Secure-better-auth.session_token` in prod and `better-auth.session_token` on localhost
+  dev — and sends the value through **whole** as `Authorization: Bearer`, which the same
+  `bearer()` plugin accepts. The token is **never cached**: a live cookie read per request is
+  cheap and makes a rotation or a sign-out in another tab a non-event. The full writeup,
+  including the confirmed 200/401 behavior and why every call must come from the service
+  worker (the MV3 CORS exemption), is in `mobile/docs/ARCHITECTURE.md`'s Auth section
+  alongside the mobile Bearer explanation it builds on.
 - **Mobile API transport = Bearer token, NOT cookie.** The tRPC client sends
   `Authorization: Bearer <sessionToken>`; the server runs better-auth's **`bearer()`** plugin
   (`plugins: [expo(), bearer(), nextCookies()]`) to accept it. **Do not "simplify" this back to a
@@ -344,4 +370,6 @@ pings; all real DM/chatroom data comes back over authenticated tRPC).
 - **How to run, build, and extend the apps:** [`DEVELOPMENT.md`](./DEVELOPMENT.md)
 - **Web-specific conventions & gotchas:** [`../web/CLAUDE.md`](../web/CLAUDE.md)
 - **Mobile-specific notes:** [`../mobile/CLAUDE.md`](../mobile/CLAUDE.md)
+- **Chrome extension scope + stage plan:**
+  [`../extension/IMPLEMENTATION_PLAN.md`](../extension/IMPLEMENTATION_PLAN.md)
 - **Feature deep-dives:** `web/docs/` (nearby, location autocomplete, autofill, video player)

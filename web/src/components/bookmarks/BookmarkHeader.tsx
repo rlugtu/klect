@@ -69,32 +69,62 @@ export function BookmarkHeader({
       </div>
 
       {editOpen && canEdit && !locked && (
-        <PixelCard className="flex flex-col gap-4">
-          <div className="flex items-center justify-between">
-            <h2 className="text-sm">Edit bookmark</h2>
-            <button
-              type="button"
-              aria-label="Close"
-              onClick={() => setEditOpen(false)}
-              className="text-muted hover:text-danger cursor-pointer text-lg leading-none"
-            >
-              ×
-            </button>
-          </div>
-          <BookmarkForm
-            action={async (formData) => {
-              await updateBookmark(bookmarkId, formData);
-              // Close on success; the detail route revalidates so the hero
-              // above shows the updated bookmark info.
-              setEditOpen(false);
-            }}
-            defaults={defaults}
-            submitLabel="Save"
-            tagSuggestions={tagSuggestions}
-            tagColors={tagColors}
-          />
-        </PixelCard>
+        <BookmarkEditCard
+          bookmarkId={bookmarkId}
+          defaults={defaults}
+          tagSuggestions={tagSuggestions}
+          tagColors={tagColors}
+          onClose={() => setEditOpen(false)}
+        />
       )}
     </div>
+  );
+}
+
+/**
+ * The edit-bookmark card (title, close, full form). Shared by the page header
+ * above and the desktop detail views. `onClose` runs on the close button and
+ * after a successful save; the detail route revalidates so the view above shows
+ * the updated bookmark.
+ */
+export function BookmarkEditCard({
+  bookmarkId,
+  defaults,
+  tagSuggestions,
+  tagColors,
+  onClose,
+}: {
+  bookmarkId: string;
+  defaults: BookmarkDefaults;
+  tagSuggestions: string[];
+  tagColors?: Record<string, string>;
+  onClose: () => void;
+}) {
+  return (
+    <PixelCard className="flex flex-col gap-4">
+      <div className="flex items-center justify-between">
+        <h2 className="text-sm">Edit bookmark</h2>
+        <button
+          type="button"
+          aria-label="Close"
+          onClick={onClose}
+          className="text-muted hover:text-danger cursor-pointer text-lg leading-none"
+        >
+          ×
+        </button>
+      </div>
+      <BookmarkForm
+        action={async (formData) => {
+          await updateBookmark(bookmarkId, formData);
+          // Close on success; the detail route revalidates so the hero
+          // above shows the updated bookmark info.
+          onClose();
+        }}
+        defaults={defaults}
+        submitLabel="Save"
+        tagSuggestions={tagSuggestions}
+        tagColors={tagColors}
+      />
+    </PixelCard>
   );
 }

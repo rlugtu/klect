@@ -98,7 +98,7 @@ export function SearchBar({
 
             {matchedLists.length > 0 && (
               <section>
-                <p className="font-pixel text-muted px-2 pt-1 text-sm uppercase">
+                <p className="font-pixel text-muted px-2 pt-1 text-sm">
                   Lists
                 </p>
                 {matchedLists.map((l) => (
@@ -117,7 +117,7 @@ export function SearchBar({
 
             {matchedTags.length > 0 && (
               <section className="mt-1">
-                <p className="font-pixel text-muted px-2 pt-1 text-sm uppercase">
+                <p className="font-pixel text-muted px-2 pt-1 text-sm">
                   Matched tags
                 </p>
                 {matchedTags.map((t) => (

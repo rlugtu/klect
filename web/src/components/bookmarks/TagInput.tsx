@@ -110,7 +110,7 @@ export function TagInput({
                 key={t}
                 type="button"
                 onClick={() => addTag(t)}
-                className="font-pixel border-border bg-panel hover:border-primary flex cursor-pointer items-center gap-1.5 border-2 px-2 py-1 text-sm uppercase"
+                className="font-pixel border-border bg-panel hover:border-primary flex cursor-pointer items-center gap-1.5 border-2 px-2 py-1 text-sm"
               >
                 <span
                   aria-hidden

@@ -24,10 +24,18 @@ export type BookmarkCardData = {
   name: string;
   description: string;
   image: string | null; // first extracted photo, if any
+  /**
+   * The bookmark's photos in order (`images[0]` is `image`), so a thumbnail whose
+   * first photo fails to load can try the next. Optional: not every card source
+   * loads it; without it the thumbnail tries `image` alone.
+   */
+  images?: string[];
   rating: number;
   visited: boolean;
   tags: { id: string; name: string; color: string }[];
   commentCount: number;
+  /** Primary link (`urls[0]`), for the desktop "Open link" hover action. Optional: not every card source loads it. */
+  url?: string | null;
   /**
    * Read-only: this bookmark is locked, or the list holding it is. Both cases are
    * refused by `core.updateBookmark` identically, so the card cannot distinguish

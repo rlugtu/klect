@@ -3,9 +3,10 @@
 How to run, change, and extend Klect. Read [`ARCHITECTURE.md`](./ARCHITECTURE.md) first for
 the mental model; this doc is the practical companion.
 
-The repo is two independent apps under one root: **`web/`** (Next.js — the backend + web UI)
-and **`mobile/`** (Expo/React Native — a thin client of web's API). They share the spec in
-the root `CLAUDE.md`/`DESIGN.md`, not code.
+The repo is three independent apps under one root: **`web/`** (Next.js — the backend + web UI),
+**`mobile/`** (Expo/React Native — a thin client of web's API), and **`extension/`** (Chrome MV3,
+Vite + React — a third transport, scoped to lists only and deliberately not at parity). They share
+the spec in the root `CLAUDE.md`/`DESIGN.md`, not code.
 
 ---
 
@@ -54,6 +55,30 @@ The gotcha to respect:
 For the mobile app to load data, the web dev server must be reachable at `EXPO_PUBLIC_API_URL`
 (the iOS **simulator** reaches your Mac's `localhost`; a **physical device** needs your Mac's
 LAN IP, and `BETTER_AUTH_URL` + the Google redirect URI must match that host).
+
+### Extension (`cd extension`) — loaded unpacked in Chrome
+```
+npm run build:dev    # dev build → dist-dev/ (API + host permission = http://localhost:3000)
+npm run build        # production build → dist/ (API + host permission = klect.vercel.app)
+npm run dev          # same as build:dev, in --watch mode
+npm run typecheck    # tsc --noEmit (includes the cross-folder AppRouter type)
+npm run lint
+```
+Then **chrome://extensions → Developer mode → Load unpacked →** pick `dist/` (or `dist-dev/`).
+After a rebuild, hit the reload arrow on the extension card; a popup-only change needs just a
+reopen, but a service-worker change needs the reload.
+
+The gotchas to respect:
+
+- **The manifest is generated, not checked in.** `manifest.config.ts` + `vite.config.ts` emit it
+  per environment so the API base URL and `host_permissions` come from one value. A **production**
+  build must never carry the localhost host permission — that is both a Web Store review flag and a
+  real attack surface.
+- **The extension authenticates off the browser's own session**, so to use it against dev you must
+  be signed in to `http://localhost:3000` in that same Chrome profile (and against prod, signed in
+  to klect.vercel.app). There is no sign-in UI inside the extension.
+- **Every API call must originate in the background service worker.** See §6's row and
+  `CLAUDE.md`; a call from a popup or (worse) a content script fails as an opaque CORS error.
 
 ---
 
@@ -144,14 +169,27 @@ keep a thin `"use server"` wrapper, and add a `protectedProcedure` in
 | mobile | typecheck | `cd mobile && npx tsc --noEmit` |
 | mobile | bundle (Metro/resolution) | `npx expo export --platform ios --output-dir /tmp/x` |
 | mobile | runtime | `npx expo start --dev-client` → open the **dev build** + exercise the flow |
+| extension | typecheck | `cd extension && npx tsc --noEmit` |
+| extension | lint | `cd extension && npm run lint` |
+| extension | build (loadable unpacked `dist/`) | `cd extension && npm run build` |
+| extension | network-call constraint | `grep -rnE "fetch\(\|createTRPCClient\|httpBatchLink" extension/src \| grep -v "^extension/src/background/"` → **no matches** |
+| extension | runtime | Load unpacked → open the popup on a real page + exercise the save |
 | API | auth wiring | unauthenticated `GET /api/trpc/lists.mine` → `401 UNAUTHORIZED` |
 
 `tsc` + `expo export` catch nearly everything on the mobile side; **NativeWind runtime styling
 and native modules can only be confirmed on the dev build** — visual/skin changes, the share
 extension, video playback, and anything using `expo-location` need a real run on a device/simulator.
 
+On the extension side `tsc` + the build catch wiring, but **Chrome's own permission and CORS
+behavior is unmockable** — the cookie read, the service-worker CORS exemption, and the popup's
+`activeTab` access can only be confirmed in a real loaded extension with a real signed-in session.
+The grep row is a gate rather than a note on purpose: an API call sneaking out of the service
+worker is the single constraint most likely to be broken by accident, and it does not fail loudly.
+
 There is no automated test suite yet; correctness relies on the type system + these gates +
-manual verification.
+manual verification. (The extension is the first surface here with genuinely unit-testable pure
+logic — cookie-name matching, cap-message assembly — if adopting a runner ever gets decided; that
+is a standalone decision, not something to slip into a feature slice.)
 
 ---
 

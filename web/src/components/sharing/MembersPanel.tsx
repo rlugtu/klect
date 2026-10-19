@@ -1,10 +1,11 @@
-import { getListMembers, getPendingInvites } from "@/lib/sharing";
+import { getCachedListMembers, getCachedPendingInvites } from "@/lib/sharing";
 import { removeMember, revokeInvite } from "@/lib/actions/sharing";
 import { InviteForm } from "./InviteForm";
 import { RoleSelect } from "./RoleSelect";
 import { ConfirmDeleteButton } from "@/components/ui/ConfirmDeleteButton";
 import { PixelBadge } from "@/components/ui/PixelBadge";
 import { atHandle } from "@/lib/handle";
+import { UserIcon } from "@/components/ui/UserIcon";
 
 const ROLE_LABEL = { OWNER: "Owner", COLLABORATOR: "Collaborator", VIEWER: "Viewer" };
 
@@ -23,8 +24,8 @@ export async function MembersPanel({
   canManage: boolean;
 }) {
   const [members, invites] = await Promise.all([
-    getListMembers(listId),
-    canManage ? getPendingInvites(listId) : Promise.resolve([]),
+    getCachedListMembers(listId),
+    canManage ? getCachedPendingInvites(listId) : Promise.resolve([]),
   ]);
 
   return (
@@ -32,14 +33,14 @@ export async function MembersPanel({
       {canManage && <InviteForm listId={listId} />}
 
       <div className="flex flex-col gap-2">
-        <h3 className="font-pixel text-muted text-sm uppercase">Members</h3>
+        <h3 className="font-pixel text-muted text-sm">Members</h3>
         {members.map((m) => (
           <div
             key={m.userId}
             className="flex items-center justify-between gap-2"
           >
             <span className="flex min-w-0 items-center gap-2 text-sm">
-              <span aria-hidden>{m.user.icon ?? "🔖"}</span>
+              <UserIcon icon={m.user.icon} />
               <span className="truncate">{atHandle(m.user.handle)}</span>
               {m.userId === currentUserId && (
                 <span className="text-muted text-sm">(you)</span>
@@ -65,7 +66,7 @@ export async function MembersPanel({
 
       {canManage && invites.length > 0 && (
         <div className="flex flex-col gap-2">
-          <h3 className="font-pixel text-muted text-sm uppercase">
+          <h3 className="font-pixel text-muted text-sm">
             Pending requests
           </h3>
           {invites.map((inv) => (

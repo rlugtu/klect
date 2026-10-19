@@ -19,8 +19,8 @@ export interface PixelBadgeProps
   onRemove?: () => void;
   /**
    * Marks this badge as a bookmark tag (vs. a status/role label). Adds the
-   * `pixel-tag` hook the modern theme uses to soften tags into rounded,
-   * non-uppercase pills. No effect in the pixel theme.
+   * `pixel-tag` hook the modern and journal themes use to soften tags into
+   * rounded pills. No effect in the pixel theme.
    */
   tag?: boolean;
 }
@@ -39,7 +39,7 @@ export function PixelBadge({
   return (
     <span
       className={cn(
-        "font-pixel inline-flex items-center gap-1.5 px-2 py-1 text-sm uppercase",
+        "font-pixel inline-flex items-center gap-1.5 px-2 py-1 text-sm",
         "border-2 border-border",
         tag && "pixel-tag",
         !color && toneClasses[tone],

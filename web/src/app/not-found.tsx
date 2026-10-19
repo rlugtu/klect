@@ -9,7 +9,7 @@ export default function NotFound() {
         <span className="text-6xl" aria-hidden>
           👾
         </span>
-        <h1 className="text-2xl text-primary">GAME OVER</h1>
+        <h1 className="text-2xl text-primary">Game over</h1>
         <p className="text-muted">
           404 — this page wandered off the map.
         </p>

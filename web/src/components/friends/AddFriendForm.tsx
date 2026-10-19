@@ -9,8 +9,12 @@ import { PixelCard } from "@/components/ui/PixelCard";
 import { SubmitButton } from "@/components/ui/SubmitButton";
 import { UserPlus, X } from "lucide-react";
 
-/** Right-aligned "Add friends" trigger that expands a @handle → friend-request form. */
-export function AddFriendForm() {
+/**
+ * Right-aligned "Add friends" trigger that expands a @handle → friend-request form.
+ * `inline` (the desktop messages workspace) skips the trigger and shows the field
+ * straight away; same action, same toasts.
+ */
+export function AddFriendForm({ inline = false }: { inline?: boolean } = {}) {
   const [open, setOpen] = useState(false);
   const [state, formAction] = useActionState<FriendState, FormData>(
     sendFriendRequest,
@@ -22,6 +26,27 @@ export function AddFriendForm() {
     if (state.success) toast.success(state.success);
     else if (state.error) toast.error(state.error);
   }, [state]);
+
+  if (inline) {
+    return (
+      <form action={formAction} className="flex items-stretch gap-2">
+        <label className="sr-only" htmlFor="add-friend-inline">
+          Add friend by handle
+        </label>
+        <PixelInput
+          id="add-friend-inline"
+          name="handle"
+          placeholder="Add friend by @handle"
+          autoCapitalize="none"
+          autoCorrect="off"
+          spellCheck={false}
+          required
+          className="min-w-0 flex-1"
+        />
+        <SubmitButton label="Add" pendingLabel="…" size="sm" />
+      </form>
+    );
+  }
 
   return (
     <div className="flex flex-col gap-3">

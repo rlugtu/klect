@@ -33,30 +33,44 @@ page (`/nearby`) finds geocoded bookmarks within a chosen radius of the user's c
 Bookmarks in a list can also be spun into a **poll** to vote on. Six selectable **themes** across
 three families — **pixel** (retro 8-bit), **modern** (sleek/minimalist), and **journal** (warm
 scrapbook) — each in light + dark. The web app is an installable **PWA**; the iOS app adds a native
-**share extension** that saves a shared link into a list from inside the OS share sheet.
+**share extension** that saves a shared link into a list from inside the OS share sheet; and a
+**Chrome extension** saves the page you're on into your lists from a toolbar popup (Modern
+light/dark only — it mirrors one theme family, not all six).
 
 **Docs:** `DESIGN.md` (data model, permissions, routes, API contract) · `docs/ARCHITECTURE.md`
 (human-readable design + architecture overview) · `docs/DEVELOPMENT.md` (run/build/extend +
 conventions + gotchas) · `docs/FEATURES.md` (core user features, web vs mobile parity).
 
-## This repo = two apps that share a spec, not code
+## This repo = three apps that share a spec, not code
 
-One git repo, two independent apps as sibling folders. **No workspace tooling** (no pnpm
+One git repo, three independent apps as sibling folders. **No workspace tooling** (no pnpm
 workspaces, no Turborepo) and **no shared code packages**.
 
 - **`web/`** — Next.js 16 app; owns the database, auth, and **all** business logic. Also hosts the
-  HTTP API (tRPC) that mobile consumes. See `web/CLAUDE.md`.
+  HTTP API (tRPC) the other two consume. See `web/CLAUDE.md`.
 - **`mobile/`** — Expo / React Native app (iOS + Android); a **thin client** of web's API. UI only.
   See `mobile/CLAUDE.md`.
+- **`extension/`** — Chrome (Manifest V3) extension; a **third transport**, deliberately not at
+  parity with the other two. Its whole scope is **lists**: save the current page into one or more
+  lists, and browse the lists you have. Vite + React + Tailwind, popup only (no side panel, no
+  content script). Authenticates by reading the browser's own klect.vercel.app session cookie
+  via `chrome.cookies` and sending it as `Authorization: Bearer`. See
+  `extension/IMPLEMENTATION_PLAN.md` while the build is in progress.
 
 **The two sharing seams (and only these):**
 1. **The spec** — this `CLAUDE.md` + `DESIGN.md` are the single source of truth for product, data
    model, permissions, routes, and the API contract. Each app also keeps its own `CLAUDE.md` +
    `docs/` for implementation specifics.
-2. **The runtime API** — web exposes tRPC at `/api/trpc`; mobile calls it. Backend logic is written
-   **once** (in web); only UI is built per app. The apps never import each other's runtime code —
-   the only cross-folder reference is a **type-only** import of web's tRPC `AppRouter` (erased at
-   compile time, so no runtime coupling).
+2. **The runtime API** — web exposes tRPC at `/api/trpc`; mobile and the extension call it. Backend
+   logic is written **once** (in web); only UI is built per app. The apps never import each other's
+   runtime code — the only cross-folder reference is a **type-only** import of web's tRPC
+   `AppRouter` (erased at compile time, so no runtime coupling).
+
+**Extension-specific rule:** every network call to the API originates in the extension's
+**background service worker**. MV3 extension pages are exempt from page-level CORS for origins in
+`host_permissions`; content scripts are not, and `/api/trpc` has no CORS configuration at all. A
+call from anywhere else fails as an opaque CORS error that tempts someone into adding CORS headers
+to the server. Don't.
 
 ## Building a feature — do it for BOTH apps
 
@@ -71,3 +85,8 @@ Steps 1–3 are done once and serve both apps; 4 and 5 are per-platform on the s
 the two clients can't silently drift. Because there is no compiler-enforced shared package, drift is
 prevented by (a) this shared spec, (b) the typed tRPC contract, and (c) landing both apps'
 UI in the same change.
+
+**`extension/` is NOT part of this parity loop.** It is deliberately scoped to lists only, so most
+features have no extension step at all — and when one does, it is a separate, explicit decision, not
+an automatic sixth step. The extension still consumes the same typed `AppRouter`, so a contract
+change that breaks it breaks its typecheck.

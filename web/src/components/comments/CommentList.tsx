@@ -3,6 +3,7 @@ import { ConfirmDeleteButton } from "@/components/ui/ConfirmDeleteButton";
 import { ReportControl } from "@/components/moderation/ReportControl";
 import { timeAgo } from "@/lib/utils";
 import { atHandle } from "@/lib/handle";
+import { UserIcon } from "@/components/ui/UserIcon";
 
 export type CommentItem = {
   id: string;
@@ -33,7 +34,7 @@ export function CommentList({
           <li key={c.id} className="pixel-box-sm bg-bg flex flex-col gap-1.5 p-3">
             <div className="flex items-center justify-between gap-2">
               <span className="flex min-w-0 items-center gap-2">
-                <span aria-hidden>{c.author.icon ?? "🔖"}</span>
+                <UserIcon icon={c.author.icon} />
                 <span className="truncate text-sm">
                   {atHandle(c.author.handle)}
                 </span>

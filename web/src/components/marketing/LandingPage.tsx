@@ -26,7 +26,7 @@ function Logo({ size = 30 }: { size?: number }) {
 
 function Eyebrow({ children }: { children: React.ReactNode }) {
   return (
-    <div className="mb-3.5 text-[13px] font-bold uppercase tracking-[0.06em] text-[#6657E0]">
+    <div className="mb-3.5 text-[13px] font-bold text-[#6657E0]">
       {children}
     </div>
   );
@@ -313,7 +313,7 @@ export function LandingPage() {
       {/* HERO */}
       <div className="mx-auto flex max-w-[1180px] flex-wrap items-center gap-14 px-6 pb-16 pt-20 sm:px-10 sm:pt-[88px]">
         <div className="min-w-[320px] flex-[1_1_440px]">
-          <div className="mb-[22px] inline-block rounded-full bg-[#EDEBFB] px-3.5 py-[7px] text-[13px] font-bold uppercase tracking-[0.06em] text-[#6657E0]">
+          <div className="mb-[22px] inline-block rounded-full bg-[#EDEBFB] px-3.5 py-[7px] text-[13px] font-bold text-[#6657E0]">
             Now in beta
           </div>
           <h1 className="mb-[22px] text-[clamp(40px,7vw,56px)] font-extrabold leading-[1.05] tracking-[-0.02em]">

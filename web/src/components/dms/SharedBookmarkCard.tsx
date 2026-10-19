@@ -13,6 +13,7 @@ import {
   loadMyListOptions,
   type SharedBookmarkSnapshot,
 } from "@/lib/actions/dms";
+import { BookmarkThumb } from "@/components/bookmarks/BookmarkThumb";
 
 type ListOption = { id: string; name: string; icon: string };
 
@@ -41,12 +42,12 @@ export function SharedBookmarkCard({
       )}
     >
       {snapshot.images[0] && (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img
-          src={snapshot.images[0]}
-          alt=""
-          loading="lazy"
-          className="pixel-box-sm bg-panel h-32 w-full object-cover"
+        <BookmarkThumb
+          images={snapshot.images}
+          url={snapshot.urls[0]}
+          name={snapshot.name}
+          size="lg"
+          className="pixel-box-sm h-32 w-full"
         />
       )}
       <p className="text-primary text-sm font-semibold break-words">{snapshot.name}</p>

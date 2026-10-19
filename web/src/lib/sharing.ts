@@ -1,4 +1,5 @@
 import "server-only";
+import { cache } from "react";
 import { prisma } from "@/lib/db";
 
 /** Members of a list with their user info (owner first). */
@@ -18,6 +19,13 @@ export async function getListMembers(listId: string) {
   );
 }
 
+/**
+ * Per-request memoized roster read. The list page can render `MembersPanel` in
+ * two places for one request (the mobile body and the desktop panel), so the
+ * panel reads through this and the database is hit once.
+ */
+export const getCachedListMembers = cache((listId: string) => getListMembers(listId));
+
 /** Pending (not-yet-decided) join requests for a list, each with the invited
  *  user's @handle (invites target existing users, keyed internally by email). */
 export async function getPendingInvites(listId: string) {
@@ -36,6 +44,9 @@ export async function getPendingInvites(listId: string) {
     handle: handleByEmail.get(inv.email) ?? null,
   }));
 }
+
+/** Per-request memoized {@link getPendingInvites}, for the same reason as the roster. */
+export const getCachedPendingInvites = cache((listId: string) => getPendingInvites(listId));
 
 /**
  * Pending list-join requests addressed to this email — the incoming "collab requests"

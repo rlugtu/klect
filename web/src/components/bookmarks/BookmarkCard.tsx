@@ -1,9 +1,11 @@
+import type { MouseEvent } from "react";
 import Link from "next/link";
 import type { BookmarkCardData } from "@/lib/types";
 import { StarRating } from "./StarRating";
 import { PixelBadge } from "@/components/ui/PixelBadge";
-import { LOCKED_ART, LockedBadge } from "@/components/entitlements/LockedState";
+import { LockedBadge } from "@/components/entitlements/LockedState";
 import { cn } from "@/lib/utils";
+import { BookmarkThumb } from "./BookmarkThumb";
 
 /**
  * Compact bookmark card shown on the list page and in search results.
@@ -17,11 +19,21 @@ import { cn } from "@/lib/utils";
 export function BookmarkCard({
   listId,
   bookmark,
+  active = false,
+  onOpen,
   listLabel,
   distanceLabel,
 }: {
   listId: string;
   bookmark: BookmarkCardData;
+  /** Highlighted as the bookmark open in the desktop side panel. */
+  active?: boolean;
+  /**
+   * Click hook for the list grid at lg+, which may preventDefault and open the
+   * side panel instead. Without it (or when it does not prevent) the card is a
+   * plain link to the full bookmark page.
+   */
+  onOpen?: (e: MouseEvent<HTMLAnchorElement>) => void;
   /** Optional "in <list>" context, shown in cross-list search results. */
   listLabel?: { icon: string; name: string };
   /** Optional distance context (e.g. "2.3 mi away"), shown in the nearby finder. */
@@ -30,7 +42,13 @@ export function BookmarkCard({
   return (
     <Link
       href={`/lists/${listId}/bookmarks/${bookmark.id}`}
-      className="pixel-box bg-panel flex w-full min-w-0 flex-col gap-3 p-4"
+      data-bookmark-card={bookmark.id}
+      aria-current={active ? "true" : undefined}
+      onClick={onOpen}
+      className={cn(
+        "dens-card pixel-box bg-panel flex w-full min-w-0 flex-col gap-3 p-4",
+        active && "outline-primary outline-2 outline-offset-2",
+      )}
     >
       {(listLabel || distanceLabel) && (
         <span className="text-muted flex items-center justify-between gap-2 text-sm min-w-0">
@@ -45,15 +63,13 @@ export function BookmarkCard({
         </span>
       )}
       {bookmark.image && (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img
-          src={bookmark.image}
-          alt=""
-          loading="lazy"
-          className={cn(
-            "pixel-box-sm bg-panel block h-36 w-full max-w-full object-cover",
-            bookmark.locked && LOCKED_ART,
-          )}
+        <BookmarkThumb
+          images={bookmark.images ?? [bookmark.image]}
+          url={bookmark.url}
+          name={bookmark.name}
+          locked={bookmark.locked}
+          size="lg"
+          className="pixel-box-sm h-36 w-full max-w-full"
         />
       )}
       <div className="flex items-start gap-3">

@@ -6,6 +6,7 @@ import { PixelTextarea } from "@/components/ui/PixelTextarea";
 import { SubmitButton } from "@/components/ui/SubmitButton";
 import { FieldLabel } from "@/components/ui/FieldLabel";
 import { PixelBadge } from "@/components/ui/PixelBadge";
+import { BookmarkThumb } from "@/components/bookmarks/BookmarkThumb";
 
 /** A list bookmark offered as a poll option. */
 export type PollOptionBookmark = {
@@ -251,19 +252,12 @@ export function PollForm({
                     on ? "bg-primary/20 border-primary" : "bg-panel"
                   }`}
                 >
-                  {b.image ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img
-                      src={b.image}
-                      alt=""
-                      loading="lazy"
-                      className="pixel-box-sm bg-panel h-10 w-10 shrink-0 object-cover"
-                    />
-                  ) : (
-                    <span className="bg-bg grid h-10 w-10 shrink-0 place-items-center">
-                      🔖
-                    </span>
-                  )}
+                  <BookmarkThumb
+                    images={[b.image]}
+                    name={b.name}
+                    size="sm"
+                    className="pixel-box-sm h-10 w-10"
+                  />
                   <span className="min-w-0 flex-1 truncate text-sm">
                     {b.name}
                   </span>

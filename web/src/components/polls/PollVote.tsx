@@ -4,6 +4,8 @@ import { useState } from "react";
 import { useFormStatus } from "react-dom";
 import { PixelButton } from "@/components/ui/PixelButton";
 import { pollPhase } from "@/lib/poll-status";
+import { userIconOf } from "@/components/ui/UserIcon";
+import { BookmarkThumb } from "@/components/bookmarks/BookmarkThumb";
 
 export type PollVoteOption = {
   id: string;
@@ -83,7 +85,7 @@ export function PollVote({
             key={m}
             type="button"
             onClick={() => setMode(m)}
-            className={`font-pixel flex-1 py-2 text-sm uppercase ${
+            className={`font-pixel flex-1 py-2 text-sm ${
               mode === m ? "bg-primary text-primary-ink" : "text-muted"
             }`}
           >
@@ -112,7 +114,7 @@ export function PollVote({
                       on ? "bg-primary/20 border-primary" : "bg-panel"
                     } ${!on && disabled ? "opacity-40" : ""}`}
                   >
-                    <Thumb image={o.image} />
+                    <Thumb image={o.image} name={o.name} />
                     <span className="min-w-0 flex-1 text-sm">{o.name}</span>
                     {on && <span className="text-primary shrink-0">✓</span>}
                   </button>
@@ -153,7 +155,7 @@ export function PollVote({
               className="pixel-box-sm bg-panel flex flex-col gap-1.5 p-2"
             >
               <div className="flex items-center gap-3">
-                <Thumb image={o.image} />
+                <Thumb image={o.image} name={o.name} />
                 <span className="min-w-0 flex-1 text-sm">{o.name}</span>
                 <span className="font-pixel text-sm">{o.votes.length}</span>
               </div>
@@ -171,7 +173,7 @@ export function PollVote({
                     className="text-sm"
                     title={o.votes.map((v) => v.name).join(", ")}
                   >
-                    {o.votes.map((v) => v.icon ?? "🙂").join(" ")}
+                    {o.votes.map((v) => userIconOf(v.icon)).join(" ")}
                   </span>
                 ))}
             </li>
@@ -182,16 +184,8 @@ export function PollVote({
   );
 }
 
-function Thumb({ image }: { image: string | null }) {
-  return image ? (
-    // eslint-disable-next-line @next/next/no-img-element
-    <img
-      src={image}
-      alt=""
-      loading="lazy"
-      className="pixel-box-sm bg-panel h-12 w-12 shrink-0 object-cover"
-    />
-  ) : (
-    <span className="bg-bg grid h-12 w-12 shrink-0 place-items-center">🔖</span>
+function Thumb({ image, name }: { image: string | null; name: string }) {
+  return (
+    <BookmarkThumb images={[image]} name={name} size="sm" className="pixel-box-sm h-12 w-12" />
   );
 }

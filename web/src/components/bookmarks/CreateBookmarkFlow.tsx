@@ -20,15 +20,18 @@ import { createBookmarkInLists } from "@/lib/actions/bookmarks";
  */
 export function CreateBookmarkFlow({
   listOptions,
+  initialListIds = [],
   tagSuggestions,
   tagColors,
 }: {
   listOptions: { id: string; name: string; icon: string }[];
+  /** Lists to start with selected (already validated against `listOptions`). */
+  initialListIds?: string[];
   tagSuggestions: string[];
   tagColors?: Record<string, string>;
 }) {
   const router = useRouter();
-  const [selectedListIds, setSelectedListIds] = useState<string[]>([]);
+  const [selectedListIds, setSelectedListIds] = useState<string[]>(initialListIds);
   const [newListNames, setNewListNames] = useState<string[]>([]);
   const [draftList, setDraftList] = useState("");
   const [newListsPublic, setNewListsPublic] = useState(false);

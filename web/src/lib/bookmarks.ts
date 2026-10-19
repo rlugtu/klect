@@ -1,6 +1,7 @@
 import "server-only";
 import { prisma } from "@/lib/db";
 import { getViewerAccess } from "@/lib/permissions";
+import type { BookmarkCardData } from "@/lib/types";
 
 /**
  * Bookmarks in a list, newest first, with their tags + comment counts.
@@ -103,4 +104,125 @@ export async function getBookmarkForUser(userId: string, bookmarkId: string) {
   if (!access) return null;
 
   return { bookmark, role: access.role, isMember: access.isMember };
+}
+
+/** Sort orders offered by the All bookmarks page. */
+export const BOOKMARK_SORTS = ["recent", "oldest", "rating", "name"] as const;
+export type BookmarkSort = (typeof BOOKMARK_SORTS)[number];
+
+export type VisibleBookmarkFilters = {
+  /** Free-text match on name, description, or location (case-insensitive). */
+  query?: string;
+  /** The user's own tag names, OR match (same rule as getBookmarksByTags). */
+  tagNames?: string[];
+  /** Restrict to one list. Still gated on membership, so a foreign id matches nothing. */
+  listId?: string;
+  sort?: BookmarkSort;
+};
+
+/**
+ * The shared where-clause for the cross-list bookmark reads below.
+ *
+ * Visibility is membership: every bookmark in a list the user belongs to (owner,
+ * collaborator, or viewer), exactly the set getBookmarksByTags and the list pages
+ * already show. Public lists the user has not joined are not included; they are
+ * browsed from the owner's profile, not collected here.
+ *
+ * Blocks: bookmarks carry no author column, so there is no per-author content to
+ * hide. A block filters authored content (comments, chat, DMs) on the existing
+ * read paths and that stays as is; a bookmark is visible to every member of its
+ * list, the same as on the list page itself.
+ *
+ * Locked rows are included, never filtered: locked means read-only, not hidden.
+ */
+function visibleBookmarksWhere(userId: string, filters: VisibleBookmarkFilters) {
+  const query = filters.query?.trim();
+  const tagNames = filters.tagNames ?? [];
+  return {
+    list: { memberships: { some: { userId } } },
+    ...(filters.listId ? { listId: filters.listId } : {}),
+    ...(tagNames.length > 0
+      ? { tags: { some: { tag: { userId, name: { in: tagNames } } } } }
+      : {}),
+    ...(query
+      ? {
+          OR: [
+            { name: { contains: query, mode: "insensitive" as const } },
+            { description: { contains: query, mode: "insensitive" as const } },
+            { location: { contains: query, mode: "insensitive" as const } },
+          ],
+        }
+      : {}),
+  };
+}
+
+function visibleBookmarksOrder(sort: BookmarkSort = "recent") {
+  switch (sort) {
+    case "oldest":
+      return [{ createdAt: "asc" as const }];
+    case "rating":
+      return [{ rating: "desc" as const }, { createdAt: "desc" as const }];
+    case "name":
+      return [{ name: "asc" as const }, { createdAt: "desc" as const }];
+    default:
+      return [{ createdAt: "desc" as const }];
+  }
+}
+
+/**
+ * Bookmarks across every list the user can see (see visibleBookmarksWhere), with
+ * the same include shape as getBookmarksByTags so results render through
+ * BookmarkCard with an "in <list>" label. Powers the All bookmarks page and the
+ * desktop home's Recently saved row.
+ *
+ * The list's own `lockedAt` rides along for the reason given on
+ * getBookmarksByTags: a bookmark in a locked list is read-only even when the
+ * bookmark itself was never stamped.
+ */
+export function getVisibleBookmarks(
+  userId: string,
+  filters: VisibleBookmarkFilters = {},
+  take = 60,
+) {
+  return prisma.bookmark.findMany({
+    where: visibleBookmarksWhere(userId, filters),
+    orderBy: visibleBookmarksOrder(filters.sort),
+    take,
+    include: {
+      list: { select: { id: true, name: true, icon: true, lockedAt: true } },
+      tags: { include: { tag: { select: { id: true, name: true, color: true } } } },
+      _count: { select: { comments: true } },
+    },
+  });
+}
+
+/** How many bookmarks match the same filters, for "showing N of M". */
+export function countVisibleBookmarks(
+  userId: string,
+  filters: VisibleBookmarkFilters = {},
+) {
+  return prisma.bookmark.count({ where: visibleBookmarksWhere(userId, filters) });
+}
+
+export type VisibleBookmark = Awaited<ReturnType<typeof getVisibleBookmarks>>[number];
+
+/**
+ * A cross-list bookmark row as card data. Read-only if the bookmark is locked or
+ * its list is; a cross-list result has to check both (same rule as the home tag
+ * results).
+ */
+export function toBookmarkCardData(b: VisibleBookmark): BookmarkCardData {
+  return {
+    id: b.id,
+    name: b.name,
+    description: b.description,
+    image: b.images[0] ?? null,
+    images: b.images.slice(0, 4),
+    rating: b.rating,
+    visited: b.visited,
+    tags: b.tags.map((bt) => bt.tag),
+    commentCount: b._count.comments,
+    url: b.urls[0] ?? null,
+    locked: b.lockedAt !== null || b.list.lockedAt !== null,
+  };
 }

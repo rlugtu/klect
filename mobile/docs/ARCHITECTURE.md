@@ -122,6 +122,24 @@ Everything else hot-reloads normally against the dev client.
     the in-app browser — so the user lands on the web app rather than back in the native app.
     Because web + mobile share that redirect URI, a Google failure that happens *only on mobile*
     (prod web Google works) is **not** a Google Cloud Console issue — look at token capture above.
+  - **A third transport authenticates differently again: a Chrome extension reads the browser's
+    cookie directly.** Validated 2026-10-19 with a throwaway spike against the real production
+    backend (`extension/IMPLEMENTATION_PLAN.md`, Stage 1). Unlike mobile (no first-party cookie
+    survives an iOS release build, hence the Bearer-token workaround above), a Chrome extension
+    with the `cookies` permission can read better-auth's `httpOnly` session cookie straight from
+    the browser via `chrome.cookies.getAll({ domain: "klect.vercel.app" })` — this API is exempt
+    from the `httpOnly`/`document.cookie` restriction a normal webpage faces. The cookie **name
+    is environment-dependent**, so match by suffix (`endsWith("session_token")`), never a hardcoded
+    name: `__Secure-better-auth.session_token` in production (confirmed), `better-auth.session_token`
+    on `http://localhost` dev (per better-auth's own cookie-prefix defaults, not yet independently
+    confirmed). The cookie's value is passed through **whole, unmodified**, as
+    `Authorization: Bearer <value>` — same header mobile uses, same `bearer()` plugin accepting it
+    server-side, zero server changes needed. All API calls must originate from the extension's
+    background service worker (not a content script): MV3 service workers are exempt from
+    page-level CORS for origins in `host_permissions`, and `/api/trpc` has no CORS configuration
+    at all today. Confirmed against a real signed-in session: a 200 with real list data when the
+    header is present, a 401 `UNAUTHORIZED` ("Sign in required") when it is absent, in both the
+    non-batched and `httpBatchLink`-batched wire shapes.
 - **Push notifications (iOS).** `src/client/push.ts` (`expo-notifications`). After sign-in the
   authenticated branch of `app/_layout.tsx` calls `registerForPushNotificationsAsync()` — guards
   `Device.isDevice`, requests permission, mints an Expo push token (`getExpoPushTokenAsync`, EAS

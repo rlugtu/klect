@@ -258,6 +258,7 @@ PollVote        id, pollId, optionId, userId — unique per (optionId, userId); 
 | Comment (list & bookmark) | ✓ | ✓ | ✓ |
 | Toggle list visibility (public/private) | ✓ | — | — |
 | Create/edit/delete bookmarks | ✓ | ✓ | — |
+| Move a bookmark to another list (needs this role on both lists; neither locked) | ✓ | ✓ | — |
 | Edit list metadata (name/icon/desc) | ✓ | ✓ | — |
 | Invite (send join request) / change roles / remove members | ✓ | — | — |
 | Approve / reject a join request addressed to you | invitee only | invitee only | invitee only |
@@ -493,12 +494,12 @@ prisma/                     # schema.prisma + migrations (committed)
 
 ---
 
-## 8. Web + mobile split (two-app architecture)
+## 8. Web + mobile + extension split (three-app architecture)
 
-Klect is **two independent apps in one repo** (`web/`, `mobile/`), sharing a spec and a runtime
-API — **not** a monorepo with shared code packages (no workspace tooling, no shared packages). This
-section is the shared contract both apps build against; see the top-level `CLAUDE.md` for the
-per-feature workflow.
+Klect is **three independent apps in one repo** (`web/`, `mobile/`, `extension/`), sharing a spec
+and a runtime API — **not** a monorepo with shared code packages (no workspace tooling, no shared
+packages). This section is the shared contract every app builds against; see the top-level
+`CLAUDE.md` for the per-feature workflow.
 
 **Topology**
 - **`web/`** owns the database, auth, and **all** business logic (Prisma schema + migrations, read
@@ -507,6 +508,13 @@ per-feature workflow.
   API at `/api/trpc`.
 - **`mobile/`** (Expo) is a **thin client**: it calls the tRPC API and rebuilds only the UI. No DB
   access, no business logic of its own.
+- **`extension/`** (Chrome MV3, Vite + React + Tailwind) is a **third transport**, deliberately
+  **not at parity**: its whole scope is lists — save the current page into one or more lists, and
+  browse the lists you have. Popup only (no side panel), **no content script**, Modern light/dark
+  only rather than all six themes. Like mobile it has no DB access and no logic of its own, and it
+  needs **no procedures of its own** — it consumes `lists.mine`, `lists.get`,
+  `bookmarks.forList`, `bookmarks.createInLists`, `metadata.fetch`, `entitlements.status` as they
+  already exist. A stage of that build wanting a new procedure is a signal that its scope crept.
 - Backend logic is written **once** in web. Each mutation is a pure `core(input)` function
   (validate → `assertRole` → Prisma → return); the `"use server"` `action(formData)` wrapper and
   the tRPC procedure both call the same `core()` — never duplicated.
@@ -523,9 +531,10 @@ per-feature workflow.
 - Design **tokens** (the palette for the 6 themes) are defined once as data in web and mirrored by
   mobile's NativeWind config.
 
-**Type sharing:** mobile imports web's tRPC `AppRouter` **type-only** for end-to-end types; this is
-erased at compile time (no runtime coupling). Fallback if the cross-folder reference is unwanted:
-plain REST + types redeclared in mobile, with the API contract below as the only guard against drift.
+**Type sharing:** mobile and the extension each import web's tRPC `AppRouter` **type-only** for
+end-to-end types; this is erased at compile time (no runtime coupling). Fallback if the cross-folder
+reference is unwanted: plain REST + types redeclared per client, with the API contract below as the
+only guard against drift.
 
 ### API contract (tRPC surface)
 
@@ -537,7 +546,12 @@ table in sync whenever a procedure is added or changed.**
 
 **Auth transport:** web calls the API with the better-auth session **cookie**; mobile sends the
 session token as `Authorization: Bearer` (server runs better-auth's `bearer()` plugin) because iOS
-release builds don't reliably persist `Secure` cookies. `auth.api.getSession()` resolves either.
+release builds don't reliably persist `Secure` cookies. The Chrome extension also sends
+`Authorization: Bearer`, but reads the value from the browser's own session cookie via
+`chrome.cookies` (matched by the `session_token` name **suffix**, passed through whole) instead of
+storing a token — and sends it **only from its background service worker**, which is what grants it
+the MV3 CORS exemption `/api/trpc` otherwise has no headers for. `auth.api.getSession()` resolves
+all three.
 
 | Procedure | Kind | Input | Auth beyond sign-in | Delegates to |
 |---|---|---|---|---|
@@ -559,6 +573,11 @@ release builds don't reliably persist `Secure` cookies. `auth.api.getSession()` 
 | `bookmarks.delete` | mutation | `{ bookmarkId }` | COLLABORATOR (in core) | `core.deleteBookmark` |
 | `bookmarks.toggleVisited` | mutation | `{ bookmarkId }` | COLLABORATOR (in core) | `core.toggleVisited` |
 | `bookmarks.setRating` | mutation | `{ bookmarkId, rating: 0–5 (`.multipleOf(0.5)`) }` | COLLABORATOR (in core) | `core.setRating` — inline single-field rating update from the detail view (clamped 0–5, snapped to half-steps); avoids resending the whole `BookmarkInput` |
+| `bookmarks.move` | mutation | `{ bookmarkId, listId }` | COLLABORATOR on source **and** destination (in core) | `core.moveBookmark` (one-item `moveBookmarks`) |
+| `bookmarks.moveMany` | mutation | `{ bookmarkIds (1 to 200), listId }` | COLLABORATOR on the destination and on every source list (in core) | `core.moveBookmarks`: a **re-parent** (`Bookmark.listId` changes), not copy plus delete, so id, comments, images, rating, visited, notes and every tag link survive. All or nothing, one transaction. Refuses (`LockedError`) a locked destination, a locked source list, or a locked bookmark. Free cap: only bookmarks leaving a list someone else owns for a list the caller owns count (`assertCanCreateBookmark`, `data.freeLimit` on refusal); own-to-own is net zero; into someone else's list is never capped for the caller (same as `create`). Tags: all `BookmarkTag` links are kept as is, including tags owned by source-list members who are not in the destination (members already see every tag on a bookmark; tag search is membership-scoped; a destination collaborator can strip one with `tags.removeFromList`). Poll options for the moved bookmarks are dropped with their votes (a poll belongs to the source list). Ids already in the destination are skipped. Returns `{ listId, moved, skipped, sourceListIds, bySource }` (`bySource`: moved ids grouped by the list they left, which is what an undo moves back, each group through this same procedure and its rules) |
+| `bookmarks.deleteMany` | mutation | `{ bookmarkIds (1 to 200) }` | COLLABORATOR per bookmark's list (in core) | `core.deleteBookmarks`: bulk `delete`, same rules (allowed on locked rows), all or nothing in one transaction; returns `{ deleted, listIds }` |
+| `bookmarks.copyMany` | mutation | `{ bookmarkIds (1 to 200), listId }` | VIEWER+ on every source list, COLLABORATOR on the destination (in core) | `core.copyBookmarksToList`: an **independent copy** per bookmark, written through `core.createBookmarkInLists` (the `createInLists` path), so destination rules are that path's (not locked; free cap only when the caller owns the destination, checked once for the whole batch before any write). Refuses (`LockedError`) a locked source bookmark or list. Copies keep fields, rating, visited and tags (recreated as the caller's own), like `lists.duplicate`; comments and poll entries stay with the original. Not one transaction (one create per bookmark). Returns `{ listId, copied }` |
+| `bookmarks.setVisitedMany` | mutation | `{ bookmarkIds (1 to 200), visited }` | COLLABORATOR per bookmark's list (in core) | `core.setVisitedMany`: sets (not toggles) the flag; refuses locked bookmarks and locked lists; all or nothing in one transaction; returns `{ updated, listIds }` |
 | `comments.forList` | query | `{ listId }` | `assertCanView` (member **or** public list) | `getListComments` |
 | `comments.forBookmark` | query | `{ bookmarkId }` | membership check | `getBookmarkComments` |
 | `comments.addToList` | mutation | `{ listId, value }` | VIEWER (in core) | `core.addListComment` |

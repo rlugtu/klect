@@ -28,14 +28,22 @@ function SubmitButton({ label }: { label: string }) {
   );
 }
 
+/**
+ * `showTheme={false}` (the lg+ settings Profile section, where the theme has
+ * its own Appearance section) drops the picker and posts the saved theme from
+ * props instead of local state, so saving the profile can never put back a
+ * theme that was changed in Appearance after this form mounted.
+ */
 export function ProfileForm({
   action,
   defaults,
   submitLabel,
+  showTheme = true,
 }: {
   action: (formData: FormData) => void | Promise<void>;
   defaults: ProfileDefaults;
   submitLabel: string;
+  showTheme?: boolean;
 }) {
   const [icon, setIcon] = useState(defaults.icon ?? "🔖");
   const [theme, setTheme] = useState<Theme>(defaults.theme);
@@ -49,7 +57,11 @@ export function ProfileForm({
   return (
     <form action={action} className="flex flex-col gap-5">
       <input type="hidden" name="icon" value={icon} />
-      <input type="hidden" name="theme" value={theme} />
+      <input
+        type="hidden"
+        name="theme"
+        value={showTheme ? theme : defaults.theme}
+      />
 
       <label className="flex flex-col gap-1.5">
         <FieldLabel>Handle *</FieldLabel>
@@ -105,22 +117,24 @@ export function ProfileForm({
         </div>
       </div>
 
-      <div className="flex flex-col gap-2">
-        <FieldLabel>Theme</FieldLabel>
-        <div className="flex flex-wrap gap-3">
-          {THEME_OPTIONS.map((opt) => (
-            <PixelButton
-              key={opt.value}
-              type="button"
-              size="sm"
-              variant={theme === opt.value ? "primary" : "secondary"}
-              onClick={() => pickTheme(opt.value)}
-            >
-              {opt.label}
-            </PixelButton>
-          ))}
+      {showTheme && (
+        <div className="flex flex-col gap-2">
+          <FieldLabel>Theme</FieldLabel>
+          <div className="flex flex-wrap gap-3">
+            {THEME_OPTIONS.map((opt) => (
+              <PixelButton
+                key={opt.value}
+                type="button"
+                size="sm"
+                variant={theme === opt.value ? "primary" : "secondary"}
+                onClick={() => pickTheme(opt.value)}
+              >
+                {opt.label}
+              </PixelButton>
+            ))}
+          </div>
         </div>
-      </div>
+      )}
 
       <SubmitButton label={submitLabel} />
     </form>

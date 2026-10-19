@@ -10,6 +10,7 @@ import {
 } from "@/lib/core/entitlements";
 import { randomTagColor } from "@/lib/tag-colors";
 import { isTrustedIframeUrl } from "@/lib/video";
+import { BULK_BOOKMARK_MAX, planBookmarkMove, uniqueIds } from "@/lib/move-plan";
 
 /**
  * Raw-ish bookmark input as a caller extracts it (from FormData on web, or JSON on
@@ -418,6 +419,347 @@ export async function deleteBookmark(userId: string, bookmarkId: string) {
 
   await prisma.bookmark.delete({ where: { id: bookmarkId } });
   return { listId };
+}
+
+/**
+ * Delete several bookmarks at once. The bulk form of {@link deleteBookmark}, with
+ * the same rules per item: COLLABORATOR on the list each bookmark lives in, and
+ * allowed on locked bookmarks and inside locked lists (deleting is how an over-cap
+ * user trims back under the cap).
+ *
+ * All or nothing: every id must exist and every role check must pass before any
+ * row is deleted, and the deletes run in one transaction. Cascades are the same
+ * as a single delete (tag links, comments, poll options and their votes).
+ */
+export async function deleteBookmarks(userId: string, bookmarkIds: string[]) {
+  const ids = uniqueIds(bookmarkIds);
+  if (ids.length === 0) throw new Error("Pick at least one bookmark to delete.");
+  if (ids.length > BULK_BOOKMARK_MAX) {
+    throw new Error(`You can delete up to ${BULK_BOOKMARK_MAX} bookmarks at once.`);
+  }
+
+  const rows = await prisma.bookmark.findMany({
+    where: { id: { in: ids } },
+    select: { id: true, listId: true },
+  });
+  if (rows.length !== ids.length) throw new Error("Bookmark not found.");
+
+  const byList = new Map<string, string[]>();
+  for (const r of rows) byList.set(r.listId, [...(byList.get(r.listId) ?? []), r.id]);
+  for (const listId of byList.keys()) await assertRole(userId, listId, "COLLABORATOR");
+
+  // Each delete is scoped to the list its role check passed on, so a bookmark
+  // that moved in between is left alone rather than deleted from a list the
+  // caller was never checked against.
+  const results = await prisma.$transaction(
+    [...byList].map(([listId, group]) =>
+      prisma.bookmark.deleteMany({ where: { id: { in: group }, listId } }),
+    ),
+  );
+  const deleted = results.reduce((n, r) => n + r.count, 0);
+  return { deleted, listIds: [...byList.keys()] };
+}
+
+/**
+ * Move bookmarks into another list, keeping each bookmark's identity. The bulk
+ * form; {@link moveBookmark} is the one-item wrapper.
+ *
+ * A true re-parent (`Bookmark.listId` changes), not copy plus delete: the id,
+ * comments, images, rating, visited flag, notes, location, video, and every tag
+ * link survive, so links to the bookmark, DM shares that point back at it, and
+ * the comment thread all keep working.
+ *
+ * Rules (the pure decision is `planBookmarkMove` in lib/move-plan.ts):
+ * - COLLABORATOR or higher on the destination and on every source list.
+ * - Neither side locked: not the destination, not a source list, not the
+ *   bookmark itself (a move is an edit-style write; see {@link LockedError}).
+ * - Free cap: a move counts against the caller's bookmark cap only for bookmarks
+ *   leaving a list someone else owns and landing in one the caller owns. Moves
+ *   between the caller's own lists are net zero, and moves into someone else's
+ *   list follow `createBookmark` (collaboration is never capped for the adder).
+ *   Without this, "save into a friend's list, then drag it home" would be an
+ *   uncapped way to own bookmarks.
+ * - Bookmarks already in the destination are skipped, not an error.
+ *
+ * Tags: every `BookmarkTag` link is kept as is. Tags are user-scoped labels on
+ * the bookmark (each link points at one user's `Tag` row), and every member of a
+ * list already sees all of a bookmark's tags, whoever added them. So when the
+ * destination is shared with other people, the bookmark arrives carrying the
+ * same pills it had, including tags owned by members of the source list who are
+ * not members of the destination. Those links stay inert for their owners: tag
+ * search (`getBookmarksByTags`) is membership-scoped, so it never surfaces the
+ * bookmark to someone without access, and any destination collaborator can still
+ * strip a tag by name with `removeTagFromList`. No `Tag` rows are created or
+ * deleted, and moving back restores the bookmark exactly.
+ *
+ * Polls: poll options are dropped (with their votes). A poll belongs to the
+ * source list, and keeping an option that points into another list would show
+ * that list's bookmark to people who may not be able to see it. Same outcome a
+ * delete has for those polls.
+ *
+ * The writes run in one interactive transaction: options removed, then each
+ * source group updated with a `listId` + unlocked guard. If any row no longer
+ * matches (moved or locked by a concurrent request) the whole move rolls back.
+ */
+export async function moveBookmarks(
+  userId: string,
+  bookmarkIds: string[],
+  targetListId: string,
+) {
+  await assertRole(userId, targetListId, "COLLABORATOR");
+  const target = await prisma.list.findUnique({
+    where: { id: targetListId },
+    select: { id: true, ownerId: true, lockedAt: true },
+  });
+  if (!target) throw new Error("List not found.");
+
+  const ids = uniqueIds(bookmarkIds);
+  const rows = ids.length
+    ? await prisma.bookmark.findMany({
+        where: { id: { in: ids } },
+        select: {
+          id: true,
+          listId: true,
+          lockedAt: true,
+          list: { select: { ownerId: true, lockedAt: true } },
+        },
+      })
+    : [];
+
+  // Role on every source before anything else is revealed about the rows (a
+  // locked-state message would otherwise leak that a bookmark exists).
+  for (const listId of new Set(rows.map((r) => r.listId))) {
+    await assertRole(userId, listId, "COLLABORATOR");
+  }
+
+  const plan = planBookmarkMove(
+    userId,
+    ids,
+    rows.map((r) => ({
+      id: r.id,
+      listId: r.listId,
+      locked: r.lockedAt !== null,
+      listLocked: r.list.lockedAt !== null,
+      listOwnerId: r.list.ownerId,
+    })),
+    { id: target.id, ownerId: target.ownerId, locked: target.lockedAt !== null },
+  );
+
+  if (!plan.ok) {
+    switch (plan.reason) {
+      case "empty":
+        throw new Error("Pick at least one bookmark to move.");
+      case "too-many":
+        throw new Error(`You can move up to ${BULK_BOOKMARK_MAX} bookmarks at once.`);
+      case "not-found":
+        throw new Error("Bookmark not found.");
+      case "target-locked":
+      case "source-locked":
+        throw new LockedError("list");
+      case "bookmark-locked":
+        throw new LockedError("bookmark");
+    }
+  }
+
+  const sourceListIds = Object.keys(plan.bySource);
+  if (plan.moveIds.length === 0) {
+    return {
+      listId: targetListId,
+      moved: 0,
+      skipped: plan.alreadyThere.length,
+      sourceListIds,
+      bySource: plan.bySource,
+    };
+  }
+
+  if (plan.ownedIncoming > 0) await assertCanCreateBookmark(userId, plan.ownedIncoming);
+
+  await prisma.$transaction(async (tx) => {
+    const fresh = await tx.list.findUnique({
+      where: { id: targetListId },
+      select: { lockedAt: true },
+    });
+    if (!fresh) throw new Error("List not found.");
+    if (fresh.lockedAt) throw new LockedError("list");
+
+    await tx.pollOption.deleteMany({ where: { bookmarkId: { in: plan.moveIds } } });
+
+    let moved = 0;
+    for (const [sourceId, group] of Object.entries(plan.bySource)) {
+      const { count } = await tx.bookmark.updateMany({
+        where: {
+          id: { in: group },
+          listId: sourceId,
+          lockedAt: null,
+          list: { lockedAt: null },
+        },
+        data: { listId: targetListId },
+      });
+      moved += count;
+    }
+    if (moved !== plan.moveIds.length) {
+      throw new Error("Some bookmarks changed while moving, so nothing was moved. Try again.");
+    }
+  });
+
+  return {
+    listId: targetListId,
+    moved: plan.moveIds.length,
+    skipped: plan.alreadyThere.length,
+    sourceListIds,
+    // Which ids came from which list, so a client can offer an undo that
+    // moves each group back (through this same function and its rules).
+    bySource: plan.bySource,
+  };
+}
+
+/** Move one bookmark into another list. See {@link moveBookmarks} for every rule. */
+export function moveBookmark(userId: string, bookmarkId: string, targetListId: string) {
+  return moveBookmarks(userId, [bookmarkId], targetListId);
+}
+
+/**
+ * Copy bookmarks into another list as independent rows (desktop "Copy to
+ * list"). Each copy is written by {@link createBookmarkInLists}, the same path
+ * `/bookmarks/new` uses to put one bookmark into several lists, so the
+ * destination rules are exactly that path's: COLLABORATOR on the destination,
+ * destination not locked, and the free bookmark cap only when the destination
+ * is a list the caller owns.
+ *
+ * Source rules: membership (VIEWER or higher) on every source list, the same
+ * bar as `duplicateList`, and no locked source bookmark or list (locked content
+ * stays where the downgrade selection put it, as with a move). Like
+ * `duplicateList` the copy keeps name, description, links, photos, notes,
+ * location, video, rating, visited and tags (tags are recreated as the
+ * caller's own); comments and poll entries stay with the original.
+ *
+ * All checks, including the cap for the whole batch, run before the first
+ * write, so a refusal writes nothing. The writes themselves are one
+ * `createBookmarkInLists` call per bookmark (not one transaction), as that path
+ * is today. Returns how many copies were made.
+ */
+export async function copyBookmarksToList(
+  userId: string,
+  bookmarkIds: string[],
+  targetListId: string,
+) {
+  const ids = uniqueIds(bookmarkIds);
+  if (ids.length === 0) throw new Error("Pick at least one bookmark to copy.");
+  if (ids.length > BULK_BOOKMARK_MAX) {
+    throw new Error(`You can copy up to ${BULK_BOOKMARK_MAX} bookmarks at once.`);
+  }
+
+  await assertRole(userId, targetListId, "COLLABORATOR");
+  await assertListUnlocked(targetListId);
+  const target = await prisma.list.findUnique({
+    where: { id: targetListId },
+    select: { ownerId: true },
+  });
+  if (!target) throw new Error("List not found.");
+
+  const rows = await prisma.bookmark.findMany({
+    where: { id: { in: ids } },
+    select: {
+      id: true,
+      listId: true,
+      lockedAt: true,
+      list: { select: { lockedAt: true } },
+      name: true,
+      description: true,
+      urls: true,
+      images: true,
+      notes: true,
+      location: true,
+      latitude: true,
+      longitude: true,
+      rating: true,
+      visited: true,
+      videoUrl: true,
+      videoType: true,
+      tags: { select: { tag: { select: { name: true } } } },
+    },
+  });
+  if (rows.length !== ids.length) throw new Error("Bookmark not found.");
+
+  // Membership on every source before anything else is revealed about the rows.
+  for (const listId of new Set(rows.map((r) => r.listId))) {
+    await assertRole(userId, listId, "VIEWER");
+  }
+  if (rows.some((r) => r.list.lockedAt !== null)) throw new LockedError("list");
+  if (rows.some((r) => r.lockedAt !== null)) throw new LockedError("bookmark");
+
+  // One cap check for the whole batch (per-copy checks alone would let a
+  // batch stop halfway at the limit).
+  if (target.ownerId === userId) await assertCanCreateBookmark(userId, rows.length);
+
+  const byId = new Map(rows.map((r) => [r.id, r]));
+  for (const id of ids) {
+    const r = byId.get(id)!;
+    await createBookmarkInLists(userId, [targetListId], [], {
+      name: r.name,
+      description: r.description,
+      urls: r.urls,
+      images: r.images,
+      notes: r.notes,
+      location: r.location,
+      latitude: r.latitude,
+      longitude: r.longitude,
+      rating: r.rating,
+      visited: r.visited,
+      videoUrl: r.videoUrl,
+      videoType: r.videoType,
+      tagNames: r.tags.map((t) => t.tag.name),
+    });
+  }
+  return { listId: targetListId, copied: ids.length };
+}
+
+/**
+ * Mark several bookmarks visited or unvisited (desktop bulk bar). Sets the flag
+ * rather than toggling it, so a mixed selection ends up uniform. Same role rule
+ * as {@link toggleVisited} (COLLABORATOR on each bookmark's list); locked
+ * bookmarks and bookmarks in locked lists are refused, since a locked row is
+ * read-only. All or nothing in one transaction, each update scoped to the list
+ * its role check passed on and to unlocked rows, so a concurrent move or lock
+ * rolls the whole change back.
+ */
+export async function setVisitedMany(
+  userId: string,
+  bookmarkIds: string[],
+  visited: boolean,
+) {
+  const ids = uniqueIds(bookmarkIds);
+  if (ids.length === 0) throw new Error("Pick at least one bookmark.");
+  if (ids.length > BULK_BOOKMARK_MAX) {
+    throw new Error(`You can update up to ${BULK_BOOKMARK_MAX} bookmarks at once.`);
+  }
+
+  const rows = await prisma.bookmark.findMany({
+    where: { id: { in: ids } },
+    select: { id: true, listId: true, lockedAt: true, list: { select: { lockedAt: true } } },
+  });
+  if (rows.length !== ids.length) throw new Error("Bookmark not found.");
+
+  const byList = new Map<string, string[]>();
+  for (const r of rows) byList.set(r.listId, [...(byList.get(r.listId) ?? []), r.id]);
+  for (const listId of byList.keys()) await assertRole(userId, listId, "COLLABORATOR");
+  if (rows.some((r) => r.list.lockedAt !== null)) throw new LockedError("list");
+  if (rows.some((r) => r.lockedAt !== null)) throw new LockedError("bookmark");
+
+  await prisma.$transaction(async (tx) => {
+    let updated = 0;
+    for (const [listId, group] of byList) {
+      const { count } = await tx.bookmark.updateMany({
+        where: { id: { in: group }, listId, lockedAt: null, list: { lockedAt: null } },
+        data: { visited },
+      });
+      updated += count;
+    }
+    if (updated !== ids.length) {
+      throw new Error("Some bookmarks changed while saving, so nothing was changed. Try again.");
+    }
+  });
+  return { updated: ids.length, listIds: [...byList.keys()] };
 }
 
 /** Toggle the visited flag — requires COLLABORATOR. Returns its list. */

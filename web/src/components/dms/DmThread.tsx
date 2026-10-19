@@ -115,7 +115,7 @@ export function DmThread({
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-3">
       {initial.other && (
-        <details className="text-sm">
+        <details className="text-sm lg:px-6 lg:pt-2">
           <summary className="text-muted hover:text-ink cursor-pointer select-none">
             Safety &amp; blocking
           </summary>
@@ -128,7 +128,9 @@ export function DmThread({
           </div>
         </details>
       )}
-      <div className="border-border flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto border-2 p-4">
+      {/* At lg+ (the messages workspace pane) the box loses its frame and runs
+          edge to edge; below lg it is unchanged. */}
+      <div className="border-border flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto border-2 p-4 lg:border-0 lg:px-6">
         {olderCursor && (
           <button
             type="button"
@@ -208,7 +210,7 @@ export function DmThread({
             e.preventDefault();
             send();
           }}
-          className="flex items-center gap-2"
+          className="flex items-center gap-2 lg:px-6 lg:pb-4"
         >
           <input
             value={body}
@@ -221,11 +223,11 @@ export function DmThread({
           </PixelButton>
         </form>
       ) : (
-        <p className="text-muted border-border border-2 p-3 text-center text-sm">
+        <p className="text-muted border-border border-2 p-3 text-center text-sm lg:mx-6 lg:mb-4">
           You&apos;re no longer friends — add them again to keep messaging.
         </p>
       )}
-      {error && <p className="text-danger text-sm">{error}</p>}
+      {error && <p className="text-danger text-sm lg:px-6 lg:pb-3">{error}</p>}
     </div>
   );
 }

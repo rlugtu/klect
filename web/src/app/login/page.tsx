@@ -21,7 +21,7 @@ export default async function LoginPage({
   return (
     <main className="mx-auto flex w-full max-w-md flex-1 flex-col justify-center px-6 py-12">
       <div className="mb-8 text-center">
-        <h1 className="text-3xl text-primary">KLECT</h1>
+        <h1 className="text-3xl text-primary">Klect</h1>
         <p className="mt-3 text-muted">More than links. Everything in one place.</p>
       </div>
       <PixelCard>

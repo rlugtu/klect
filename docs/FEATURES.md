@@ -6,8 +6,13 @@ tRPC API) and **`mobile/`** (Expo/React Native, a thin client of that API). The 
 root `CLAUDE.md`) is that every feature is built for **both** apps on the same typed tRPC contract;
 this doc is where you can see how close to that the two platforms actually are.
 
+A third client, **`extension/`** (Chrome MV3), is deliberately **outside** this comparison: its
+whole scope is saving the current page into lists and browsing the lists you have, so a parity
+column for it would be almost entirely "n/a" by design. Its scope lives in
+`../extension/IMPLEMENTATION_PLAN.md`.
+
 > For the **spec** (data model, permissions, routes, full API contract) see `../DESIGN.md`. For the
-> **architecture** (how a request flows, the two-app split) see `ARCHITECTURE.md`. This doc is
+> **architecture** (how a request flows, the three-app split) see `ARCHITECTURE.md`. This doc is
 > product coverage, not spec.
 
 ---

@@ -5,6 +5,7 @@ import {
 import { PixelCard } from "@/components/ui/PixelCard";
 import { SubmitButton } from "@/components/ui/SubmitButton";
 import { atHandle } from "@/lib/handle";
+import { UserIcon } from "@/components/ui/UserIcon";
 
 type Requester = {
   id: string;
@@ -32,9 +33,7 @@ export function FriendRequests({
             className="flex items-center justify-between gap-3"
           >
             <span className="flex min-w-0 items-center gap-2">
-              <span aria-hidden className="text-lg">
-                {r.requester.icon ?? "🔖"}
-              </span>
+              <UserIcon icon={r.requester.icon} className="text-lg" />
               <span className="truncate text-sm font-semibold">
                 {atHandle(r.requester.handle)}
               </span>

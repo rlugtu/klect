@@ -6,6 +6,7 @@ import { toast } from "@/lib/toast";
 import { PixelCard } from "@/components/ui/PixelCard";
 import { PixelButton } from "@/components/ui/PixelButton";
 import { atHandle } from "@/lib/handle";
+import { UserIcon } from "@/components/ui/UserIcon";
 
 type BlockedUser = {
   blockId: string;
@@ -46,7 +47,7 @@ export function BlockedUsersSection({ blocked }: { blocked: BlockedUser[] }) {
               className="flex items-center justify-between gap-3"
             >
               <span className="flex min-w-0 items-center gap-2">
-                <span aria-hidden>{r.user.icon ?? "🙂"}</span>
+                <UserIcon icon={r.user.icon} />
                 <span className="truncate text-sm">{atHandle(r.user.handle)}</span>
               </span>
               <PixelButton

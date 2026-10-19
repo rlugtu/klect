@@ -1,16 +1,48 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type MouseEvent as ReactMouseEvent, type ReactNode } from "react";
 import { AnimatePresence, motion } from "framer-motion";
+import { LayoutGrid, List as ListIcon } from "lucide-react";
 import type { BookmarkCardData } from "@/lib/types";
 import { cn } from "@/lib/utils";
+import {
+  isDesktopViewport,
+  useIsDesktop,
+  usePref,
+  writePref,
+} from "@/lib/client-prefs";
+import { useListPanel } from "@/components/lists/ListDesktopLayout";
 import { BookmarkCard } from "./BookmarkCard";
+import { BookmarkRow } from "./BookmarkRow";
+import { BookmarkSelectable } from "./BookmarkSelectable";
+import { BookmarkBulkBar } from "./BookmarkBulkBar";
+import type { MoveDestination } from "./MoveToListMenu";
+import { useBookmarkSelection, type SelectableItem } from "./useBookmarkSelection";
 import { PixelInput } from "@/components/ui/PixelInput";
 import { PixelButton } from "@/components/ui/PixelButton";
 import { PixelBadge } from "@/components/ui/PixelBadge";
+import { Switch } from "@/components/ui/Switch";
 import { toast } from "@/lib/toast";
 
 const MAX_RESULTS = 6;
+
+/** Desktop-only sort orders. Rows arrive newest first from the server. */
+const LIST_SORTS = {
+  recent: "Newest",
+  oldest: "Oldest",
+  rating: "Top rated",
+  name: "Name A to Z",
+} as const;
+type ListSort = keyof typeof LIST_SORTS;
+
+function sortBookmarks(rows: BookmarkCardData[], sort: ListSort) {
+  if (sort === "recent") return rows;
+  if (sort === "oldest") return [...rows].reverse();
+  if (sort === "rating") return [...rows].sort((a, b) => b.rating - a.rating);
+  return [...rows].sort((a, b) =>
+    a.name.localeCompare(b.name, undefined, { sensitivity: "base" }),
+  );
+}
 
 /**
  * Bookmark grid for a single list with an in-list search: type to filter cards
@@ -19,12 +51,24 @@ const MAX_RESULTS = 6;
  *
  * Collaborators (`canManageTags`) also get a trash affordance on each tag in the
  * filter dropdown that removes it from every bookmark in this list.
+ *
+ * At lg and up (only) the controls sit on one row and gain a sort menu and a
+ * grid/compact switch (remembered per list), the grid is container-aware (2 to
+ * 4 columns by the space left beside the side panel), and a plain click on a
+ * card opens it in the side panel. The visible order is published to the panel
+ * for prev/next. Below lg none of that renders or applies.
+ *
+ * Collaborators (`canEdit`) also get, at lg+ only, hover actions per card,
+ * multi-select (checkbox, Shift-click range, Cmd/Ctrl-click toggle, Esc clears)
+ * with a sticky bulk bar, and dragging cards onto a sidebar list to move them.
  */
 export function ListBookmarks({
   listId,
   bookmarks,
   canManageTags = false,
   removeTagAction,
+  canEdit = false,
+  destinations = [],
 }: {
   listId: string;
   bookmarks: BookmarkCardData[];
@@ -32,6 +76,10 @@ export function ListBookmarks({
   canManageTags?: boolean;
   /** Server action (pre-bound to listId) that removes a tag from the whole list. */
   removeTagAction?: (name: string) => Promise<void>;
+  /** Collaborator+ member: enables desktop selection, move, and delete. */
+  canEdit?: boolean;
+  /** Lists the viewer can move bookmarks into (writable, unlocked, not this one). */
+  destinations?: MoveDestination[];
 }) {
   const [query, setQuery] = useState("");
   const [open, setOpen] = useState(false);
@@ -43,6 +91,12 @@ export function ListBookmarks({
   const [confirmTag, setConfirmTag] = useState<string | null>(null);
   const [removing, setRemoving] = useState(false);
   const tagMenuRef = useRef<HTMLDivElement>(null);
+  const panel = useListPanel();
+  const isDesktop = useIsDesktop();
+  const [sort, setSort] = useState<ListSort>("recent");
+  const viewKey = `klect:list-view:${listId}`;
+  const storedView = usePref(viewKey);
+  const view = isDesktop && storedView === "compact" ? "compact" : "grid";
 
   // Close the dropdown and abandon any pending remove-confirmation together.
   function closeTagMenu() {
@@ -125,40 +179,80 @@ export function ListBookmarks({
     }
   }
 
-  const visible = bookmarks.filter((b) => {
+  const filtered = bookmarks.filter((b) => {
     const nameOk = !q || b.name.toLowerCase().includes(q);
     const tagOk =
       selected.length === 0 || b.tags.some((t) => selected.includes(t.name));
     const visitedOk = !hideVisited || !b.visited;
     return nameOk && tagOk && visitedOk;
   });
+  const visible = sortBookmarks(filtered, isDesktop ? sort : "recent");
+
+  // Publish the on-screen order so the side panel's prev/next follows it.
+  const orderKey = visible.map((b) => b.id).join(",");
+  const setOrder = panel?.setOrder;
+  useEffect(() => {
+    setOrder?.(orderKey ? orderKey.split(",") : []);
+  }, [orderKey, setOrder]);
+
+  const selectItems: SelectableItem[] = bookmarks.map((b) => ({
+    id: b.id,
+    name: b.name,
+    listId,
+    url: b.url ?? null,
+    canMove: canEdit && !b.locked,
+    canDelete: canEdit,
+    visited: b.visited,
+  }));
+  const selectionOn = isDesktop && canEdit;
+  const panelOpenId = panel?.bookmarkId ?? null;
+  const selection = useBookmarkSelection({
+    items: selectItems,
+    order: visible.map((b) => b.id),
+    enabled: selectionOn,
+    escapeYields: () => panelOpenId !== null,
+    hideMovedOutOf: listId,
+  });
+  const itemById = new Map(selectItems.map((i) => [i.id, i]));
+  const shown = visible.filter((b) => !selection.isHidden(b.id));
+
+  function selectable(id: string, variant: "card" | "row", node: ReactNode) {
+    if (!selectionOn) return node;
+    return (
+      <BookmarkSelectable
+        item={itemById.get(id)!}
+        selection={selection}
+        destinations={destinations}
+        variant={variant}
+      >
+        {node}
+      </BookmarkSelectable>
+    );
+  }
+
+  // lg+: a plain left click opens the side panel. Modified clicks (new tab,
+  // new window) and anything below lg keep the link's full-page navigation.
+  function openInPanel(e: ReactMouseEvent<HTMLAnchorElement>, id: string) {
+    if (!panel || e.defaultPrevented || e.button !== 0) return;
+    if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+    if (!isDesktopViewport()) return;
+    e.preventDefault();
+    panel.openBookmark(id);
+  }
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex items-center justify-between gap-3">
+      <div className="flex flex-col gap-4 lg:flex-row lg:flex-wrap lg:items-center lg:gap-3">
+      <div className="flex items-center justify-between gap-3 lg:order-2 lg:justify-start">
         <span className="text-sm">Show only unvisited</span>
-        <button
-          type="button"
-          role="switch"
-          aria-checked={hideVisited}
+        <Switch
+          checked={hideVisited}
+          onCheckedChange={setHideVisited}
           aria-label="Show only unvisited"
-          onClick={() => setHideVisited((v) => !v)}
-          className={cn(
-            "pixel-box-sm relative h-6 w-11 shrink-0 cursor-pointer transition-colors",
-            hideVisited ? "bg-primary" : "bg-panel",
-          )}
-        >
-          <span
-            aria-hidden
-            className={cn(
-              "absolute top-1/2 h-4 w-4 -translate-y-1/2 transition-transform",
-              hideVisited ? "bg-primary-ink translate-x-6" : "bg-ink translate-x-0.5",
-            )}
-          />
-        </button>
+        />
       </div>
 
-      <div className="flex items-stretch gap-2">
+      <div className="flex items-stretch gap-2 lg:order-1 lg:min-w-64 lg:flex-1">
       <div className="relative flex-1">
         <PixelInput
           value={query}
@@ -183,7 +277,7 @@ export function ListBookmarks({
             onMouseDown={(e) => e.preventDefault()}
           >
             <section>
-              <p className="font-pixel text-muted px-2 pt-1 text-sm uppercase">
+              <p className="font-pixel text-muted px-2 pt-1 text-sm">
                 Matched tags
               </p>
               {matchedTags.map((t) => (
@@ -310,6 +404,54 @@ export function ListBookmarks({
       </div>
       </div>
 
+      {/* Desktop only: sort + layout switch. */}
+      <div className="hidden items-center gap-2 lg:order-3 lg:flex">
+        <label className="sr-only" htmlFor={`list-sort-${listId}`}>
+          Sort
+        </label>
+        <select
+          id={`list-sort-${listId}`}
+          value={sort}
+          onChange={(e) => setSort(e.target.value as ListSort)}
+          className="pixel-box-sm bg-panel text-ink h-9 cursor-pointer px-3 text-sm"
+        >
+          {Object.entries(LIST_SORTS).map(([value, label]) => (
+            <option key={value} value={value}>
+              {label}
+            </option>
+          ))}
+        </select>
+        <div
+          role="group"
+          aria-label="Layout"
+          className="pixel-box-sm bg-panel flex overflow-hidden"
+        >
+          {(
+            [
+              { key: "grid", label: "Grid", icon: LayoutGrid },
+              { key: "compact", label: "Compact", icon: ListIcon },
+            ] as const
+          ).map((o) => (
+            <button
+              key={o.key}
+              type="button"
+              aria-pressed={view === o.key}
+              onClick={() => writePref(viewKey, o.key)}
+              className={cn(
+                "flex h-9 cursor-pointer items-center gap-1.5 px-3 text-sm",
+                view === o.key
+                  ? "bg-primary text-primary-ink"
+                  : "text-muted hover:text-ink",
+              )}
+            >
+              <o.icon size={14} aria-hidden />
+              {o.label}
+            </button>
+          ))}
+        </div>
+      </div>
+      </div>
+
       {(selected.length > 0 || query.length > 0) && (
         <div className="flex flex-wrap items-center gap-2">
           <AnimatePresence initial={false}>
@@ -344,16 +486,53 @@ export function ListBookmarks({
         </div>
       )}
 
-      {visible.length === 0 ? (
+      {shown.length === 0 ? (
         <p className="text-muted">No bookmarks match your search.</p>
-      ) : (
-        <div className="grid gap-3 sm:grid-cols-2">
-          {visible.map((b) => (
-            <div key={b.id} className="col-span-1 min-w-0 sm:col-span-2">
-              <BookmarkCard listId={listId} bookmark={b} />
+      ) : view === "compact" ? (
+        <div className="pixel-box bg-panel divide-border flex flex-col divide-y">
+          {shown.map((b) => (
+            <div key={b.id} className="min-w-0">
+              {selectable(
+                b.id,
+                "row",
+                <BookmarkRow
+                  listId={listId}
+                  bookmark={b}
+                  active={panel?.bookmarkId === b.id}
+                  onOpen={(e) => openInPanel(e, b.id)}
+                />,
+              )}
             </div>
           ))}
         </div>
+      ) : (
+        // lg+: columns follow the width this column actually has (it shrinks
+        // when the side panel is open), so the wrapper is a size container.
+        <div className="lg:@container">
+          <div className="dens-grid grid gap-3 sm:grid-cols-2 lg:gap-4 lg:@2xl:grid-cols-3 lg:@5xl:grid-cols-4">
+            {shown.map((b) => (
+              <div
+                key={b.id}
+                className="col-span-1 min-w-0 sm:col-span-2 lg:col-span-1"
+              >
+                {selectable(
+                  b.id,
+                  "card",
+                  <BookmarkCard
+                    listId={listId}
+                    bookmark={b}
+                    active={panel?.bookmarkId === b.id}
+                    onOpen={(e) => openInPanel(e, b.id)}
+                  />,
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {selectionOn && (
+        <BookmarkBulkBar selection={selection} destinations={destinations} />
       )}
     </div>
   );

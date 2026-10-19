@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useActionState, useEffect, useState } from "react";
+import { useActionState, useEffect, useState, type ReactNode } from "react";
 import {
   addFriendToLists,
   removeFriend,
@@ -14,6 +14,7 @@ import { SubmitButton } from "@/components/ui/SubmitButton";
 import { ConfirmDeleteButton } from "@/components/ui/ConfirmDeleteButton";
 import { atHandle } from "@/lib/handle";
 import { Pencil, Plus, X } from "lucide-react";
+import { UserIcon } from "@/components/ui/UserIcon";
 
 type Friend = {
   id: string;
@@ -26,17 +27,24 @@ type ListOption = { id: string; name: string; icon: string };
  * A friend row. Name + email, with Edit (remove friend) and Add (multiselect of the
  * user's lists + role → send join requests) panels that expand below the row. The Add
  * panel pre-checks lists the friend already belongs to and closes itself on success.
+ * `actions` renders extra buttons before Edit (the desktop workspace adds Message).
+ * `narrow` (the same pane) lets the buttons wrap under the handle when the row is
+ * too tight to fit them beside it, rather than squeezing the handle away.
  */
 export function FriendRow({
   friendshipId,
   friend,
   lists,
   memberListIds,
+  actions,
+  narrow = false,
 }: {
   friendshipId: string;
   friend: Friend;
   lists: ListOption[];
   memberListIds: string[];
+  actions?: ReactNode;
+  narrow?: boolean;
 }) {
   const [panel, setPanel] = useState<null | "edit" | "add">(null);
   const [state, formAction] = useActionState<InviteState, FormData>(
@@ -55,17 +63,32 @@ export function FriendRow({
 
   return (
     <PixelCard className="flex flex-col gap-3">
-      <div className="flex items-center justify-between gap-3">
+      <div
+        className={
+          narrow
+            ? "flex flex-wrap items-center justify-between gap-x-3 gap-y-2"
+            : "flex items-center justify-between gap-3"
+        }
+      >
         <Link
           href={`/users/${friend.handle ?? friend.id}`}
-          className="flex min-w-0 items-center gap-2 hover:text-primary"
+          className={
+            narrow
+              ? "flex min-w-16 flex-1 items-center gap-2 hover:text-primary"
+              : "flex min-w-0 items-center gap-2 hover:text-primary"
+          }
         >
-          <span aria-hidden className="text-lg">
-            {friend.icon ?? "🔖"}
-          </span>
+          <UserIcon icon={friend.icon} className="text-lg" />
           <span className="truncate text-sm font-semibold">{name}</span>
         </Link>
-        <span className="flex shrink-0 items-center gap-2">
+        <span
+          className={
+            narrow
+              ? "flex flex-wrap items-center gap-2"
+              : "flex shrink-0 items-center gap-2"
+          }
+        >
+          {actions}
           <PixelButton
             variant="secondary"
             size="xs"
@@ -95,7 +118,7 @@ export function FriendRow({
 
       {panel === "edit" && (
         <div className="border-border flex flex-col gap-2 border-t-2 pt-3">
-          <span className="font-pixel text-muted text-sm uppercase">
+          <span className="font-pixel text-muted text-sm">
             Remove friend
           </span>
           <ConfirmDeleteButton
@@ -112,7 +135,7 @@ export function FriendRow({
           onSubmit={() => setPanel(null)}
           className="border-border flex flex-col gap-3 border-t-2 pt-3"
         >
-          <span className="font-pixel text-muted text-sm uppercase">
+          <span className="font-pixel text-muted text-sm">
             Add to lists
           </span>
           {lists.length === 0 ? (

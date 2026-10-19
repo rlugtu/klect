@@ -5,6 +5,7 @@ import { useState } from "react";
 import { atHandle } from "@/lib/handle";
 import { PixelCard } from "@/components/ui/PixelCard";
 import { startConversation } from "@/lib/actions/dms";
+import { UserIcon } from "@/components/ui/UserIcon";
 
 type Friend = { id: string; handle: string | null; icon: string | null };
 
@@ -42,9 +43,7 @@ export function NewChatList({ friends }: { friends: Friend[] }) {
             onClick={() => open(f)}
             className="flex w-full cursor-pointer items-center gap-3 p-4 text-left hover:text-primary disabled:opacity-50"
           >
-            <span aria-hidden className="text-lg">
-              {f.icon ?? "🔖"}
-            </span>
+            <UserIcon icon={f.icon} className="text-lg" />
             <span className="truncate text-sm font-semibold">
               {atHandle(f.handle)}
             </span>

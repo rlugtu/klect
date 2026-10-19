@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { isTrustedIframeUrl, isPortraitVideoHost } from "@/lib/video";
+import { RemoteImg } from "@/components/ui/RemoteImg";
 
 /**
  * Optional inline video player. For embeddable providers it shows a poster
@@ -19,6 +20,8 @@ export function BookmarkVideo({
   poster?: string;
 }) {
   const [playing, setPlaying] = useState(false);
+  // A poster that fails to load is dropped; the frame's panel color shows instead.
+  const [failedPoster, setFailedPoster] = useState<string | null>(null);
 
   if (!videoUrl) return null;
 
@@ -50,11 +53,10 @@ export function BookmarkVideo({
         aria-label="Play video"
         className={`${frame} block cursor-pointer overflow-hidden`}
       >
-        {poster && (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
+        {poster && poster !== failedPoster && (
+          <RemoteImg
             src={poster}
-            alt=""
+            onFail={() => setFailedPoster(poster)}
             className="absolute inset-0 h-full w-full object-cover"
           />
         )}

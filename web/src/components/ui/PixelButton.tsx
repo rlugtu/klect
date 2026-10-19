@@ -30,7 +30,7 @@ export const PixelButton = forwardRef<HTMLButtonElement, PixelButtonProps>(
       <button
         ref={ref}
         className={cn(
-          "font-pixel inline-flex items-center justify-center gap-2 uppercase",
+          "font-pixel inline-flex items-center justify-center gap-2",
           "pixel-box-sm pixel-press select-none cursor-pointer",
           "disabled:opacity-50 disabled:pointer-events-none",
           variantClasses[variant],

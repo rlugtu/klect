@@ -9,7 +9,9 @@ import {
   isFreeLimitError,
   toFreeLimitResult,
   type CappedCreateResult,
+  type FreeLimitResult,
 } from "@/lib/core/entitlements";
+import { isLockedError } from "@/lib/core/lists";
 
 /** Extract a bookmark's fields + tags from submitted FormData. */
 function bookmarkInputFromFormData(formData: FormData): core.BookmarkInput {
@@ -132,4 +134,114 @@ export async function setRating(bookmarkId: string, rating: number) {
 
   revalidatePath(`/lists/${listId}`);
   revalidatePath(`/lists/${listId}/bookmarks/${bookmarkId}`);
+}
+
+/**
+ * What the bulk bookmark actions return. Never throws for an expected refusal
+ * (no permission, locked, cap, not found): a thrown server-action error reaches
+ * the browser with its message stripped in production, and the bulk UI needs
+ * the real reason for its toast. `FreeLimitResult` carries the upgrade path.
+ */
+export type BulkBookmarkResult =
+  | {
+      ok: true;
+      count: number;
+      skipped: number;
+      /** Moves only: moved ids grouped by the list they came from (for undo). */
+      bySource?: Record<string, string[]>;
+    }
+  | { ok: false; code?: undefined; error: string }
+  | FreeLimitResult;
+
+/** Expected refusals carry their own copy; anything else gets a generic line. */
+function bulkFailure(e: unknown, scope: string, fallback: string): BulkBookmarkResult {
+  if (isFreeLimitError(e)) return toFreeLimitResult(e);
+  if (isLockedError(e) || (e instanceof Error && e.constructor === Error)) {
+    return { ok: false, error: e.message };
+  }
+  console.error(`[${scope}]`, e);
+  return { ok: false, error: fallback };
+}
+
+/**
+ * Move bookmarks into another list (re-parent, not copy). Used by the desktop
+ * "Move to list" menu, the bulk bar, and drag onto a sidebar list. Revalidates
+ * the whole app layout: the source and target lists, the sidebar counts, home,
+ * and All bookmarks all change.
+ */
+export async function moveBookmarks(
+  bookmarkIds: string[],
+  listId: string,
+): Promise<BulkBookmarkResult> {
+  const user = await requireUser();
+  let result: Awaited<ReturnType<typeof core.moveBookmarks>>;
+  try {
+    result = await core.moveBookmarks(user.id, bookmarkIds, listId);
+  } catch (e) {
+    unstable_rethrow(e);
+    return bulkFailure(e, "bookmarks.move", "Couldn't move those bookmarks.");
+  }
+
+  revalidatePath("/", "layout");
+  return {
+    ok: true,
+    count: result.moved,
+    skipped: result.skipped,
+    bySource: result.bySource,
+  };
+}
+
+/**
+ * Copy bookmarks into another list as independent copies (desktop "Copy to
+ * list"). Same result shape as a move; the copies are written by the
+ * `/bookmarks/new` multi-list path (see `core.copyBookmarksToList`).
+ */
+export async function copyBookmarks(
+  bookmarkIds: string[],
+  listId: string,
+): Promise<BulkBookmarkResult> {
+  const user = await requireUser();
+  let copied: number;
+  try {
+    ({ copied } = await core.copyBookmarksToList(user.id, bookmarkIds, listId));
+  } catch (e) {
+    unstable_rethrow(e);
+    return bulkFailure(e, "bookmarks.copy", "Couldn't copy those bookmarks.");
+  }
+
+  revalidatePath("/", "layout");
+  return { ok: true, count: copied, skipped: 0 };
+}
+
+/** Mark several bookmarks visited or unvisited (desktop bulk bar). */
+export async function setBookmarksVisited(
+  bookmarkIds: string[],
+  visited: boolean,
+): Promise<BulkBookmarkResult> {
+  const user = await requireUser();
+  let updated: number;
+  try {
+    ({ updated } = await core.setVisitedMany(user.id, bookmarkIds, visited === true));
+  } catch (e) {
+    unstable_rethrow(e);
+    return bulkFailure(e, "bookmarks.setVisitedMany", "Couldn't update those bookmarks.");
+  }
+
+  revalidatePath("/", "layout");
+  return { ok: true, count: updated, skipped: 0 };
+}
+
+/** Delete several bookmarks at once (desktop bulk bar). Stays on the page. */
+export async function deleteBookmarks(bookmarkIds: string[]): Promise<BulkBookmarkResult> {
+  const user = await requireUser();
+  let deleted: number;
+  try {
+    ({ deleted } = await core.deleteBookmarks(user.id, bookmarkIds));
+  } catch (e) {
+    unstable_rethrow(e);
+    return bulkFailure(e, "bookmarks.deleteMany", "Couldn't delete those bookmarks.");
+  }
+
+  revalidatePath("/", "layout");
+  return { ok: true, count: deleted, skipped: 0 };
 }

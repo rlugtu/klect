@@ -13,6 +13,7 @@ import {
   type DmConversation,
 } from "@/lib/actions/dms";
 import { subscribeDm, realtimeEnabled } from "@/lib/realtime/client";
+import { UserIcon } from "@/components/ui/UserIcon";
 
 /**
  * DM inbox list. Rows link into a thread and show an unread dot + last-message preview.
@@ -92,9 +93,7 @@ function DmRow({
             className="bg-accent size-2.5 shrink-0 rounded-full"
           />
         )}
-        <span aria-hidden className="text-lg">
-          {convo.other.icon ?? "🔖"}
-        </span>
+        <UserIcon icon={convo.other.icon} className="text-lg" />
         <span className="flex min-w-0 flex-1 flex-col">
           <span className="flex items-center justify-between gap-2">
             <span className="truncate text-sm font-semibold">{name}</span>

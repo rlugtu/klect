@@ -12,6 +12,7 @@ import { TagInput } from "./TagInput";
 import { LocationInput } from "./LocationInput";
 import { fetchLinkMetadata } from "@/lib/actions/metadata";
 import type { RetrievedPlace } from "@/lib/actions/places";
+import { BookmarkThumb } from "./BookmarkThumb";
 
 export type BookmarkDefaults = {
   name: string;
@@ -175,7 +176,7 @@ export function BookmarkForm({
         className="pixel-box-sm bg-primary/10 flex flex-col gap-3 p-4"
       >
         <div className="flex flex-col gap-0.5">
-          <span className="font-pixel text-sm font-bold uppercase">
+          <span className="font-pixel text-sm font-bold">
             ✨ Autofill
           </span>
           <span className="text-muted text-sm">
@@ -212,7 +213,7 @@ export function BookmarkForm({
         {/* divider */}
         <div className="flex items-center gap-3" aria-hidden>
           <span className="border-border flex-1 border-t-2" />
-          <span className="font-pixel text-muted text-xs uppercase">or</span>
+          <span className="font-pixel text-muted text-xs">or</span>
           <span className="border-border flex-1 border-t-2" />
         </div>
 
@@ -236,7 +237,7 @@ export function BookmarkForm({
                 aria-hidden
                 className="border-border border-t-primary size-4 animate-spin rounded-full border-2"
               />
-              <span className="font-pixel text-sm uppercase">
+              <span className="font-pixel text-sm">
                 Fetching link…
               </span>
             </div>
@@ -265,12 +266,11 @@ export function BookmarkForm({
                 {images.map((src) => (
                   <div key={src} className="relative">
                     <input type="hidden" name="images" value={src} />
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img
-                      src={src}
-                      alt=""
-                      loading="lazy"
-                      className="pixel-box-sm bg-panel h-20 w-20 object-cover"
+                    <BookmarkThumb
+                      images={[src]}
+                      name={name}
+                      size="sm"
+                      className="pixel-box-sm h-20 w-20"
                     />
                     <button
                       type="button"
@@ -293,7 +293,7 @@ export function BookmarkForm({
               <input type="hidden" name="videoUrl" value={videoUrl} />
               <input type="hidden" name="videoType" value={videoType} />
               <div className="flex items-center justify-between gap-3">
-                <span className="font-pixel text-sm uppercase">
+                <span className="font-pixel text-sm">
                   🎬 Video detected
                 </span>
                 <PixelButton

@@ -309,7 +309,7 @@ export function ListToolbarPanels() {
           )}
           {visibilityChildren && (
             <div className="border-border flex flex-col gap-2 border-t-2 pt-4">
-              <span className="font-pixel text-muted text-sm uppercase">
+              <span className="font-pixel text-muted text-sm">
                 Visibility
               </span>
               {visibilityChildren}
@@ -317,7 +317,7 @@ export function ListToolbarPanels() {
           )}
           {deleteAction && (
             <div className="border-border flex flex-col gap-2 border-t-2 pt-4">
-              <span className="font-pixel text-muted text-sm uppercase">
+              <span className="font-pixel text-muted text-sm">
                 Danger zone
               </span>
               <ConfirmDeleteButton

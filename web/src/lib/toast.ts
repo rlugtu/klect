@@ -66,7 +66,10 @@ function add(input: ToastInput): string {
     (t) => t.message === message && t.type === (input.type ?? "info"),
   );
   if (existing) {
-    toasts = toasts.map((t) => (t.id === existing.id ? { ...t } : t));
+    // A repeat carries the newest action (an Undo must undo the latest run).
+    toasts = toasts.map((t) =>
+      t.id === existing.id ? { ...t, action: input.action ?? t.action } : t,
+    );
     emit();
     return existing.id;
   }

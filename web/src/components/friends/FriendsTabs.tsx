@@ -70,7 +70,7 @@ function Tab({
       href={href}
       aria-current={on ? "page" : undefined}
       className={cn(
-        "font-pixel -mb-0.5 flex items-center gap-2 border-b-2 px-3 py-2 text-sm uppercase",
+        "font-pixel -mb-0.5 flex items-center gap-2 border-b-2 px-3 py-2 text-sm",
         on
           ? "border-primary text-primary"
           : "border-transparent text-muted hover:text-ink",

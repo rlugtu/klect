@@ -1,11 +1,20 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { MessageCircle, Trash2, X } from "lucide-react";
 import { cn, timeAgo } from "@/lib/utils";
 import { atHandle } from "@/lib/handle";
 import { PixelButton } from "@/components/ui/PixelButton";
+import { BodyPortal } from "@/components/ui/BodyPortal";
 import { ReportControl } from "@/components/moderation/ReportControl";
 import {
   loadChatMessages,
@@ -24,26 +33,68 @@ const ROLE_LABEL: Record<string, string> = {
   VIEWER: "viewer",
 };
 
+type ListChatState = {
+  myId: string;
+  isOwner: boolean;
+  canSend: boolean;
+  messages: ChatMessage[];
+  olderCursor: string | null;
+  unread: number;
+  body: string;
+  setBody: (v: string) => void;
+  sending: boolean;
+  loadingOlder: boolean;
+  clearing: boolean;
+  confirmClear: boolean;
+  setConfirmClear: (v: boolean) => void;
+  error: string | null;
+  loadOlder: () => void;
+  send: () => void;
+  doClear: () => void;
+  drawerOpen: boolean;
+  openDrawer: () => void;
+  closeDrawer: () => void;
+  /** The desktop context panel reports whether its Chat tab is on screen. */
+  setInlineOpen: (open: boolean) => void;
+};
+
+const ChatCtx = createContext<ListChatState | null>(null);
+
+/** The list chat state, or null outside a {@link ListChatProvider} (non-members). */
+export function useListChat() {
+  return useContext(ChatCtx);
+}
+
 /**
- * The list-chat entry point: a header chat icon with an unread badge that opens a slide-up
- * drawer (70vh) holding the chatroom. Mirrors {@link ../dms/DmThread} — loads older history
- * on demand (keyset cursor) and refreshes the newest page off the list's realtime channel
- * (polling fallback). Any member can post; only the owner can clear.
+ * One chatroom state per list page, shared by the two places the room can show:
+ * the slide-up drawer (below lg, opened from the header icon) and the Chat tab
+ * of the desktop context panel (lg and up). Keeping a single owner means a
+ * single realtime subscription and poll loop, whichever surface is showing.
+ *
+ * Mirrors {@link ../dms/DmThread}: loads older history on demand (keyset
+ * cursor) and refreshes the newest page off the list's realtime channel
+ * (polling fallback). Any member can post; only the owner can clear. "Open"
+ * (catch up, mark read, no badge) is the drawer being open OR the inline tab
+ * being visible.
  */
-export function ListChatLauncher({
+export function ListChatProvider({
   listId,
   myId,
   isOwner,
   initial,
   initialUnread,
+  children,
 }: {
   listId: string;
   myId: string;
   isOwner: boolean;
   initial: ChatMessagesPage;
   initialUnread: number;
+  children: ReactNode;
 }) {
-  const [open, setOpen] = useState(false);
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  const [inlineOpen, setInlineOpenState] = useState(false);
+  const open = drawerOpen || inlineOpen;
   const [unread, setUnread] = useState(initialUnread);
   const [messages, setMessages] = useState<ChatMessage[]>(initial.messages);
   const [olderCursor, setOlderCursor] = useState(initial.nextCursor);
@@ -53,7 +104,6 @@ export function ListChatLauncher({
   const [clearing, setClearing] = useState(false);
   const [confirmClear, setConfirmClear] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const bottomRef = useRef<HTMLDivElement>(null);
 
   // Merge a freshly-fetched newest page into state, de-duping by id and keeping order.
   const mergeNewest = useCallback((incoming: ChatMessage[]) => {
@@ -80,7 +130,7 @@ export function ListChatLauncher({
       .catch(() => {});
   }, [listId]);
 
-  // Keep the badge live even while the drawer is closed (realtime ping + polling fallback).
+  // Keep the badge live even while the room is closed (realtime ping + polling fallback).
   useEffect(() => {
     const unsub = subscribeListChat(listId, () => {
       if (open) {
@@ -100,17 +150,17 @@ export function ListChatLauncher({
     };
   }, [listId, open, refreshNewest, refreshUnread]);
 
-  // On open: catch up + mark read (the badge is cleared in the open handler).
+  // On open: catch up + mark read (the badge is cleared by whoever opened it).
   useEffect(() => {
     if (!open) return;
     refreshNewest();
     markChatRead(listId).catch(() => {});
   }, [open, listId, refreshNewest]);
 
-  // Keep pinned to the latest message while open.
-  useEffect(() => {
-    if (open) bottomRef.current?.scrollIntoView({ block: "end" });
-  }, [messages.length, open]);
+  const setInlineOpen = useCallback((next: boolean) => {
+    if (next) setUnread(0);
+    setInlineOpenState(next);
+  }, []);
 
   async function loadOlder() {
     if (!olderCursor || loadingOlder) return;
@@ -162,15 +212,227 @@ export function ListChatLauncher({
   }
 
   return (
+    <ChatCtx.Provider
+      value={{
+        myId,
+        isOwner,
+        canSend: initial.canSend,
+        messages,
+        olderCursor,
+        unread,
+        body,
+        setBody,
+        sending,
+        loadingOlder,
+        clearing,
+        confirmClear,
+        setConfirmClear,
+        error,
+        loadOlder,
+        send,
+        doClear,
+        drawerOpen,
+        openDrawer: () => {
+          setUnread(0);
+          setDrawerOpen(true);
+        },
+        closeDrawer: () => setDrawerOpen(false),
+        setInlineOpen,
+      }}
+    >
+      {children}
+    </ChatCtx.Provider>
+  );
+}
+
+/** Owner-only "Clear" control with its inline confirm. */
+function ClearControl() {
+  const chat = useListChat();
+  if (!chat?.isOwner) return null;
+  const { confirmClear, setConfirmClear, clearing, doClear } = chat;
+  return confirmClear ? (
+    <div className="flex items-center gap-2">
+      <PixelButton
+        variant="danger"
+        size="xs"
+        disabled={clearing}
+        onClick={doClear}
+      >
+        {clearing ? "Clearing…" : "Clear all"}
+      </PixelButton>
+      <button
+        type="button"
+        onClick={() => setConfirmClear(false)}
+        className="text-muted hover:text-ink cursor-pointer text-xs underline"
+      >
+        Cancel
+      </button>
+    </div>
+  ) : (
+    <button
+      type="button"
+      aria-label="Clear chat history"
+      onClick={() => setConfirmClear(true)}
+      className="text-muted hover:text-danger inline-flex cursor-pointer items-center gap-1 text-xs"
+    >
+      <Trash2 size={14} aria-hidden /> Clear
+    </button>
+  );
+}
+
+/**
+ * The room itself: message history (with "load older") and the composer. Used
+ * by the drawer and by the desktop panel's Chat tab.
+ */
+function ChatRoomBody({ className }: { className?: string }) {
+  const chat = useListChat();
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const count = chat?.messages.length ?? 0;
+
+  // Keep pinned to the latest message while the room is on screen.
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (el) el.scrollTop = el.scrollHeight;
+  }, [count]);
+
+  if (!chat) return null;
+  const { messages, myId, olderCursor, loadingOlder, loadOlder } = chat;
+
+  return (
+    <div className={cn("flex min-h-0 flex-1 flex-col gap-3", className)}>
+      <div
+        ref={scrollRef}
+        aria-live="polite"
+        aria-relevant="additions"
+        className="border-border flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto border-2 p-4"
+      >
+        {olderCursor && (
+          <button
+            type="button"
+            onClick={loadOlder}
+            disabled={loadingOlder}
+            className="text-muted hover:text-ink self-center text-xs underline disabled:opacity-50"
+          >
+            {loadingOlder ? "Loading…" : "Load older messages"}
+          </button>
+        )}
+        {messages.length === 0 && (
+          <p className="text-muted m-auto text-sm">
+            No messages yet. Start the conversation 💬
+          </p>
+        )}
+        {messages.map((m) => {
+          const mine = m.senderId === myId;
+          const roleLabel = m.role ? ROLE_LABEL[m.role] : null;
+          return (
+            <div
+              key={m.id}
+              className={cn(
+                "flex max-w-[80%] flex-col gap-0.5",
+                mine ? "self-end items-end" : "self-start items-start",
+              )}
+            >
+              {!mine && (
+                <span className="text-muted px-1 text-xs">
+                  {atHandle(m.sender?.handle)}
+                  {roleLabel && (
+                    <span className="opacity-60"> · {roleLabel}</span>
+                  )}
+                </span>
+              )}
+              <div
+                className={cn(
+                  "px-3 py-2 text-sm break-words",
+                  mine
+                    ? "bg-primary text-primary-ink"
+                    : "bg-panel text-ink border-border border-2",
+                )}
+              >
+                {m.body}
+              </div>
+              <span className="text-muted flex items-center gap-1 px-1 text-[10px] opacity-70">
+                {timeAgo(m.createdAt)}
+                {!mine && (
+                  <ReportControl
+                    targetType="LIST_CHAT_MESSAGE"
+                    targetId={m.id}
+                    triggerLabel=""
+                  />
+                )}
+              </span>
+            </div>
+          );
+        })}
+      </div>
+
+      {chat.canSend ? (
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            chat.send();
+          }}
+          className="flex items-center gap-2"
+        >
+          <input
+            value={chat.body}
+            onChange={(e) => chat.setBody(e.target.value)}
+            placeholder="Message…"
+            aria-label="Message"
+            className="border-border bg-panel text-ink min-w-0 flex-1 border-2 px-3 py-2 text-sm"
+          />
+          <PixelButton
+            type="submit"
+            size="sm"
+            disabled={chat.sending || !chat.body.trim()}
+          >
+            Send
+          </PixelButton>
+        </form>
+      ) : (
+        <p className="text-muted border-border border-2 p-3 text-center text-sm">
+          Only members can post in this chat.
+        </p>
+      )}
+      {chat.error && <p className="text-danger text-sm">{chat.error}</p>}
+    </div>
+  );
+}
+
+/** The chatroom laid out for the desktop panel's Chat tab (fills the panel). */
+export function ListChatInline() {
+  const chat = useListChat();
+  if (!chat) return null;
+  return (
+    <div className="flex min-h-0 flex-1 flex-col gap-3 p-4">
+      <div className="flex items-center justify-end">
+        <ClearControl />
+      </div>
+      <ChatRoomBody />
+    </div>
+  );
+}
+
+/**
+ * The list-chat entry point below lg: a header chat icon with an unread badge
+ * that opens a slide-up drawer (70vh) holding the chatroom. At lg and up the
+ * icon is hidden because the room lives in the context panel's Chat tab (which
+ * carries the same badge). Renders nothing outside a {@link ListChatProvider}.
+ *
+ * The drawer is portalled to <body> (React context still reaches it), so if it
+ * is open when the window widens past lg it stays above the sticky top bar.
+ */
+export function ListChatLauncher() {
+  const chat = useListChat();
+  if (!chat) return null;
+  const { unread, drawerOpen, openDrawer, closeDrawer } = chat;
+
+  return (
     <>
       <button
         type="button"
         aria-label="List chat"
-        onClick={() => {
-          setUnread(0);
-          setOpen(true);
-        }}
-        className="pixel-box-sm pixel-press bg-panel text-ink relative inline-flex cursor-pointer items-center justify-center px-3 py-1"
+        onClick={openDrawer}
+        className="pixel-box-sm pixel-press bg-panel text-ink relative inline-flex cursor-pointer items-center justify-center px-3 py-1 lg:hidden"
       >
         <MessageCircle size={14} aria-hidden />
         {unread > 0 && (
@@ -183,15 +445,16 @@ export function ListChatLauncher({
         )}
       </button>
 
+      <BodyPortal>
       <AnimatePresence>
-        {open && (
+        {drawerOpen && (
           <>
             <motion.div
               className="fixed inset-0 z-40 bg-black/40"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              onClick={() => setOpen(false)}
+              onClick={closeDrawer}
             />
             <motion.div
               className="bg-panel border-border fixed inset-x-0 bottom-0 z-50 flex h-[70vh] flex-col border-t-2"
@@ -206,140 +469,24 @@ export function ListChatLauncher({
                 <div className="flex items-center justify-between">
                   <h2 className="font-pixel text-primary text-sm">Chat</h2>
                   <div className="flex items-center gap-2">
-                    {isOwner &&
-                      (confirmClear ? (
-                        <div className="flex items-center gap-2">
-                          <PixelButton
-                            variant="danger"
-                            size="xs"
-                            disabled={clearing}
-                            onClick={doClear}
-                          >
-                            {clearing ? "Clearing…" : "Clear all"}
-                          </PixelButton>
-                          <button
-                            type="button"
-                            onClick={() => setConfirmClear(false)}
-                            className="text-muted hover:text-ink cursor-pointer text-xs underline"
-                          >
-                            Cancel
-                          </button>
-                        </div>
-                      ) : (
-                        <button
-                          type="button"
-                          aria-label="Clear chat history"
-                          onClick={() => setConfirmClear(true)}
-                          className="text-muted hover:text-danger inline-flex cursor-pointer items-center gap-1 text-xs"
-                        >
-                          <Trash2 size={14} aria-hidden /> Clear
-                        </button>
-                      ))}
+                    <ClearControl />
                     <button
                       type="button"
                       aria-label="Close chat"
-                      onClick={() => setOpen(false)}
+                      onClick={closeDrawer}
                       className="text-muted hover:text-ink cursor-pointer"
                     >
                       <X size={18} aria-hidden />
                     </button>
                   </div>
                 </div>
-
-                <div className="border-border flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto border-2 p-4">
-                  {olderCursor && (
-                    <button
-                      type="button"
-                      onClick={loadOlder}
-                      disabled={loadingOlder}
-                      className="text-muted hover:text-ink self-center text-xs underline disabled:opacity-50"
-                    >
-                      {loadingOlder ? "Loading…" : "Load older messages"}
-                    </button>
-                  )}
-                  {messages.length === 0 && (
-                    <p className="text-muted m-auto text-sm">
-                      No messages yet — start the conversation 💬
-                    </p>
-                  )}
-                  {messages.map((m) => {
-                    const mine = m.senderId === myId;
-                    const roleLabel = m.role ? ROLE_LABEL[m.role] : null;
-                    return (
-                      <div
-                        key={m.id}
-                        className={cn(
-                          "flex max-w-[80%] flex-col gap-0.5",
-                          mine ? "self-end items-end" : "self-start items-start",
-                        )}
-                      >
-                        {!mine && (
-                          <span className="text-muted px-1 text-xs">
-                            {atHandle(m.sender?.handle)}
-                            {roleLabel && (
-                              <span className="opacity-60"> · {roleLabel}</span>
-                            )}
-                          </span>
-                        )}
-                        <div
-                          className={cn(
-                            "px-3 py-2 text-sm break-words",
-                            mine
-                              ? "bg-primary text-primary-ink"
-                              : "bg-panel text-ink border-border border-2",
-                          )}
-                        >
-                          {m.body}
-                        </div>
-                        <span className="text-muted flex items-center gap-1 px-1 text-[10px] opacity-70">
-                          {timeAgo(m.createdAt)}
-                          {!mine && (
-                            <ReportControl
-                              targetType="LIST_CHAT_MESSAGE"
-                              targetId={m.id}
-                              triggerLabel=""
-                            />
-                          )}
-                        </span>
-                      </div>
-                    );
-                  })}
-                  <div ref={bottomRef} />
-                </div>
-
-                {initial.canSend ? (
-                  <form
-                    onSubmit={(e) => {
-                      e.preventDefault();
-                      send();
-                    }}
-                    className="flex items-center gap-2"
-                  >
-                    <input
-                      value={body}
-                      onChange={(e) => setBody(e.target.value)}
-                      placeholder="Message…"
-                      className="border-border bg-panel text-ink min-w-0 flex-1 border-2 px-3 py-2 text-sm"
-                    />
-                    <PixelButton
-                      type="submit"
-                      size="sm"
-                      disabled={sending || !body.trim()}
-                    >
-                      Send
-                    </PixelButton>
-                  </form>
-                ) : (
-                  <p className="text-muted border-border border-2 p-3 text-center text-sm">
-                    Only members can post in this chat.
-                  </p>
-                )}
-                {error && <p className="text-danger text-sm">{error}</p>}
+                <ChatRoomBody />
               </div>
             </motion.div>
           </>
         )}
       </AnimatePresence>
+      </BodyPortal>
     </>
   );
 }

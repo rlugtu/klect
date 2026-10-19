@@ -2,6 +2,7 @@ import "server-only";
 import { prisma } from "@/lib/db";
 import { Prisma } from "@/generated/prisma/client";
 import { isBlockedEitherWay } from "@/lib/blocks";
+import type { ListPreviewImage } from "@/lib/lists";
 
 type ProfileList = Prisma.ListGetPayload<{
   include: { _count: { select: { bookmarks: true; memberships: true } } };
@@ -86,4 +87,43 @@ async function resolveFriendship(
   });
   if (!row) return "none";
   return row.status === "ACCEPTED" ? "friends" : "pending";
+}
+
+/**
+ * Newest photos (up to `perList`) for each of a profile's public lists, for the
+ * lg+ profile grid's photo strip. Scoped to `isPublic: true` lists, so it can
+ * only ever read thumbnails anyone may already open; a private id passed in is
+ * simply absent from the result. Same shape and lock rule as the home grid's
+ * `getListPreviewImages` (which is scoped to the viewer's memberships instead).
+ */
+export async function getPublicListPreviewImages(
+  listIds: string[],
+  perList = 3,
+): Promise<Record<string, ListPreviewImage[]>> {
+  if (listIds.length === 0) return {};
+  const lists = await prisma.list.findMany({
+    where: { id: { in: listIds }, isPublic: true },
+    select: {
+      id: true,
+      lockedAt: true,
+      bookmarks: {
+        where: { images: { isEmpty: false } },
+        orderBy: { createdAt: "desc" },
+        take: perList,
+        select: { name: true, images: true, urls: true, lockedAt: true },
+      },
+    },
+  });
+  return Object.fromEntries(
+    lists.map((l) => [
+      l.id,
+      l.bookmarks.map((b) => ({
+        src: b.images[0],
+        images: b.images.slice(0, 4),
+        url: b.urls[0] ?? null,
+        name: b.name,
+        locked: l.lockedAt !== null || b.lockedAt !== null,
+      })),
+    ]),
+  );
 }

@@ -22,6 +22,9 @@ export async function addBookmarkComment(bookmarkId: string, formData: FormData)
     valueFromFormData(formData),
   );
   revalidatePath(`/lists/${listId}/bookmarks/${bookmarkId}`);
+  // The list page too: its cards show comment counts, and at lg+ it hosts the
+  // bookmark side panel (`?b=`), where this comment may have been posted.
+  revalidatePath(`/lists/${listId}`);
 }
 
 export async function deleteComment(commentId: string) {

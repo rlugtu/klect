@@ -1,0 +1,255 @@
+import Link from "next/link";
+import { redirect } from "next/navigation";
+import { getSession } from "@/lib/session";
+import { LandingPage } from "@/components/marketing/LandingPage";
+import { getListPreviewImages } from "@/lib/lists";
+import { getBookmarksByTags, getVisibleBookmarks } from "@/lib/bookmarks";
+import {
+  getCachedIncomingRequests,
+  getCachedSelectionStatus,
+  getCachedUserLists,
+  getShellData,
+} from "@/lib/shell";
+import { getUserTags } from "@/lib/tags";
+import type { ListCardData } from "@/lib/types";
+import { CreateListPanel } from "@/components/lists/CreateListPanel";
+import { ReclaimBanner } from "@/components/entitlements/ReclaimBanner";
+import { HomeLists } from "@/components/lists/HomeLists";
+import { SearchBar } from "@/components/search/SearchBar";
+import { BookmarkCard } from "@/components/bookmarks/BookmarkCard";
+import { PixelButton } from "@/components/ui/PixelButton";
+import { PixelBadge } from "@/components/ui/PixelBadge";
+import { DesktopHome } from "@/components/home/DesktopHome";
+import { cn } from "@/lib/utils";
+import { Plus, MapPin, Users, User, Inbox } from "lucide-react";
+import { UserIcon } from "@/components/ui/UserIcon";
+
+/** How many cross-list bookmarks the desktop home's Recently saved row shows. */
+const RECENT_COUNT = 8;
+
+function parseTags(raw: string | undefined): string[] {
+  if (!raw) return [];
+  return [
+    ...new Set(
+      raw
+        .split(",")
+        .map((t) => t.trim())
+        .filter(Boolean),
+    ),
+  ];
+}
+
+export default async function Home({
+  searchParams,
+}: {
+  searchParams: Promise<{ tags?: string; newList?: string; lists?: string }>;
+}) {
+  // Logged-out visitors get the public marketing landing page; everyone else
+  // sees their app home. (Onboarding is still enforced for signed-in users.)
+  const session = await getSession();
+  if (!session) return <LandingPage />;
+  if (!session.user.handle) redirect("/onboarding");
+  const user = session.user;
+
+  const params = await searchParams;
+  const selectedTags = parseTags(params.tags);
+
+  // The cached reads are the same ones the desktop shell (sidebar, top bar)
+  // makes in this request, so home pays for them once, not twice.
+  const [memberships, userTags, incomingRequests, selection] = await Promise.all([
+    getCachedUserLists(user.id),
+    getUserTags(user.id),
+    getCachedIncomingRequests(user.email),
+    // No argument by design: the action resolves the acting user from the
+    // session itself, so a user id is never something a caller can supply.
+    getCachedSelectionStatus(),
+  ]);
+
+  // Forced-state gate, same shape as the onboarding redirect above: a lapsed
+  // account that is over a free cap owes a selection before the app makes
+  // sense. Folded into the Promise.all so it costs no extra round trip, and
+  // kept here rather than in `requireOnboardedUser` so every other
+  // authenticated page doesn't pay for an entitlement read. See
+  // app/downgrade/page.tsx for the reasoning.
+  if (selection.needsSelection) redirect("/downgrade");
+
+  const tagOptions = userTags.map((t) => t.name);
+  const tagColors = Object.fromEntries(userTags.map((t) => [t.name, t.color]));
+
+  // Locked lists are listed alongside active ones rather than filtered out: the
+  // lock preserves them read-only, and hiding them would look like deletion. The
+  // card renders them as inactive (see ListCard).
+  const lists: ListCardData[] = memberships.map((m) => ({
+    id: m.listId,
+    name: m.list.name,
+    description: m.list.description,
+    icon: m.list.icon,
+    role: m.role,
+    bookmarkCount: m.list._count.bookmarks,
+    memberCount: m.list._count.memberships,
+    locked: m.list.lockedAt !== null,
+  }));
+
+  const listOptions = lists.map((l) => ({
+    id: l.id,
+    name: l.name,
+    icon: l.icon,
+  }));
+
+  const filtering = selectedTags.length > 0;
+
+  // Desktop-only reads (thumbnail strips, Recently saved, attention counts) are
+  // skipped while filtering, because the tag-results view below is what renders
+  // at every width then. They are fetched on mobile otherwise: the server cannot
+  // know the viewport, and the desktop tree is CSS-hidden below lg.
+  const [results, previews, recent, shell] = await Promise.all([
+    filtering ? getBookmarksByTags(user.id, selectedTags) : Promise.resolve([]),
+    filtering
+      ? Promise.resolve({})
+      : getListPreviewImages(user.id, lists.map((l) => l.id)),
+    filtering ? Promise.resolve([]) : getVisibleBookmarks(user.id, {}, RECENT_COUNT),
+    filtering ? Promise.resolve(null) : getShellData(user.id, user.email),
+  ]);
+
+  return (
+    <>
+      {/* Mobile and tablet home (below lg), unchanged. While tag-filtering it is
+          also the desktop view, widened, since the results are a cross-list grid. */}
+      <main
+        className={cn(
+          "mx-auto w-full max-w-3xl px-6 py-12 flex flex-col gap-8",
+          filtering ? "lg:max-w-6xl lg:px-8 lg:py-8" : "lg:hidden",
+        )}
+      >
+        <header className="flex flex-wrap items-center justify-between gap-4">
+          <div className="flex min-w-0 items-center gap-3">
+            <UserIcon icon={user.icon} className="text-3xl shrink-0" />
+            <div className="min-w-0">
+              <h1 className="text-xl text-primary font-bold">Klect</h1>
+              <p className="text-muted text-sm truncate">
+                Hi, @{user.handle}
+              </p>
+            </div>
+          </div>
+          {/* The desktop shell's sidebar and top bar carry these at lg+. */}
+          <div className="flex items-center gap-2 lg:hidden">
+            <Link href="/bookmarks/new">
+              <PixelButton variant="secondary" size="sm">
+                <Plus size={14} aria-hidden /> Bookmark
+              </PixelButton>
+            </Link>
+            <Link href="/nearby">
+              <PixelButton variant="secondary" size="sm">
+                <MapPin size={14} aria-hidden /> Near me
+              </PixelButton>
+            </Link>
+            <Link href="/friends">
+              <PixelButton variant="secondary" size="sm">
+                <Users size={14} aria-hidden /> Friends
+              </PixelButton>
+            </Link>
+            <Link href={`/users/${user.handle ?? user.id}`}>
+              <PixelButton variant="secondary" size="sm">
+                <User size={14} aria-hidden /> Profile
+              </PixelButton>
+            </Link>
+            {/* <SignOutButton /> */}
+          </div>
+        </header>
+
+        <div className="flex justify-start lg:hidden">
+          <Link href="/requests">
+            <PixelButton variant="secondary" size="sm">
+              <Inbox size={14} aria-hidden /> List requests
+              {incomingRequests.length > 0 && (
+                <PixelBadge tone="accent" className="ml-1 px-1.5 py-0">
+                  {incomingRequests.length}
+                </PixelBadge>
+              )}
+            </PixelButton>
+          </Link>
+        </div>
+
+        {/* The other half of the entitlement status read above. `needsSelection` is a
+            redirect because the account is incoherent until it is answered;
+            `canReclaim` is under-cap with locks still held, which is coherent, so it
+            gets a closeable card instead of a gate. The two are mutually exclusive
+            (reclaim is defined as under-cap), so this never renders alongside the
+            redirect above. */}
+        {selection.canReclaim && <ReclaimBanner />}
+
+        <SearchBar
+          lists={listOptions}
+          tags={tagOptions}
+          selected={selectedTags}
+          tagColors={tagColors}
+        />
+
+        {filtering ? (
+          <section className="flex flex-col gap-4">
+            <h2 className="font-pixel text-sm">
+              {results.length} bookmark{results.length === 1 ? "" : "s"} tagged
+            </h2>
+            {results.length === 0 ? (
+              <p className="text-muted">No bookmarks match these tags.</p>
+            ) : (
+              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 lg:gap-4">
+                {results.map((b) => (
+                  <BookmarkCard
+                    key={b.id}
+                    listId={b.list.id}
+                    listLabel={{ icon: b.list.icon, name: b.list.name }}
+                    bookmark={{
+                      id: b.id,
+                      name: b.name,
+                      description: b.description,
+                      image: b.images[0] ?? null,
+                      images: b.images.slice(0, 4),
+                      url: b.urls[0] ?? null,
+                      rating: b.rating,
+                      visited: b.visited,
+                      tags: b.tags.map((bt) => bt.tag),
+                      commentCount: b._count.comments,
+                      // Read-only if the bookmark is locked or its list is — a
+                      // cross-list result has to check both.
+                      locked: b.lockedAt !== null || b.list.lockedAt !== null,
+                    }}
+                  />
+                ))}
+              </div>
+            )}
+          </section>
+        ) : (
+          <>
+            <CreateListPanel />
+            <section className="flex flex-col gap-4">
+              <h2 className="font-pixel text-xl font-semibold text-primary">
+                Your lists
+              </h2>
+              <HomeLists lists={lists} />
+            </section>
+          </>
+        )}
+      </main>
+
+      {!filtering && shell && (
+        <DesktopHome
+          className="hidden lg:flex"
+          handle={user.handle ?? ""}
+          lists={lists}
+          previews={previews}
+          recent={recent}
+          requests={incomingRequests}
+          friendRequests={shell.friendRequests}
+          unreadMessages={shell.unreadMessages}
+          listCapReached={
+            !selection.isPro && selection.activeListCount >= selection.listLimit
+          }
+          canReclaim={selection.canReclaim}
+          newListOpen={params.newList === "1"}
+          listView={params.lists === "compact" ? "compact" : "grid"}
+        />
+      )}
+    </>
+  );
+}

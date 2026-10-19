@@ -8,6 +8,7 @@ import {
   getBookmarkForUser,
 } from "@/lib/bookmarks";
 import * as core from "@/lib/core/bookmarks";
+import { BULK_BOOKMARK_MAX } from "@/lib/move-plan";
 
 export const bookmarksRouter = router({
   /** Bookmarks in a list — members (viewer+) or anyone if the list is public. */
@@ -63,6 +64,58 @@ export const bookmarksRouter = router({
     .input(z.object({ bookmarkId: z.string() }))
     .mutation(({ ctx, input }) =>
       core.deleteBookmark(ctx.user.id, input.bookmarkId),
+    ),
+
+  /** Re-parent one bookmark into another list (keeps id, comments, tags). */
+  move: protectedProcedure
+    .input(z.object({ bookmarkId: z.string(), listId: z.string() }))
+    .mutation(({ ctx, input }) =>
+      core.moveBookmark(ctx.user.id, input.bookmarkId, input.listId),
+    ),
+
+  /** Bulk {@link move}: all or nothing, at most BULK_BOOKMARK_MAX ids. */
+  moveMany: protectedProcedure
+    .input(
+      z.object({
+        bookmarkIds: z.array(z.string()).min(1).max(BULK_BOOKMARK_MAX),
+        listId: z.string(),
+      }),
+    )
+    .mutation(({ ctx, input }) =>
+      core.moveBookmarks(ctx.user.id, input.bookmarkIds, input.listId),
+    ),
+
+  /** Bulk delete: same per-item rules as `delete`, all or nothing. */
+  deleteMany: protectedProcedure
+    .input(
+      z.object({ bookmarkIds: z.array(z.string()).min(1).max(BULK_BOOKMARK_MAX) }),
+    )
+    .mutation(({ ctx, input }) =>
+      core.deleteBookmarks(ctx.user.id, input.bookmarkIds),
+    ),
+
+  /** Independent copies into another list (the `createInLists` write path). */
+  copyMany: protectedProcedure
+    .input(
+      z.object({
+        bookmarkIds: z.array(z.string()).min(1).max(BULK_BOOKMARK_MAX),
+        listId: z.string(),
+      }),
+    )
+    .mutation(({ ctx, input }) =>
+      core.copyBookmarksToList(ctx.user.id, input.bookmarkIds, input.listId),
+    ),
+
+  /** Set (not toggle) the visited flag on several bookmarks, all or nothing. */
+  setVisitedMany: protectedProcedure
+    .input(
+      z.object({
+        bookmarkIds: z.array(z.string()).min(1).max(BULK_BOOKMARK_MAX),
+        visited: z.boolean(),
+      }),
+    )
+    .mutation(({ ctx, input }) =>
+      core.setVisitedMany(ctx.user.id, input.bookmarkIds, input.visited),
     ),
 
   toggleVisited: protectedProcedure

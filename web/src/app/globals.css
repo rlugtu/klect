@@ -1,5 +1,18 @@
 @import "tailwindcss";
 
+/* `sbx:` = the full desktop sidebar: xl (80rem) and up, unless the viewer
+   collapsed it to the icon rail (`data-sidebar="collapsed"` on #app-shell,
+   set before paint by SidebarSync). The sidebar's markup uses `sbx:` where it
+   used to use `xl:`, so a collapsed sidebar at xl looks exactly like the lg
+   rail. `:where()` keeps the specificity of a plain `xl:` utility. */
+@custom-variant sbx {
+  @media (width >= 80rem) {
+    :where(#app-shell:not([data-sidebar="collapsed"])) & {
+      @slot;
+    }
+  }
+}
+
 /* ------------------------------------------------------------------ *
  * Klect 8-bit design tokens
  * Two palette variants live within the retro theme, switched via the
@@ -250,10 +263,9 @@ img[data-pixel] {
   border-color: transparent;
 }
 
-/* Soften bookmark tags into rounded, non-uppercase pills (modern skin only;
-   pixel theme keeps its sharp, uppercase tags). */
+/* Soften bookmark tags into rounded pills (modern skin only; pixel theme
+   keeps its sharp tags). */
 [data-theme^="modern"] .pixel-tag {
-  text-transform: none;
   border-radius: 9999px;
   border-width: 1px;
 }
@@ -309,10 +321,9 @@ img[data-pixel] {
   box-shadow: 0 3px 12px var(--shadow);
 }
 
-/* Soften bookmark tags into rounded, non-uppercase pills (journal uses the
-   smaller 12px radius from its skin, matching mobile's tag pills). */
+/* Soften bookmark tags into rounded pills (journal uses the smaller 12px
+   radius from its skin, matching mobile's tag pills). */
 [data-theme^="journal"] .pixel-tag {
-  text-transform: none;
   border-radius: 12px;
   border-width: 1px;
 }
@@ -328,5 +339,501 @@ img[data-pixel] {
   }
   to {
     transform: scaleX(0);
+  }
+}
+
+/* ------------------------------------------------------------------ *
+ * Desktop app shell (sidebar + top bar), lg and up only. Every class
+ * below is applied by components/shell/*, which only render visibly at
+ * lg+, so nothing here can reach the mobile layout.
+ *
+ * Base values are the pixel skin; the unlayered modern/journal blocks
+ * after this one soften them, the same split the .pixel-* primitives use.
+ * Pixel uses 3px dividers here (not the 4px .pixel-box border) because
+ * the shell surfaces are large and a 4px frame around the whole app
+ * reads as clutter (see the risks section of the desktop strategy).
+ * ------------------------------------------------------------------ */
+@layer components {
+  .shell-sidebar {
+    background-color: var(--panel);
+    border-right: 3px solid var(--border);
+  }
+
+  .shell-topbar {
+    background-color: color-mix(in srgb, var(--panel) 90%, transparent);
+    border-bottom: 3px solid var(--border);
+    backdrop-filter: blur(8px);
+  }
+
+  .shell-divider {
+    border-top: 3px solid var(--border);
+  }
+
+  /* Nav rows: transparent frame so the active row can show one without
+     shifting its neighbours. */
+  .shell-item {
+    border: 2px solid transparent;
+    border-radius: 0;
+  }
+  .shell-item[aria-current="page"] {
+    border-color: var(--border);
+    box-shadow: 3px 3px 0 0 var(--shadow);
+  }
+
+  .shell-meter {
+    height: 10px;
+    border: 2px solid var(--border);
+    border-radius: 0;
+    overflow: hidden;
+    background-color: color-mix(in srgb, var(--ink) 10%, transparent);
+  }
+
+  /* Bookmark thumbnail placeholder (no photo): a quiet tint of the primary. */
+  .shell-thumb-empty {
+    background-color: color-mix(in srgb, var(--primary) 14%, var(--panel));
+  }
+}
+
+[data-theme^="modern"] .shell-sidebar,
+[data-theme^="journal"] .shell-sidebar {
+  border-right-width: 1px;
+}
+[data-theme^="modern"] .shell-topbar,
+[data-theme^="journal"] .shell-topbar {
+  border-bottom-width: 1px;
+}
+[data-theme^="modern"] .shell-divider,
+[data-theme^="journal"] .shell-divider {
+  border-top-width: 1px;
+}
+[data-theme^="modern"] .shell-item,
+[data-theme^="journal"] .shell-item {
+  border-width: 1px;
+  border-radius: 12px;
+}
+[data-theme^="modern"] .shell-item[aria-current="page"],
+[data-theme^="journal"] .shell-item[aria-current="page"] {
+  border-color: transparent;
+  box-shadow: none;
+}
+[data-theme^="modern"] .shell-meter,
+[data-theme^="journal"] .shell-meter {
+  height: 6px;
+  border: 0;
+  border-radius: 9999px;
+}
+/* Nav text at the body size is oversized in the sans skins (pixel's VT323
+   needs the full body size to stay legible, so it keeps it). */
+[data-theme^="modern"] .shell-item,
+[data-theme^="journal"] .shell-item {
+  font-size: 0.95rem;
+}
+
+/* ------------------------------------------------------------------ *
+ * List detail right-hand panel (context tabs / bookmark detail), lg+
+ * only: the aside that carries these classes is display:none below lg.
+ * Same skin split as the shell: 3px pixel dividers, 1px for the sans
+ * skins. Colors are theme tokens only.
+ * ------------------------------------------------------------------ */
+@layer components {
+  .list-panel {
+    background-color: var(--panel);
+    border-left: 3px solid var(--border);
+  }
+  .list-panel-head {
+    border-bottom: 3px solid var(--border);
+  }
+}
+
+[data-theme^="modern"] .list-panel,
+[data-theme^="journal"] .list-panel {
+  border-left-width: 1px;
+}
+[data-theme^="modern"] .list-panel-head,
+[data-theme^="journal"] .list-panel-head {
+  border-bottom-width: 1px;
+}
+
+/* ------------------------------------------------------------------ *
+ * Phase 4 (desktop): messages workspace, settings two-pane, theme
+ * swatches. Everything here is used only by lg+ surfaces (display:none
+ * below lg) or is wrapped in an lg media query, so the mobile layout is
+ * untouched. Same skin split as the shell: 3px pixel dividers, 1px and
+ * rounded for the sans skins. Colors are theme tokens only.
+ * ------------------------------------------------------------------ */
+@layer components {
+  /* Messages workspace left pane. */
+  .ws-pane {
+    background-color: var(--panel);
+    border-right: 3px solid var(--border);
+  }
+  .ws-divider {
+    border-top: 3px solid var(--border);
+  }
+  /* Messages | Friends switch. */
+  .ws-seg {
+    border: 3px solid var(--border);
+    background-color: color-mix(in srgb, var(--ink) 5%, transparent);
+  }
+  .ws-seg-tab {
+    border-radius: 0;
+  }
+  /* Conversation rows: a hairline between rows, the open one tinted with a
+     primary edge (not color alone: the edge and aria-current carry it). */
+  .ws-row {
+    border-bottom: 1px solid color-mix(in srgb, var(--border) 60%, transparent);
+  }
+  .ws-row:hover {
+    background-color: color-mix(in srgb, var(--ink) 4%, transparent);
+  }
+  .ws-row-on,
+  .ws-row-on:hover {
+    background-color: color-mix(in srgb, var(--primary) 14%, transparent);
+    box-shadow: inset 4px 0 0 0 var(--primary);
+  }
+
+  /* Settings section nav (left of the settings pane). */
+  .set-nav {
+    border-right: 3px solid var(--border);
+  }
+
+  /* Appearance: six live theme previews. Each preview carries its own
+     data-theme, so the token variables inside it are that theme's; only
+     the classes below style it (never .pixel-box and friends, whose skin
+     overrides key off the page's theme, not the preview's). */
+  .theme-frame {
+    display: block;
+    border-radius: 0;
+    outline-offset: 3px;
+  }
+  .theme-swatch input:checked + .theme-frame {
+    outline: 3px solid var(--primary);
+  }
+  .theme-swatch input:focus-visible + .theme-frame {
+    outline: 3px dashed var(--ink);
+  }
+  .theme-prev {
+    display: grid;
+    grid-template-columns: 26% 1fr;
+    height: 9.5rem;
+    overflow: hidden;
+    color: var(--ink);
+    background-color: var(--bg);
+    font-family: var(--font-retro), monospace;
+    border: 3px solid var(--border);
+    box-shadow: 3px 3px 0 0 var(--shadow);
+  }
+  .theme-prev .tp-side {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    padding: 10px 8px;
+    background-color: var(--panel);
+    border-right: 3px solid var(--border);
+  }
+  .theme-prev .tp-side i {
+    display: block;
+    height: 7px;
+    background-color: color-mix(in srgb, var(--ink) 18%, transparent);
+  }
+  .theme-prev .tp-side i.on {
+    background-color: var(--primary);
+  }
+  .theme-prev .tp-main {
+    display: flex;
+    min-width: 0;
+    flex-direction: column;
+    gap: 7px;
+    padding: 10px;
+  }
+  .theme-prev .tp-title {
+    font-family: var(--font-pixel), monospace;
+    font-size: 8px;
+    line-height: 1.6;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+  }
+  .theme-prev .tp-card {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    padding: 7px;
+    background-color: var(--panel);
+    border: 3px solid var(--border);
+    box-shadow: 3px 3px 0 0 var(--shadow);
+  }
+  .theme-prev .tp-photo {
+    height: 26px;
+    background-color: color-mix(in srgb, var(--primary) 30%, var(--panel));
+    border: 2px solid var(--border);
+  }
+  .theme-prev .tp-btn {
+    align-self: flex-start;
+    padding: 3px 7px;
+    font-family: var(--font-pixel), monospace;
+    font-size: 7px;
+    color: var(--primary-ink);
+    background-color: var(--primary);
+    border: 2px solid var(--border);
+  }
+}
+
+@media (min-width: 1024px) {
+  /* The DM thread header doubles as the mobile header, so its divider is
+     drawn only at lg+. */
+  .ws-thread-head {
+    border-bottom: 3px solid var(--border);
+    background-color: color-mix(in srgb, var(--panel) 80%, transparent);
+  }
+  [data-theme^="modern"] .ws-thread-head,
+  [data-theme^="journal"] .ws-thread-head {
+    border-bottom-width: 1px;
+  }
+}
+
+[data-theme^="modern"] .ws-pane,
+[data-theme^="journal"] .ws-pane,
+[data-theme^="modern"] .set-nav,
+[data-theme^="journal"] .set-nav {
+  border-right-width: 1px;
+}
+[data-theme^="modern"] .ws-divider,
+[data-theme^="journal"] .ws-divider {
+  border-top-width: 1px;
+}
+[data-theme^="modern"] .ws-seg,
+[data-theme^="journal"] .ws-seg {
+  border-width: 1px;
+  border-radius: 12px;
+}
+[data-theme^="modern"] .ws-seg-tab,
+[data-theme^="journal"] .ws-seg-tab {
+  border-radius: 9px;
+}
+[data-theme^="modern"] .ws-seg-tab.bg-primary {
+  background-image: var(--gradient-primary);
+}
+[data-theme^="modern"] .theme-frame,
+[data-theme^="journal"] .theme-frame {
+  border-radius: 14px;
+}
+
+/* Preview skins, keyed off the preview's own data-theme. */
+.theme-prev[data-theme^="modern"],
+.theme-prev[data-theme^="journal"] {
+  border-width: 1px;
+  border-radius: 12px;
+  box-shadow: 0 3px 12px var(--shadow);
+}
+.theme-prev[data-theme^="modern"] {
+  font-family: var(--font-sans), system-ui, sans-serif;
+  background-image: var(--gradient-app);
+}
+.theme-prev[data-theme^="journal"] {
+  font-family: var(--font-body), system-ui, sans-serif;
+}
+.theme-prev[data-theme^="modern"] .tp-side,
+.theme-prev[data-theme^="journal"] .tp-side {
+  border-right-width: 1px;
+}
+.theme-prev[data-theme^="modern"] .tp-side i,
+.theme-prev[data-theme^="journal"] .tp-side i {
+  border-radius: 9999px;
+}
+.theme-prev[data-theme^="modern"] .tp-title {
+  font-family: var(--font-sans), system-ui, sans-serif;
+  font-size: 12px;
+  font-weight: 600;
+}
+.theme-prev[data-theme^="journal"] .tp-title {
+  font-family: var(--font-serif), Georgia, serif;
+  font-size: 12px;
+  font-weight: 600;
+}
+.theme-prev[data-theme^="modern"] .tp-card,
+.theme-prev[data-theme^="journal"] .tp-card {
+  border-width: 1px;
+  border-radius: 10px;
+  box-shadow: 0 3px 10px var(--shadow);
+}
+.theme-prev[data-theme^="modern"] .tp-photo,
+.theme-prev[data-theme^="journal"] .tp-photo {
+  border: 0;
+  border-radius: 7px;
+}
+.theme-prev[data-theme^="modern"] .tp-btn,
+.theme-prev[data-theme^="journal"] .tp-btn {
+  border-width: 0;
+  border-radius: 9999px;
+  font-size: 10px;
+  padding: 2px 9px;
+}
+.theme-prev[data-theme^="modern"] .tp-btn {
+  font-family: var(--font-sans), system-ui, sans-serif;
+  background-image: var(--gradient-primary);
+}
+.theme-prev[data-theme^="journal"] .tp-btn {
+  font-family: var(--font-body), system-ui, sans-serif;
+}
+
+/* Profile identity rail (users/[handle]) at lg+. The section is the
+   centered identity block below lg, so its frame is drawn only here. */
+@media (min-width: 1024px) {
+  .prof-rail {
+    padding: 1.5rem;
+    background-color: var(--panel);
+    border: 3px solid var(--border);
+    box-shadow: 4px 4px 0 0 var(--shadow);
+  }
+  [data-theme^="modern"] .prof-rail {
+    border-width: 1px;
+    border-radius: 16px;
+    box-shadow: 0 8px 24px var(--shadow);
+  }
+  [data-theme^="journal"] .prof-rail {
+    border-width: 1px;
+    border-radius: 20px;
+    box-shadow: 0 8px 24px var(--shadow);
+  }
+}
+
+/* ------------------------------------------------------------------ *
+ * Phase 6 (desktop): density, command palette, preference switch.
+ *
+ * Density: `data-density="compact"` on the shell root (#app-shell, set by
+ * DensitySync before paint) tightens grid gaps and card padding. Only
+ * inside the lg media query, so below lg the attribute changes nothing.
+ * Borders and shadows are untouched, so the pixel skin keeps its frame.
+ * ------------------------------------------------------------------ */
+@media (min-width: 64rem) {
+  #app-shell[data-density="compact"] .dens-grid {
+    gap: 0.625rem;
+  }
+  #app-shell[data-density="compact"] .dens-card {
+    gap: 0.5rem;
+    padding: 0.625rem 0.75rem;
+  }
+}
+
+/* Command palette rows: square in pixel, rounded in the sans skins, the same
+   split as the shell. */
+[data-theme^="modern"] .cmdk-option,
+[data-theme^="journal"] .cmdk-option {
+  border-radius: 10px;
+}
+
+/* ------------------------------------------------------------------ *
+ * Switch (components/ui/Switch.tsx). Deliberately its own classes, not
+ * .pixel-box-sm / .bg-primary, so the skin overrides of those cannot
+ * reach it. The thumb is a flex child moved with `translate`; its travel
+ * is derived from the size variables, so it always ends inside the track
+ * (an absolutely positioned thumb with no `left` lands at the button's
+ * centred static position, which is what pushed the old one out).
+ * Base values are the pixel skin; modern/journal soften it below.
+ * ------------------------------------------------------------------ */
+@layer components {
+  .ui-switch {
+    --sw-w: 2.75rem;
+    --sw-h: 1.5rem;
+    --sw-border: 3px;
+    --sw-pad: 2px;
+    --sw-thumb: calc(var(--sw-h) - 2 * var(--sw-border) - 2 * var(--sw-pad));
+    position: relative;
+    display: inline-flex;
+    flex-shrink: 0;
+    align-items: center;
+    justify-content: flex-start;
+    width: var(--sw-w);
+    height: var(--sw-h);
+    padding: var(--sw-pad);
+    border: var(--sw-border) solid var(--border);
+    border-radius: 0;
+    background-color: var(--panel);
+    box-shadow: 3px 3px 0 0 var(--shadow);
+    cursor: pointer;
+    transition: background-color 120ms steps(2);
+  }
+  .ui-switch[aria-checked="true"] {
+    background-color: var(--primary);
+  }
+  .ui-switch:focus-visible {
+    outline: 3px dashed var(--ink);
+    outline-offset: 3px;
+  }
+  .ui-switch:disabled {
+    cursor: not-allowed;
+    opacity: 0.5;
+  }
+  .ui-switch-thumb {
+    display: block;
+    flex-shrink: 0;
+    width: var(--sw-thumb);
+    height: var(--sw-thumb);
+    border-radius: 0;
+    background-color: var(--ink);
+    translate: 0 0;
+    transition: translate 120ms steps(2), background-color 120ms steps(2);
+  }
+  .ui-switch[aria-checked="true"] .ui-switch-thumb {
+    background-color: var(--primary-ink);
+    translate: calc(var(--sw-w) - 2 * var(--sw-border) - 2 * var(--sw-pad) - var(--sw-thumb)) 0;
+  }
+}
+
+[data-theme^="modern"] .ui-switch,
+[data-theme^="journal"] .ui-switch {
+  --sw-border: 1px;
+  --sw-pad: 3px;
+  border-color: color-mix(in srgb, var(--muted) 45%, transparent);
+  border-radius: 9999px;
+  background-color: color-mix(in srgb, var(--ink) 8%, var(--panel));
+  box-shadow: none;
+  transition: background-color 150ms ease, border-color 150ms ease;
+}
+[data-theme^="modern"] .ui-switch[aria-checked="true"],
+[data-theme^="journal"] .ui-switch[aria-checked="true"] {
+  border-color: transparent;
+  background-color: var(--primary);
+}
+[data-theme^="modern"] .ui-switch[aria-checked="true"] {
+  background-image: var(--gradient-primary);
+}
+[data-theme^="modern"] .ui-switch:focus-visible,
+[data-theme^="journal"] .ui-switch:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+[data-theme^="modern"] .ui-switch-thumb,
+[data-theme^="journal"] .ui-switch-thumb {
+  border-radius: 9999px;
+  background-color: var(--muted);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+  transition: translate 150ms ease, background-color 150ms ease;
+}
+[data-theme^="modern"] .ui-switch[aria-checked="true"] .ui-switch-thumb,
+[data-theme^="journal"] .ui-switch[aria-checked="true"] .ui-switch-thumb {
+  background-color: var(--primary-ink);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ui-switch,
+  .ui-switch-thumb,
+  [data-theme] .ui-switch,
+  [data-theme] .ui-switch-thumb {
+    transition: none;
+  }
+}
+
+/* Forced colors (Windows high contrast) drop backgrounds, so give the thumb
+   system colors that still show its position. */
+@media (forced-colors: active) {
+  .ui-switch-thumb,
+  [data-theme] .ui-switch-thumb {
+    background-color: CanvasText;
+  }
+  .ui-switch[aria-checked="true"] .ui-switch-thumb,
+  [data-theme] .ui-switch[aria-checked="true"] .ui-switch-thumb {
+    background-color: Highlight;
   }
 }
