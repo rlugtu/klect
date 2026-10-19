@@ -6,10 +6,22 @@
   "build": {
     "development": {
       "developmentClient": true,
-      "distribution": "internal"
+      "distribution": "internal",
+      "env": {
+        "EXPO_PUBLIC_API_URL": "https://klect.vercel.app",
+        "EXPO_PUBLIC_SUPABASE_URL": "https://eenczjbpnxacvygkhbuz.supabase.co",
+        "EXPO_PUBLIC_SUPABASE_ANON_KEY": "sb_publishable_UO3p900f0zqAkV7444Z_xA_gGQSjfvJ",
+        "EXPO_PUBLIC_REVENUECAT_IOS_API_KEY": "appl_ZPBqzwGFYXkfogSOVeWNBToQxRc"
+      }
     },
     "preview": {
-      "distribution": "internal"
+      "distribution": "internal",
+      "env": {
+        "EXPO_PUBLIC_API_URL": "https://klect.vercel.app",
+        "EXPO_PUBLIC_SUPABASE_URL": "https://eenczjbpnxacvygkhbuz.supabase.co",
+        "EXPO_PUBLIC_SUPABASE_ANON_KEY": "sb_publishable_UO3p900f0zqAkV7444Z_xA_gGQSjfvJ",
+        "EXPO_PUBLIC_REVENUECAT_IOS_API_KEY": "appl_ZPBqzwGFYXkfogSOVeWNBToQxRc"
+      }
     },
     "production": {
       "autoIncrement": true,
@@ -17,7 +29,7 @@
         "EXPO_PUBLIC_API_URL": "https://klect.vercel.app",
         "EXPO_PUBLIC_SUPABASE_URL": "https://eenczjbpnxacvygkhbuz.supabase.co",
         "EXPO_PUBLIC_SUPABASE_ANON_KEY": "sb_publishable_UO3p900f0zqAkV7444Z_xA_gGQSjfvJ",
-        "EXPO_PUBLIC_REVENUECAT_IOS_API_KEY": ""
+        "EXPO_PUBLIC_REVENUECAT_IOS_API_KEY": "appl_ZPBqzwGFYXkfogSOVeWNBToQxRc"
       }
     }
   },
