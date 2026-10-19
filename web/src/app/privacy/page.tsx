@@ -15,7 +15,7 @@ export const metadata: Metadata = {
  * Settings on both the web and mobile apps. Plain-language on purpose. Last updated below.
  */
 const LAST_UPDATED = "July 17, 2026";
-const CONTACT_EMAIL = "ryanlugtu@gmail.com";
+const CONTACT_EMAIL = "klectapp@gmail.com";
 
 export default function PrivacyPage() {
   return (
