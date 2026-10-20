@@ -1,0 +1,72 @@
+{
+ "out": "build/concept2-hookB.mp4",
+ "segments": [
+  {
+   "type": "scroll",
+   "png": "build/messy.png",
+   "dur": 4.0,
+   "y0": 0,
+   "y1": 1680
+  },
+  {
+   "type": "rec",
+   "src": "raw/concept25-cfr.mp4",
+   "start": 2.3,
+   "end": 5.0,
+   "speed": 1
+  },
+  {
+   "type": "rec",
+   "src": "raw/concept25-cfr.mp4",
+   "start": 12.3,
+   "end": 16.0,
+   "speed": 1
+  },
+  {
+   "type": "rec",
+   "src": "raw/concept25-cfr.mp4",
+   "start": 44.0,
+   "end": 46.5,
+   "speed": 1
+  },
+  {
+   "type": "rec",
+   "src": "raw/concept25-cfr.mp4",
+   "start": 54.5,
+   "end": 57.5,
+   "speed": 1
+  }
+ ],
+ "overlays": [
+  {
+   "png": "build/c2b_hook.png",
+   "start": 0,
+   "end": 2.6
+  },
+  {
+   "png": "build/c2_found.png",
+   "start": 2.6,
+   "end": 4.0
+  },
+  {
+   "png": "build/c2_home.png",
+   "start": 4.0,
+   "end": 6.7
+  },
+  {
+   "png": "build/c2_cards.png",
+   "start": 6.7,
+   "end": 10.4
+  },
+  {
+   "png": "build/c2_filter.png",
+   "start": 10.4,
+   "end": 15.9
+  }
+ ],
+ "end": {
+  "png": "build/end.png",
+  "dur": 3.0
+ },
+ "mask": "build/mask.png"
+}

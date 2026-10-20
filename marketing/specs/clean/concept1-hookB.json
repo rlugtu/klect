@@ -1,0 +1,60 @@
+{
+ "out": "resolve/media/concept1-hookB/base.mp4",
+ "segments": [
+  {
+   "type": "rec",
+   "src": "raw/concept1-cfr.mp4",
+   "start": 14.2,
+   "end": 15.6,
+   "speed": 1
+  },
+  {
+   "type": "rec",
+   "src": "raw/concept1-cfr.mp4",
+   "start": 24.6,
+   "end": 27.0,
+   "speed": 1
+  },
+  {
+   "type": "rec",
+   "src": "raw/concept1-cfr.mp4",
+   "start": 27.0,
+   "end": 31.5,
+   "speed": 3
+  },
+  {
+   "type": "rec",
+   "src": "raw/concept1-cfr.mp4",
+   "start": 31.5,
+   "end": 40.0,
+   "speed": 3
+  },
+  {
+   "type": "rec",
+   "src": "raw/concept1-cfr.mp4",
+   "start": 53.0,
+   "end": 59.0,
+   "speed": 1.5
+  },
+  {
+   "type": "rec",
+   "src": "raw/concept1-cfr.mp4",
+   "start": 69.0,
+   "end": 74.5,
+   "speed": 1
+  },
+  {
+   "type": "rec",
+   "src": "raw/concept1-cfr.mp4",
+   "start": 86.6,
+   "end": 89.0,
+   "speed": 1
+  }
+ ],
+ "overlays": [],
+ "end": {
+  "png": "build/end.png",
+  "dur": 3.0
+ },
+ "mask": "build/mask.png"
+}

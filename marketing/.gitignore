@@ -1,0 +1,7 @@
+# Large generated media. Rebuild with tools/prep_resolve.py and the Resolve scripts.
+raw/
+build/
+final/
+audio/lines/
+audio/auditions/
+resolve/media/

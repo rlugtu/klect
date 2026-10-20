@@ -1,0 +1,86 @@
+{
+ "out": "build/concept1-hookB.mp4",
+ "segments": [
+  {
+   "type": "rec",
+   "src": "raw/concept1-cfr.mp4",
+   "start": 14.2,
+   "end": 15.6,
+   "speed": 1
+  },
+  {
+   "type": "rec",
+   "src": "raw/concept1-cfr.mp4",
+   "start": 24.6,
+   "end": 27.0,
+   "speed": 1
+  },
+  {
+   "type": "rec",
+   "src": "raw/concept1-cfr.mp4",
+   "start": 27.0,
+   "end": 31.5,
+   "speed": 3
+  },
+  {
+   "type": "rec",
+   "src": "raw/concept1-cfr.mp4",
+   "start": 31.5,
+   "end": 40.0,
+   "speed": 3
+  },
+  {
+   "type": "rec",
+   "src": "raw/concept1-cfr.mp4",
+   "start": 53.0,
+   "end": 59.0,
+   "speed": 1.5
+  },
+  {
+   "type": "rec",
+   "src": "raw/concept1-cfr.mp4",
+   "start": 69.0,
+   "end": 74.5,
+   "speed": 1
+  },
+  {
+   "type": "rec",
+   "src": "raw/concept1-cfr.mp4",
+   "start": 86.6,
+   "end": 89.0,
+   "speed": 1
+  }
+ ],
+ "overlays": [
+  {
+   "png": "build/t1b.png",
+   "start": 0,
+   "end": 3.8
+  },
+  {
+   "png": "build/t2.png",
+   "start": 3.8,
+   "end": 6.0
+  },
+  {
+   "png": "build/t3.png",
+   "start": 6.0,
+   "end": 8.1
+  },
+  {
+   "png": "build/t4.png",
+   "start": 8.1,
+   "end": 12.1
+  },
+  {
+   "png": "build/t5.png",
+   "start": 12.1,
+   "end": 17.6
+  }
+ ],
+ "end": {
+  "png": "build/end.png",
+  "dur": 3.0
+ },
+ "mask": "build/mask.png"
+}
