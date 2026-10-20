@@ -68,7 +68,7 @@ const CACHE_TTL_MS = 15 * 60 * 1000; // 15 min
 // How long {@link fetchLinkMetadata} waits on comprehension before answering with
 // extraction only. Sized to cover the JSON-LD fast path and a normal Haiku call plus
 // geocode, and to cut off the tail rather than make the user watch it.
-const COMPREHENSION_TIMEOUT_MS = 5000;
+const COMPREHENSION_TIMEOUT_MS = 10_000;
 
 function normalizeUrl(raw: string): string {
   const trimmed = raw.trim();

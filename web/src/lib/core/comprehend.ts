@@ -134,11 +134,12 @@ export async function comprehendMetadata(raw: {
 
   try {
     const res = await client.messages.parse({
-      model: "claude-haiku-4-5",
-      max_tokens: 1024,
+      model: "claude-haiku-5-5",
+      // Haiku 5.5 thinks by default and thinking counts toward max_tokens, so leave headroom for it
+      max_tokens: 2048,
       system: METADATA_SYSTEM,
       messages: [{ role: "user", content: context }],
-      output_config: { format: zodOutputFormat(metadataSchema) },
+      output_config: { effort: "medium", format: zodOutputFormat(metadataSchema) },
     });
 
     if (res.stop_reason === "refusal" || !res.parsed_output) {
@@ -208,11 +209,11 @@ export async function comprehendCaption(
 
   try {
     const res = await client.messages.parse({
-      model: "claude-haiku-4-5",
-      max_tokens: 1024,
+      model: "claude-haiku-5-5",
+      max_tokens: 2048,
       system: SYSTEM,
       messages: [{ role: "user", content: context }],
-      output_config: { format: zodOutputFormat(schema) },
+      output_config: { effort: "medium", format: zodOutputFormat(schema) },
     });
 
     if (res.stop_reason === "refusal" || !res.parsed_output) {

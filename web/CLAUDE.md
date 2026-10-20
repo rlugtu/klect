@@ -71,7 +71,7 @@ Run these from `web/` (the app no longer lives at the repo root).
   **Comprehension** (`getLinkComprehension`): from the same cached fetch it first tries a **JSON-LD
   fast path** (`core/structured-data.ts`, `structuredDataFromJsonLd`) — schema.org
   Recipe/HowTo/Event/Product/LocalBusiness parsed straight into `{heading, items}` detail sections,
-  **no LLM**; otherwise runs `comprehendMetadata` (`core/comprehend.ts`, `claude-haiku-4-5`,
+  **no LLM**; otherwise runs `comprehendMetadata` (`core/comprehend.ts`, `claude-haiku-5-5`,
   `[comprehend]` log) on the readable text (for **YouTube**, the video's `og:description`), cleaning
   the title, writing a `Link Summary:`-prefixed description with detail sections (Ingredients, Steps,
   Hours, Event Details, …), and adding up to 3 `tags` + an inferred `location`. The location is then
@@ -82,7 +82,7 @@ Run these from `web/` (the app no longer lives at the repo root).
   (in-memory, per-instance/ephemeral on serverless — dedupes double-taps + fan-out + warm repeats),
   and that coalescing is **why starting both at once is free**: comprehension awaits
   `getLinkExtraction` itself, so it joins the same in-flight promise instead of refetching. Latency is
-  the slower stage, not the sum, and comprehension is capped at `COMPREHENSION_TIMEOUT_MS` (5s) —
+  the slower stage, not the sum, and comprehension is capped at `COMPREHENSION_TIMEOUT_MS` (10s) —
   past that `fetchLinkMetadata` answers with extraction-only data and leaves comprehension running to
   warm the cache. **Don't go back to awaiting them in sequence**: that's the old design, and it made
   the form fill and then visibly rewrite itself a moment later. `metadata.extract` /

@@ -368,14 +368,14 @@ The capabilities the app ships today. Product-level coverage (and web/mobile par
   Microlink. No LLM — fast. **Comprehension** (`getLinkComprehension`): from the same cached fetch it
   takes a **JSON-LD fast path** — schema.org Recipe/HowTo/Event/Product/LocalBusiness parsed straight
   into detail sections (Ingredients, Steps, Hours, Event Details, …) with **no LLM** — otherwise runs
-  `comprehendMetadata` (`claude-haiku-4-5`) on the readable text (for YouTube, the video description)
+  `comprehendMetadata` (`claude-haiku-5-5`) on the readable text (for YouTube, the video description)
   to clean the title, write a `Link Summary:`-prefixed description with those detail sections, and add
   up to 3 `tags` + an inferred `location`. The location is then **geocoded**
   (`searchPlaces`→`retrievePlace`) to `latitude`/`longitude` so autofilled bookmarks appear in
   **Near me**. Both stages are cached + coalesced by URL (`core/cache.ts`, in-memory), which is what
   makes running them at once free: comprehension's own internal extraction call joins the **same
   in-flight promise**, so it's one page fetch and one unfurl, not two. Comprehension is bounded by
-  `COMPREHENSION_TIMEOUT_MS` (5s) — past that the server answers with extraction-only data and lets
+  `COMPREHENSION_TIMEOUT_MS` (10s) — past that the server answers with extraction-only data and lets
   comprehension finish in the background to warm the cache. The result is perceived speed **without**
   the old visible fill-then-change-again: the form is populated a single time. Every stage degrades
   gracefully when its key is unset. (`metadata.extract` / `metadata.comprehend` remain exposed as the
@@ -644,8 +644,8 @@ all three.
 | `places.retrieve` | query | `{ id, sessionToken }` | signed-in | `core/places.retrievePlace` |
 | `places.reverseGeocode` | query | `{ lat, lon }` | signed-in | `core/places.reverseGeocode` |
 | `metadata.extract` | query | `{ url }` | signed-in | `core/metadata.getLinkExtraction`: self-fetch (`fetchPage`)→OG/meta, falling back to LinkPreview→Microlink; YouTube oEmbed. Fast, no LLM. Returns `LinkMetadata` with empty `tags`/`location`/coords. The cheap half of `fetch`, exposed on its own; the UI doesn't call it |
-| `metadata.comprehend` | query | `{ url }` | signed-in | `core/metadata.getLinkComprehension`: JSON-LD fast path or `comprehendMetadata` (`claude-haiku-4-5`), then geocode. Returns `{ title, description, tags, location, latitude, longitude }` (nulls when unavailable). The slow half of `fetch`, exposed on its own; the UI doesn't call it |
-| `metadata.fetch` | query | `{ url }` | signed-in | **The autofill path both clients use** — `core/metadata.fetchLinkMetadata` runs extraction + comprehension **concurrently** (shared in-flight cache, so one page fetch) and merges them into one `LinkMetadata`; comprehension is capped at `COMPREHENSION_TIMEOUT_MS` (5s), past which it returns extraction-only |
+| `metadata.comprehend` | query | `{ url }` | signed-in | `core/metadata.getLinkComprehension`: JSON-LD fast path or `comprehendMetadata` (`claude-haiku-5-5`), then geocode. Returns `{ title, description, tags, location, latitude, longitude }` (nulls when unavailable). The slow half of `fetch`, exposed on its own; the UI doesn't call it |
+| `metadata.fetch` | query | `{ url }` | signed-in | **The autofill path both clients use** — `core/metadata.fetchLinkMetadata` runs extraction + comprehension **concurrently** (shared in-flight cache, so one page fetch) and merges them into one `LinkMetadata`; comprehension is capped at `COMPREHENSION_TIMEOUT_MS` (10s), past which it returns extraction-only |
 | `comprehend.caption` | query | `{ caption, author?, sourceUrl? }` | signed-in | `core/comprehend.comprehendCaption` |
 
 The external-service lookups (`places` — Mapbox, `metadata` — LinkPreview/Microlink + Anthropic, `comprehend` — Anthropic)

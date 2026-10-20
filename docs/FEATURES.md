@@ -186,7 +186,7 @@ never trapped on the wrong screen.
 | Home search | ⚠️ | ⚠️ | Web: unified list + cross-list tag filter · Mobile: local name search |
 | Bookmarks — CRUD & fields | ✅ | ✅ | URLs, images, notes, rating, visited, location, tags |
 | Standalone multi-list bookmark create | ✅ | ✅ | One independent copy per selected list |
-| Link metadata autofill | ✅ | ✅ | Paste URL → one call, two stages run concurrently server-side: self-fetch/LinkPreview extract + JSON-LD/LLM comprehension & geocode (capped at 5s) → clean name/description/tags/location/coords/images/video, filled in one pass |
+| Link metadata autofill | ✅ | ✅ | Paste URL → one call, two stages run concurrently server-side: self-fetch/LinkPreview extract + JSON-LD/LLM comprehension & geocode (capped at 10s) → clean name/description/tags/location/coords/images/video, filled in one pass |
 | Location autocomplete + business autofill | ✅ | ✅ | Mapbox Search Box |
 | Video detection & player | ⚠️ | ⚠️ | Web iframe click-to-play · Mobile `expo-video` + WebView |
 | Tags (user-scoped, auto-colored, OR filter) | ✅ | ✅ | Per-list filter: web dropdown · mobile bottom sheet. Collaborators can remove a tag from the whole list (list-scoped, `tags.removeFromList`) |
@@ -348,11 +348,11 @@ in a single pass: there's no second visible step that rewrites what you were jus
 SSRF-guarded) for OG/meta → name/description/image + `detectVideo`, falling back to **LinkPreview →
 Microlink** when blocked (YouTube via oEmbed; social reels prefer Microlink); **comprehension** takes
 a **JSON-LD fast path** (`structuredDataFromJsonLd` — recipes/events/products/places, no LLM) or else
-`comprehendMetadata` (`claude-haiku-4-5`) on the readable text (YouTube: the video description), then
+`comprehendMetadata` (`claude-haiku-5-5`) on the readable text (YouTube: the video description), then
 **geocodes** the location to coordinates (so it shows in Near me). Both stages are cached + coalesced
 by URL, so comprehension's internal extraction call joins the same in-flight promise — running them
 together costs one page fetch, not two, and total latency is the slower of the two rather than their
-sum. Comprehension is capped at `COMPREHENSION_TIMEOUT_MS` (5s); past that the response carries
+sum. Comprehension is capped at `COMPREHENSION_TIMEOUT_MS` (10s); past that the response carries
 extraction-only data while comprehension finishes in the background and warms the cache for next
 time. Web: one loading overlay for the whole unfurl, then tags/location land via seed+remount.
 Mobile: manual button **and** auto-trigger when opened with a `?url=` param (e.g. from a share).
@@ -703,7 +703,7 @@ there is no UI for it anywhere.**
 **Web.** The capability exists in two places and has **no caller in either**: the `comprehend.caption`
 tRPC procedure (`src/server/trpc/routers/external.ts`) and the `comprehendCaption` server action
 (`src/lib/actions/comprehend.ts`), both wrapping `lib/core/comprehend.ts` (Anthropic,
-`claude-haiku-4-5`, best-effort with fallback to the raw caption). No page or component imports the
+`claude-haiku-5-5`, best-effort with fallback to the raw caption). No page or component imports the
 action or calls the procedure, so there is no paste-a-caption input in the web app.
 **Mobile.** ➖ No mobile screen calls it either.
 **Differences.** None in practice, since it is unreachable from both UIs. Not to be confused with the shipped
