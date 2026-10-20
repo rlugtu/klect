@@ -181,7 +181,7 @@ never trapped on the wrong screen.
 | Onboarding (profile setup) | ✅ | ✅ | **@handle** (required), first/last name, emoji avatar, theme. No birthday input on either platform |
 | Lists — CRUD | ✅ | ✅ | |
 | Lists — public/private visibility | ✅ | ✅ | Owner-only toggle; **private by default**; public = read-only for anyone (`lists.setVisibility`) |
-| Lists — drag-reorder | ✅ | ✅ | Per-user order (`lists.reorder`); web: Framer Motion · mobile: long-press drag in a two-column grid (`react-native-sortables`) |
+| Lists — drag-reorder | ✅ | ✅ | Per-user order (`lists.reorder`); web: Framer Motion · mobile: long-press drag in a 2- or 3-column grid (`react-native-sortables`) |
 | Lists — actions (duplicate / clear) | ✅ | ✅ | Duplicate = new owner copy, bookmarks+tags only, any member (`lists.duplicate`) · Clear = delete all bookmarks, owner only (`lists.clearBookmarks`) |
 | Home search | ⚠️ | ⚠️ | Web: unified list + cross-list tag filter · Mobile: local name search |
 | Bookmarks — CRUD & fields | ✅ | ✅ | URLs, images, notes, rating, visited, location, tags |
@@ -260,7 +260,7 @@ or belong to with bookmark + member counts and a role badge.
 (`ListTabs`: **List** = `/lists/[id]`, **Members** = `/lists/[id]?tab=members`, **Polls** = `/lists/[id]?tab=polls`, rendered inline so the
 header/details/tabs stay mounted); edit/delete live in the ⋮ menu's Edit panel. `lists.mine` /
 `lists.get` / `lists.create` / `lists.update` / `lists.delete`.
-**Mobile.** `src/app/(tabs)/index.tsx` (two-column home tiles, with a **Collab / Viewer** pill on lists you
+**Mobile.** `src/app/(tabs)/index.tsx` (home tiles in 2 or 3 columns, user-toggled, with a **Collab / Viewer** pill on lists you
 don't own), `src/app/lists/[id].tsx` (detail), `lists/new.tsx` + `lists/edit.tsx` modals. Same
 procedures.
 
@@ -281,7 +281,7 @@ mutations stay gated by `assertRole`. Toggling is separate from list edit — `l
 **Description.** Reorder your lists on the home screen; the order is saved per-user.
 **Web.** Framer-Motion `Reorder` in `HomeLists`, debounced `reorderLists` → `lists.reorder`
 (persists `ListMembership.position`).
-**Mobile.** `react-native-sortables` (`Sortable.Grid`, two columns) on the home screen
+**Mobile.** `react-native-sortables` (`Sortable.Grid`, 2 or 3 columns) on the home screen
 (`(tabs)/index.tsx`): long-press a list tile to drag; `onDragEnd` optimistically updates then
 persists `lists.reorder`. VoiceOver users get Move earlier / Move later actions on the same path.
 Dragging is disabled while a search query is active (reordering a filtered subset is ambiguous).

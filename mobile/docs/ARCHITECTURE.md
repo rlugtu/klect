@@ -242,15 +242,16 @@ modal with `router.back()` (or `router.dismissAll()` after leaving a list).
 
 ## Screens & features
 
-- **Home / Lists** (`(tabs)/index.tsx`): the user's lists (`lists.mine`) as a two-column grid of
-  `ListTile`s (`components/list-tile.tsx`: square emoji cover, name, `_count` bookmark count plus
-  member count when shared); client-side name search (input carries a leading search
+- **Home / Lists** (`(tabs)/index.tsx`): the user's lists (`lists.mine`) as a 2-column (default) or
+  3-column grid of `ListTile`s, toggled by an icon button beside the search box and persisted in
+  secure-store (`klect.home-columns`) (`components/list-tile.tsx`: 4:3 emoji cover, name, `_count`
+  bookmark count plus member count when shared in a pill on the cover); client-side name search (input carries a leading search
   icon + panel fill). Lists the user only **collaborates on or views** (non-`OWNER` `role` on the
   membership) carry a small **Collab / Viewer** pill on the tile's cover (parity with web's `ListCard`),
   so shared lists read differently from your own; owned lists show no badge. A slim toolbar row under the title pairs a **Requests** inbox link (with a
   pending count → the pushed `requests` screen) with the **＋ List** action (→ `lists/new`), divided
   off from the tiles below so it doesn't read as another list. Tiles are
-  **drag-reorderable** (`react-native-sortables` `Sortable.Grid`, `columns={2}`, inside an
+  **drag-reorderable** (`react-native-sortables` `Sortable.Grid`, `columns` from the toggle; the library re-measures on a change, so no remount, inside an
   `Animated.ScrollView` passed as `scrollableRef` for edge auto-scroll): long-press a tile to drag;
   `onDragEnd` optimistically reorders then persists `lists.reorder`. Presses go through
   `Sortable.Touchable` (a plain Pressable can fire after a drag). VoiceOver gets **Move earlier /

@@ -1,10 +1,11 @@
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Pressable, Text, TextInput, View } from 'react-native';
 import Animated, { useAnimatedRef } from 'react-native-reanimated';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import Sortable from 'react-native-sortables';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect, useRouter } from 'expo-router';
+import * as SecureStore from 'expo-secure-store';
 
 import { trpc } from '@/client/api';
 import { useEntitlements } from '@/client/entitlements';
@@ -15,7 +16,9 @@ import ListTile, {
   TILE_COLUMN_GAP,
   TILE_ROW_GAP,
   TILE_SIDE_PADDING,
+  tileHeight,
   useTileWidth,
+  type TileColumns,
 } from '@/components/list-tile';
 import { ReclaimBanner } from '@/components/locked-badge';
 import Skeleton from '@/components/skeleton';
@@ -27,6 +30,10 @@ import { useTabBarScrollHandler } from '@/theme/tab-bar-scroll';
 type Memberships = Awaited<ReturnType<typeof trpc.lists.mine.query>>;
 type Membership = Memberships[number];
 
+// Per-device grid density (2 or 3 columns), remembered across launches. Secure-store because it
+// is the app's one local key-value store (the theme lives there too); nothing secret about it.
+const COLUMNS_KEY = 'klect.home-columns';
+
 export default function HomeScreen() {
   const router = useRouter();
   const { theme } = useTheme();
@@ -35,7 +42,8 @@ export default function HomeScreen() {
   const onScroll = useTabBarScrollHandler();
   // Lets the grid auto-scroll while a tile is dragged toward either edge.
   const scrollRef = useAnimatedRef<Animated.ScrollView>();
-  const tileWidth = useTileWidth();
+  const [columns, setColumns] = useState<TileColumns>(2);
+  const tileWidth = useTileWidth(columns);
   // Whether the account has room to unlock rows it locked on a past downgrade. Read from the
   // shared entitlements status, never recomputed from the counts below. Web's
   // `core/active-selection.ts` is the single authority on that.
@@ -69,6 +77,20 @@ export default function HomeScreen() {
   }, []);
 
   useFocusEffect(useCallback(() => load(), [load]));
+
+  useEffect(() => {
+    SecureStore.getItemAsync(COLUMNS_KEY)
+      .then((v) => {
+        if (v === '3') setColumns(3);
+      })
+      .catch(() => {});
+  }, []);
+
+  function toggleColumns() {
+    const next: TileColumns = columns === 2 ? 3 : 2;
+    setColumns(next);
+    SecureStore.setItemAsync(COLUMNS_KEY, String(next)).catch(() => {});
+  }
 
   const filtering = query.trim() !== '';
   const shown = useMemo(() => {
@@ -148,27 +170,39 @@ export default function HomeScreen() {
         />
       )}
 
-      <View className="flex-row items-center gap-2 rounded-skin border-skin border-border bg-panel px-3">
-        <Ionicons name="search" size={18} color={muted} />
-        <TextInput
-          className="flex-1 py-3 font-sans text-base text-ink"
-          placeholder="Search lists"
-          placeholderTextColor={muted}
-          autoCapitalize="none"
-          value={query}
-          onChangeText={setQuery}
-        />
+      <View className="flex-row items-stretch gap-2">
+        <View className="flex-1 flex-row items-center gap-2 rounded-skin border-skin border-border bg-panel px-3">
+          <Ionicons name="search" size={18} color={muted} />
+          <TextInput
+            className="flex-1 py-3 font-sans text-base text-ink"
+            placeholder="Search lists"
+            placeholderTextColor={muted}
+            autoCapitalize="none"
+            value={query}
+            onChangeText={setQuery}
+          />
+        </View>
+        {/* Grid density. A sibling of the search box, never a parent, so toggling it can't
+            remount the TextInput. The icon previews the layout a tap switches to. */}
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={columns === 2 ? 'Show 3 columns' : 'Show 2 columns'}
+          onPress={toggleColumns}
+          hitSlop={4}
+          className="aspect-square items-center justify-center rounded-skin border-skin border-border bg-panel">
+          <Ionicons name={columns === 2 ? 'apps-outline' : 'grid-outline'} size={18} color={muted} />
+        </Pressable>
       </View>
 
       {loading && (
-        // Tile-shaped placeholders in the grid's own 2x2 geometry, same idiom as the poll
-        // screens. Height is the square cover plus roughly the name and meta lines.
+        // Tile-shaped placeholders: two rows in the grid's own geometry for the current column
+        // count, same idiom as the poll screens.
         <View
           className="flex-row flex-wrap"
           style={{ columnGap: TILE_COLUMN_GAP, rowGap: TILE_ROW_GAP }}>
-          {[0, 1, 2, 3].map((i) => (
+          {Array.from({ length: columns * 2 }, (_, i) => (
             <View key={i} style={{ width: tileWidth }}>
-              <Skeleton height={tileWidth + 78} />
+              <Skeleton height={tileHeight(tileWidth, columns)} />
             </View>
           ))}
         </View>
@@ -203,7 +237,8 @@ export default function HomeScreen() {
         contentContainerStyle={contentContainerStyle}>
         {header}
         <Sortable.Grid
-          columns={2}
+          // The library re-measures on a column-count change, so no remount (or key) needed.
+          columns={columns}
           columnGap={TILE_COLUMN_GAP}
           rowGap={TILE_ROW_GAP}
           data={shown}
@@ -219,6 +254,7 @@ export default function HomeScreen() {
           renderItem={({ item, index }) => (
             <ListTile
               item={item}
+              columns={columns}
               onOpen={() => openList(item)}
               onMoveEarlier={!filtering && index > 0 ? () => moveBy(item.list.id, -1) : undefined}
               onMoveLater={

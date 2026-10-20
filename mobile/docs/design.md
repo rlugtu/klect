@@ -68,14 +68,18 @@ below describes the **Journal**/Pixel families:
 - **Photo-forward bookmark card** (`PhotoCard`): in-list bookmark feed. A landscape
   photo (first extracted image, or a warm tinted placeholder) with a slight white
   "print border," title in Newsreader below, tag pills + rating underneath.
-- **Home list tile** (`components/list-tile.tsx`): Home shows lists as a two-column
-  grid of fixed half-width tiles (12px column gap, 16px row gap; an odd last tile
-  stays half width). Each tile is a square cover (the list emoji on `bg`, inset by
-  the same print border as `PhotoCard`; a separate sub-area so a photo mosaic can
-  replace it) with Collab/Viewer and Locked pills floating top-left, then the name
-  (serif, up to 2 lines, always reserving 2 so a row lines up) and a 1-line meta
-  ("N bookmarks", plus " · M members" only when shared). Locked tiles dim cover and
-  text, never the pills.
+- **Home list tile** (`components/list-tile.tsx`): Home shows lists as a grid of
+  fixed-width tiles, 2 columns by default or 3 via a toggle next to the search box
+  (remembered per device in secure-store, `klect.home-columns`). 8px column gap,
+  12px row gap; an odd last tile stays one column wide. Each tile is a 4:3 cover
+  (the list emoji on `bg`, inset by a 4px print border; a separate sub-area so a
+  photo mosaic can replace it) with Collab/Viewer and Locked pills top-left and a
+  count pill bottom-right (bookmark glyph + count, plus a people glyph + member
+  count only when shared), then the serif name: 1 line at `text-sm` in 2 columns,
+  up to 2 lines at `text-xs` in 3 columns, always reserving that height so a row
+  lines up. The 3-column tile is compact: the count pill shows the bookmark count
+  only, and Collab/Viewer/Locked become icon-only pills (people / eye / lock). Locked
+  tiles dim cover and name, never the pills.
 - **Compact row** — Nearby & search results: small square thumbnail, name + list
   icon/name, distance or muted meta on the right. On Nearby the distance is emphasized
   (larger, bold) and up to 3 tag pills sit under the list label. No large photo,
