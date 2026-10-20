@@ -34,7 +34,7 @@ import RatingStars from '@/components/rating-stars';
 import Skeleton from '@/components/skeleton';
 import TagPill from '@/components/tag-pill';
 import ListMembers from '@/components/list-members';
-import { screenshotThumbUrl, videoPosterUrl } from '@/lib/video-embed';
+import { videoPosterUrl } from '@/lib/video-embed';
 import { useTheme } from '@/theme/theme-provider';
 import { THEME_TOKENS } from '@/theme/tokens';
 
@@ -626,14 +626,11 @@ export default function ListScreen() {
           const dim = bookmarkLocked ? { opacity: LOCKED_OPACITY } : undefined;
           return (
             <PhotoCard
-              // Never the video itself — always a static thumbnail. If the
+              // Never the video itself, always a static thumbnail. If the
               // extracted image is missing or fails (e.g. a hotlink-blocked reel
-              // og:image), fall back to a YouTube poster or a page screenshot.
+              // og:image), fall back to a YouTube poster, then the placeholder.
               image={b.images[0] ?? null}
-              fallbackImage={
-                videoPosterUrl(b.videoUrl, b.videoType) ??
-                screenshotThumbUrl(b.urls[0])
-              }
+              fallbackImage={videoPosterUrl(b.videoUrl, b.videoType)}
               dimmed={bookmarkLocked}
               onPress={() =>
                 router.push({

@@ -45,15 +45,3 @@ export function videoPosterUrl(videoUrl: string, videoType: string): string | nu
   if (yt) return `https://img.youtube.com/vi/${yt[1]}/hqdefault.jpg`;
   return null;
 }
-
-/**
- * A universal thumbnail fallback: WordPress mShots renders any page to a
- * screenshot image with no API key. Because it's a fresh server-side capture
- * (not a hotlink to a social CDN), it loads where reel/video `og:image` URLs get
- * blocked or expire. First hit may briefly return a "generating" placeholder,
- * then caches. Used when a bookmark's extracted image is missing or fails.
- */
-export function screenshotThumbUrl(pageUrl: string | undefined, width = 800): string | null {
-  if (!pageUrl || !/^https?:\/\//i.test(pageUrl)) return null;
-  return `https://s0.wp.com/mshots/v1/${encodeURIComponent(pageUrl)}?w=${width}`;
-}

@@ -68,18 +68,18 @@ below describes the **Journal**/Pixel families:
 - **Photo-forward bookmark card** (`PhotoCard`): in-list bookmark feed. A landscape
   photo (first extracted image, or a warm tinted placeholder) with a slight white
   "print border," title in Newsreader below, tag pills + rating underneath.
-- **Home list tile** (`components/list-tile.tsx`): Home shows lists as a grid of
-  fixed-width tiles, 2 columns by default or 3 via a toggle next to the search box
-  (remembered per device in secure-store, `klect.home-columns`). 8px column gap,
-  12px row gap; an odd last tile stays one column wide. Each tile is a 4:3 cover
-  (the list emoji on `bg`, inset by a 4px print border; a separate sub-area so a
-  photo mosaic can replace it) with Collab/Viewer and Locked pills top-left and a
-  count pill bottom-right (bookmark glyph + count, plus a people glyph + member
-  count only when shared), then the serif name: 1 line at `text-sm` in 2 columns,
-  up to 2 lines at `text-xs` in 3 columns, always reserving that height so a row
-  lines up. The 3-column tile is compact: the count pill shows the bookmark count
-  only, and Collab/Viewer/Locked become icon-only pills (people / eye / lock). Locked
-  tiles dim cover and name, never the pills.
+- **Home list tile** (`components/list-tile.tsx`): Home shows lists as a 3-column grid
+  of fixed-width compact tiles. 8px column gap, 12px row gap; an odd last tile stays
+  one column wide. Each tile is a 4:3 cover inset by a 4px print border: a photo
+  mosaic of the list's newest bookmark photos (`previews` on `lists.mine`, up to 3,
+  newest first). Three photos = the newest fills the left half and the other two stack
+  on the right; two = side-by-side halves; one = the full cover; none = the list emoji
+  on `bg`. Each cell walks that bookmark's other photos if one fails to load, and a
+  cell with no loadable photo drops out so the mosaic re-lays itself. Icon-only
+  Collab/Viewer and Locked pills (people / eye / lock) sit top-left and a count pill
+  (bookmark glyph + count) bottom-right, then the serif name at `text-xs`, up to 2
+  lines, always reserving that height so a row lines up. Locked tiles dim cover and
+  name, never the pills; a locked bookmark inside an unlocked list dims its own cell.
 - **Compact row** — Nearby & search results: small square thumbnail, name + list
   icon/name, distance or muted meta on the right. On Nearby the distance is emphasized
   (larger, bold) and up to 3 tag pills sit under the list label. No large photo,

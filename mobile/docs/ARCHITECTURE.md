@@ -242,9 +242,9 @@ modal with `router.back()` (or `router.dismissAll()` after leaving a list).
 
 ## Screens & features
 
-- **Home / Lists** (`(tabs)/index.tsx`): the user's lists (`lists.mine`) as a 2-column (default) or
-  3-column grid of `ListTile`s, toggled by an icon button beside the search box and persisted in
-  secure-store (`klect.home-columns`) (`components/list-tile.tsx`: 4:3 emoji cover, name, `_count`
+- **Home / Lists** (`(tabs)/index.tsx`): the user's lists (`lists.mine`) as a 3-column grid of
+  `ListTile`s (`components/list-tile.tsx`: 4:3 cover showing a mosaic of up to 3 of the list's newest
+  photos from `previews`, or the emoji when there are none, name, `_count`
   bookmark count plus member count when shared in a pill on the cover); client-side name search (input carries a leading search
   icon + panel fill). Lists the user only **collaborates on or views** (non-`OWNER` `role` on the
   membership) carry a small **Collab / Viewer** pill on the tile's cover (parity with web's `ListCard`),
@@ -320,9 +320,10 @@ modal with `router.back()` (or `router.dismissAll()` after leaving a list).
 - **List detail** (`lists/[id].tsx`) — bookmark feed (`bookmarks.forList`) as `PhotoCard`s (first
   image, name, description, rating stars, `#hashtag` tags). The feed always shows a static thumbnail, never
   a player. When the extracted image is missing **or fails to load** (reel `og:image`s are often
-  hotlink-blocked/expiring social-CDN URLs), `PhotoCard` walks a fallback chain on error — a derived
-  YouTube poster (`videoPosterUrl`) then a no-key page screenshot (`screenshotThumbUrl`, WordPress
-  mShots), both in `lib/video-embed.ts`. The nav header holds a single **flat Add** button (a
+  hotlink-blocked/expiring social-CDN URLs), `PhotoCard` walks a fallback chain on error: a derived
+  YouTube poster (`videoPosterUrl` in `lib/video-embed.ts`), then the placeholder tile. (A WordPress
+  mShots page screenshot used to sit in this chain; it was removed because it often rendered a
+  generic "W" placeholder instead of the page.) The nav header holds a single **flat Add** button (a
   borderless primary-colored **＋** glyph, no filled pill → `bookmarks/new?listId=`, editors); the **⋮** button — opening a `@gorhom/bottom-sheet` **actions
   menu** (Edit list → `lists/edit`, Duplicate list → `lists/actions`,
   owner destructive Clear list → native confirm → `lists.clearBookmarks`) — now sits on the

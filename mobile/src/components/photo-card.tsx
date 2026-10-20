@@ -9,7 +9,7 @@ type Props = {
   /** First extracted image URL; a warm placeholder tile is shown when absent. */
   image?: string | null;
   /** Shown if `image` is absent or fails to load (e.g. a hotlink-blocked reel
-   * thumbnail) — typically a derived video poster or page screenshot. */
+   * thumbnail), typically a derived video poster. */
   fallbackImage?: string | null;
   placeholderEmoji?: string;
   onPress?: () => void;

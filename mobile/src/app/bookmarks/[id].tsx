@@ -28,7 +28,7 @@ import RatingStars from '@/components/rating-stars';
 import Skeleton from '@/components/skeleton';
 import VisitedPill from '@/components/visited-pill';
 import TagPill from '@/components/tag-pill';
-import { screenshotThumbUrl, videoPosterUrl } from '@/lib/video-embed';
+import { videoPosterUrl } from '@/lib/video-embed';
 import { useTheme } from '@/theme/theme-provider';
 import { THEME_TOKENS } from '@/theme/tokens';
 import { cardShadow } from '@/theme/shadows';
@@ -206,7 +206,6 @@ export default function BookmarkScreen() {
               poster={
                 b.images[0] ??
                 videoPosterUrl(b.videoUrl, b.videoType) ??
-                screenshotThumbUrl(b.urls[0]) ??
                 undefined
               }
             />
