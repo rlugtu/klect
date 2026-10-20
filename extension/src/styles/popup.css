@@ -1,0 +1,95 @@
+@import "tailwindcss";
+
+/**
+ * Modern light/dark only — the one theme family this MVP mirrors.
+ *
+ * Klect's six-theme system is mirrored *data*, not shared code (docs/ARCHITECTURE.md §7,
+ * "Design tokens are data"), and copying all six palettes into a third app for an MVP is
+ * cost with no payoff. The values below are the MODERN_LIGHT / MODERN_DARK rows of
+ * `mobile/src/theme/tokens.ts`, kept byte-identical so a palette change there is a
+ * mechanical diff here.
+ *
+ * The extension follows the **system** color scheme. Reading the user's actual chosen
+ * theme is possible — it rides on the session user as `theme` — but it needs the other
+ * five palettes mirrored in, so it stays a Stage 4-or-later nicety.
+ */
+:root {
+  --klect-bg: #f7f7fb;
+  --klect-panel: #ffffff;
+  --klect-ink: #1c1c22;
+  --klect-muted: #71717a;
+  --klect-primary: #7c83ff;
+  --klect-primary-ink: #ffffff;
+  --klect-accent: #ec8bd0;
+  --klect-danger: #ef4444;
+  --klect-success: #34d399;
+  --klect-warning: #f59e0b;
+  --klect-border: #e6e6ef;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --klect-bg: #101015;
+    --klect-panel: #1b1b22;
+    --klect-ink: #ededf2;
+    --klect-muted: #a1a1aa;
+    --klect-primary: #8b93ff;
+    --klect-primary-ink: #0b0b12;
+    --klect-accent: #f0a6dc;
+    --klect-danger: #f87171;
+    --klect-success: #4ade80;
+    --klect-warning: #fbbf24;
+    --klect-border: #2a2a33;
+  }
+}
+
+/* `inline` so the utilities resolve to the live custom properties rather than snapshotting
+   the light values at build time — that is what makes the dark media query take effect. */
+@theme inline {
+  --color-bg: var(--klect-bg);
+  --color-panel: var(--klect-panel);
+  --color-ink: var(--klect-ink);
+  --color-muted: var(--klect-muted);
+  --color-primary: var(--klect-primary);
+  --color-primary-ink: var(--klect-primary-ink);
+  --color-accent: var(--klect-accent);
+  --color-danger: var(--klect-danger);
+  --color-success: var(--klect-success);
+  --color-warning: var(--klect-warning);
+  --color-border: var(--klect-border);
+
+  /* The MODERN skin's radii (SKIN.MODERN in mobile/src/theme/tokens.ts). */
+  --radius-skin: 16px;
+  --radius-skin-sm: 8px;
+}
+
+/**
+ * Popup geometry. Chrome sizes a popup to its content, up to 800x600; pinning the width
+ * stops the panel reflowing as content loads, and the max-height keeps a long list
+ * scrolling inside the picker rather than growing the window.
+ *
+ * System font stack on purpose: web and mobile load Newsreader / Work Sans / Geist, but a
+ * packaged extension would have to ship and self-host the font files, and a popup that
+ * paints in 40ms should not wait on a webfont. Revisit with the rest of the theming work.
+ */
+html,
+body {
+  width: 23.75rem; /* 380px */
+  margin: 0;
+  background-color: var(--klect-bg);
+  color: var(--klect-ink);
+  font-family:
+    system-ui,
+    -apple-system,
+    "Segoe UI",
+    Roboto,
+    sans-serif;
+  font-size: 14px;
+  color-scheme: light dark;
+}
+
+/* Keyboard focus stays visible on every control, in both schemes. */
+:focus-visible {
+  outline: 2px solid var(--klect-primary);
+  outline-offset: 2px;
+}

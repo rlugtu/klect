@@ -1,0 +1,47 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "jsx": "react-jsx",
+    "strict": true,
+    "noEmit": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "skipLibCheck": true,
+    "esModuleInterop": true,
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "allowJs": false,
+    "types": ["chrome", "node", "vite/client"],
+
+    /**
+     * Mobile's path trick, reproduced for a Vite build (docs/ARCHITECTURE.md §6).
+     * All three parts are load-bearing; skipping any one of them fails the typecheck
+     * as what looks like a broken import rather than a path-resolution problem:
+     *
+     *  1. `@web/*` resolves the type-only `AppRouter` import.
+     *  2. The `../web/src/*` fallback on `@/*` lets web's own internal `@/lib/...`
+     *     imports resolve when tsc follows that type into web's server graph.
+     *  3. `types/server-only.d.ts` stubs the `import "server-only"` those modules
+     *     begin with.
+     *
+     * Extension code is resolved first (`./src/*`), so it shadows nothing of web's —
+     * and extension code never lives under `src/lib`, which stays reserved so it
+     * cannot shadow web's server graph.
+     */
+    "paths": {
+      "@/*": ["./src/*", "../web/src/*"],
+      "@web/*": ["../web/src/*"]
+    }
+  },
+  "include": [
+    "src/**/*.ts",
+    "src/**/*.tsx",
+    "types/**/*.d.ts",
+    "manifest.config.ts",
+    "vite.config.ts"
+  ],
+  "exclude": ["node_modules", "dist", "dist-dev"]
+}
