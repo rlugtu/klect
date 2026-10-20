@@ -555,7 +555,7 @@ all three.
 
 | Procedure | Kind | Input | Auth beyond sign-in | Delegates to |
 |---|---|---|---|---|
-| `lists.mine` | query | – | – | `getUserLists` |
+| `lists.mine` | query | – | – | `getUserLists`: memberships in the caller's order, each with its `list` (incl. `lockedAt`, `_count`) and `previews` (the list's newest bookmark photos, up to 3, from `getListPreviewImages`; `[]` when none) |
 | `lists.get` | query | `{ listId }` | member role **or** guest VIEWER if public (null if private + non-member) | `getListForViewer` |
 | `lists.create` | mutation | `ListInput` (incl. optional `isPublic`) | – | `core.createList` |
 | `lists.update` | mutation | `{ listId, data: ListInput }` | COLLABORATOR (in core); ignores `isPublic` | `core.updateList` |

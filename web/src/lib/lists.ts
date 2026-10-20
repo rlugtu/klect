@@ -44,9 +44,14 @@ export function createListRecord(
  * the locked state. `include` (not `select`) means every scalar on the list comes
  * back, `lockedAt` among them — if this is ever narrowed to a `select`, keep
  * `lockedAt` or the cards go back to rendering locked lists as active.
+ *
+ * Each membership also carries `previews`: the list's newest bookmark photos (up
+ * to 3, from {@link getListPreviewImages}), so a client can draw a photo cover
+ * without a request per list. A list with no photos gets an empty array, never a
+ * missing key.
  */
-export function getUserLists(userId: string) {
-  return prisma.listMembership.findMany({
+export async function getUserLists(userId: string) {
+  const memberships = await prisma.listMembership.findMany({
     where: { userId },
     orderBy: { position: "asc" },
     include: {
@@ -57,6 +62,12 @@ export function getUserLists(userId: string) {
       },
     },
   });
+  const previews = await getListPreviewImages(
+    userId,
+    memberships.map((m) => m.listId),
+    3,
+  );
+  return memberships.map((m) => ({ ...m, previews: previews[m.listId] ?? [] }));
 }
 
 // `include` keeps every scalar on the list, so `lockedAt` reaches the detail page
