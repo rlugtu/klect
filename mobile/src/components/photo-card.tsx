@@ -25,8 +25,8 @@ type Props = {
 
 /**
  * Journal photo-forward card: a landscape photo (or warm placeholder) with a
- * "print border" and soft shadow, and a content slot below. Used for Home list
- * cards and the in-list bookmark feed.
+ * "print border" and soft shadow, and a content slot below. Used for the in-list
+ * bookmark feed (Home's list tiles are `list-tile.tsx`).
  */
 export default function PhotoCard({
   image,

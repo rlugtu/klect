@@ -65,9 +65,17 @@ below describes the **Journal**/Pixel families:
 
 ## Component patterns
 
-- **Photo-forward list card** — Home lists & in-list bookmark feed: a landscape
+- **Photo-forward bookmark card** (`PhotoCard`): in-list bookmark feed. A landscape
   photo (first extracted image, or a warm tinted placeholder) with a slight white
   "print border," title in Newsreader below, tag pills + rating underneath.
+- **Home list tile** (`components/list-tile.tsx`): Home shows lists as a two-column
+  grid of fixed half-width tiles (12px column gap, 16px row gap; an odd last tile
+  stays half width). Each tile is a square cover (the list emoji on `bg`, inset by
+  the same print border as `PhotoCard`; a separate sub-area so a photo mosaic can
+  replace it) with Collab/Viewer and Locked pills floating top-left, then the name
+  (serif, up to 2 lines, always reserving 2 so a row lines up) and a 1-line meta
+  ("N bookmarks", plus " · M members" only when shared). Locked tiles dim cover and
+  text, never the pills.
 - **Compact row** — Nearby & search results: small square thumbnail, name + list
   icon/name, distance or muted meta on the right. On Nearby the distance is emphasized
   (larger, bold) and up to 3 tag pills sit under the list label. No large photo,

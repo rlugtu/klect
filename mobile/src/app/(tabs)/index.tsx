@@ -1,10 +1,8 @@
 import { useCallback, useMemo, useState } from 'react';
 import { Pressable, Text, TextInput, View } from 'react-native';
+import Animated, { useAnimatedRef } from 'react-native-reanimated';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
-import ReorderableList, {
-  reorderItems,
-  useReorderableDrag,
-} from 'react-native-reorderable-list';
+import Sortable from 'react-native-sortables';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect, useRouter } from 'expo-router';
 
@@ -13,109 +11,21 @@ import { useEntitlements } from '@/client/entitlements';
 import { writeSharedLists } from '@/client/shared-lists-cache';
 import { toast, errorMessage } from '@/client/toast';
 import FloatingStatusBar from '@/components/floating-status-bar';
-import LockedBadge, { LOCKED_OPACITY, ReclaimBanner } from '@/components/locked-badge';
+import ListTile, {
+  TILE_COLUMN_GAP,
+  TILE_ROW_GAP,
+  TILE_SIDE_PADDING,
+  useTileWidth,
+} from '@/components/list-tile';
+import { ReclaimBanner } from '@/components/locked-badge';
 import Skeleton from '@/components/skeleton';
 import { useTheme } from '@/theme/theme-provider';
 import { THEME_TOKENS } from '@/theme/tokens';
-import { cardShadow } from '@/theme/shadows';
 import { useTabBarScrollHandler } from '@/theme/tab-bar-scroll';
 
 // Inferred straight from web's tRPC procedure — no hand-written DTOs.
 type Memberships = Awaited<ReturnType<typeof trpc.lists.mine.query>>;
 type Membership = Memberships[number];
-
-const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? '' : 's'}`;
-
-// Non-owner lists get a small badge so shared lists read differently from your own (parity with
-// web's ListCard). Owned lists show nothing.
-const ROLE_LABEL: Record<Membership['role'], string | null> = {
-  OWNER: null,
-  COLLABORATOR: 'Collab',
-  VIEWER: 'Viewer',
-};
-
-/** A "Collab" / "Viewer" pill; renders nothing for owned lists. */
-function RoleBadge({ role }: { role: Membership['role'] }) {
-  const label = ROLE_LABEL[role];
-  if (!label) return null;
-  return (
-    <View className="rounded-full border-skin border-border bg-panel px-2 py-0.5">
-      <Text className="font-sans-medium text-xs text-muted">{label}</Text>
-    </View>
-  );
-}
-
-/** A list card. When draggable, a long-press anywhere starts the reorder drag. */
-function ListCard({
-  item,
-  draggable,
-  onOpen,
-}: {
-  item: Membership;
-  draggable: boolean;
-  onOpen: () => void;
-}) {
-  return draggable ? (
-    <DraggableCard item={item} onOpen={onOpen} />
-  ) : (
-    <CardBody item={item} onOpen={onOpen} />
-  );
-}
-
-function DraggableCard({ item, onOpen }: { item: Membership; onOpen: () => void }) {
-  const drag = useReorderableDrag();
-  return <CardBody item={item} onOpen={onOpen} onLongPress={drag} />;
-}
-
-function CardBody({
-  item,
-  onOpen,
-  onLongPress,
-}: {
-  item: Membership;
-  onOpen: () => void;
-  onLongPress?: () => void;
-}) {
-  // Frozen by the free-tier downgrade flow. Locked is read-only, never hidden, so
-  // the card keeps its full surface and stays tappable (and draggable). Only its
-  // contents dim, and a Locked pill says why.
-  const locked = item.list.lockedAt != null;
-  const dim = locked ? { opacity: LOCKED_OPACITY } : undefined;
-
-  return (
-    <Pressable
-      accessibilityRole="button"
-      accessibilityLabel={`${item.list.name}, ${plural(
-        item.list._count.bookmarks,
-        'bookmark',
-      )}, ${plural(item.list._count.memberships, 'member')}${
-        locked ? ', locked, read only' : ''
-      }`}
-      accessibilityHint={
-        onLongPress ? 'Double tap and hold to reorder this list' : undefined
-      }
-      onPress={onOpen}
-      onLongPress={onLongPress}
-      delayLongPress={200}
-      style={cardShadow}
-      className="rounded-skin border-skin border-border bg-panel p-4">
-      <View className="flex-row items-center gap-2">
-        <Text className="flex-shrink font-serif text-xl text-ink" style={dim}>
-          {item.list.icon} {item.list.name}
-        </Text>
-        {/* Role stays at full strength: it's a fact about the list, not part of
-            what the lock greys out. (And RoleBadge renders nothing for OWNER, so
-            it must not be wrapped: a wrapper View would leave a stray gap.) */}
-        <RoleBadge role={item.role} />
-        {locked && <LockedBadge />}
-      </View>
-      <Text className="mt-0.5 font-sans text-sm text-muted" style={dim}>
-        {plural(item.list._count.bookmarks, 'bookmark')} ·{' '}
-        {plural(item.list._count.memberships, 'member')}
-      </Text>
-    </Pressable>
-  );
-}
 
 export default function HomeScreen() {
   const router = useRouter();
@@ -123,6 +33,9 @@ export default function HomeScreen() {
   const muted = THEME_TOKENS[theme].muted;
   const insets = useSafeAreaInsets();
   const onScroll = useTabBarScrollHandler();
+  // Lets the grid auto-scroll while a tile is dragged toward either edge.
+  const scrollRef = useAnimatedRef<Animated.ScrollView>();
+  const tileWidth = useTileWidth();
   // Whether the account has room to unlock rows it locked on a past downgrade. Read from the
   // shared entitlements status, never recomputed from the counts below. Web's
   // `core/active-selection.ts` is the single authority on that.
@@ -172,6 +85,17 @@ export default function HomeScreen() {
         toast.error(errorMessage(e, 'Could not save the new order'));
         load(); // reload to resync with the order the server still has
       });
+  }
+
+  /** Moves one list a single step: the VoiceOver equivalent of a drag, on the same path. */
+  function moveBy(listId: string, delta: -1 | 1) {
+    const index = lists.findIndex((m) => m.list.id === listId);
+    const to = index + delta;
+    if (filtering || index < 0 || to < 0 || to >= lists.length) return;
+    const next = [...lists];
+    [next[index], next[to]] = [next[to], next[index]];
+    setLists(next);
+    persistOrder(next);
   }
 
   function openList(item: Membership) {
@@ -237,11 +161,16 @@ export default function HomeScreen() {
       </View>
 
       {loading && (
-        // Card-shaped placeholders, same idiom as the poll screens.
-        <View className="gap-4">
-          <Skeleton height={76} />
-          <Skeleton height={76} />
-          <Skeleton height={76} />
+        // Tile-shaped placeholders in the grid's own 2x2 geometry, same idiom as the poll
+        // screens. Height is the square cover plus roughly the name and meta lines.
+        <View
+          className="flex-row flex-wrap"
+          style={{ columnGap: TILE_COLUMN_GAP, rowGap: TILE_ROW_GAP }}>
+          {[0, 1, 2, 3].map((i) => (
+            <View key={i} style={{ width: tileWidth }}>
+              <Skeleton height={tileWidth + 78} />
+            </View>
+          ))}
         </View>
       )}
       {error && <Text className="font-sans text-danger">{error}</Text>}
@@ -254,7 +183,7 @@ export default function HomeScreen() {
   );
 
   const contentContainerStyle = {
-    padding: 16,
+    padding: TILE_SIDE_PADDING,
     paddingTop: insets.top + 8,
     paddingBottom: 120,
     gap: 16,
@@ -262,30 +191,45 @@ export default function HomeScreen() {
 
   return (
     <SafeAreaView style={{ flex: 1 }} edges={['left', 'right']} className="bg-bg">
-      {/* One list, always mounted — the search TextInput lives in its header, so swapping
-          list components while filtering would unmount it and drop keyboard focus after the
-          first keystroke. Instead we drive the same ReorderableList off `shown` and just
-          disable dragging while filtering (a filtered view can't be meaningfully reordered). */}
-      <ReorderableList
-        data={shown}
-        keyExtractor={(m) => m.list.id}
+      {/* One scroll view, always mounted: the search TextInput lives in its header, so
+          swapping components while filtering would unmount it and drop keyboard focus after
+          the first keystroke. Instead the same grid is driven off `shown`, with sorting just
+          switched off while filtering (a filtered view can't be meaningfully reordered). */}
+      <Animated.ScrollView
+        ref={scrollRef}
         onScroll={onScroll}
-        contentContainerStyle={contentContainerStyle}
-        ListHeaderComponent={header}
-        onReorder={({ from, to }) => {
-          if (filtering) return; // guard: indices are only valid against the full list
-          const next = reorderItems(lists, from, to);
-          setLists(next);
-          persistOrder(next);
-        }}
-        renderItem={({ item }) => (
-          <ListCard
-            item={item}
-            draggable={!filtering}
-            onOpen={() => openList(item)}
-          />
-        )}
-      />
+        scrollEventThrottle={16}
+        keyboardShouldPersistTaps="handled"
+        contentContainerStyle={contentContainerStyle}>
+        {header}
+        <Sortable.Grid
+          columns={2}
+          columnGap={TILE_COLUMN_GAP}
+          rowGap={TILE_ROW_GAP}
+          data={shown}
+          keyExtractor={(m) => m.list.id}
+          sortEnabled={!filtering}
+          scrollableRef={scrollRef}
+          onDragEnd={({ data, fromIndex, toIndex }) => {
+            // guard: the order is only meaningful against the full, unfiltered list
+            if (filtering || fromIndex === toIndex) return;
+            setLists(data);
+            persistOrder(data);
+          }}
+          renderItem={({ item, index }) => (
+            <ListTile
+              item={item}
+              onOpen={() => openList(item)}
+              onMoveEarlier={!filtering && index > 0 ? () => moveBy(item.list.id, -1) : undefined}
+              onMoveLater={
+                !filtering && index < shown.length - 1
+                  ? () => moveBy(item.list.id, 1)
+                  : undefined
+              }
+            />
+          )}
+        />
+      </Animated.ScrollView>
       <FloatingStatusBar />
     </SafeAreaView>
   );

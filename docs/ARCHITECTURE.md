@@ -226,7 +226,7 @@ needed for any of them.
 native **share extension** (`expo-share-extension`), video player (`expo-video`), and frosted-glass
 tab bar (`expo-blur`) can't run in Expo Go. expo-router (file-based routes),
 react-native-reanimated + gesture-handler, `@gorhom/bottom-sheet` (tag filter),
-`react-native-reorderable-list` (drag-reorder), `expo-image`, NativeWind, `@trpc/client`,
+`react-native-sortables` (drag-reorder grid), `expo-image`, NativeWind, `@trpc/client`,
 `@better-auth/expo`, `expo-location`, `expo-secure-store`, expo-font (Newsreader / Work Sans).
 
 ### Talking to the backend — the typed client

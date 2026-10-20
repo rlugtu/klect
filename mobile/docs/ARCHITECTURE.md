@@ -242,19 +242,23 @@ modal with `router.back()` (or `router.dismissAll()` after leaving a list).
 
 ## Screens & features
 
-- **Home / Lists** (`(tabs)/index.tsx`) — the user's lists (`lists.mine`) as cards showing icon,
-  name, and `_count` bookmark/member counts; client-side name search (input carries a leading search
+- **Home / Lists** (`(tabs)/index.tsx`): the user's lists (`lists.mine`) as a two-column grid of
+  `ListTile`s (`components/list-tile.tsx`: square emoji cover, name, `_count` bookmark count plus
+  member count when shared); client-side name search (input carries a leading search
   icon + panel fill). Lists the user only **collaborates on or views** (non-`OWNER` `role` on the
-  membership) carry a small **Collab / Viewer** pill next to the name (parity with web's `ListCard`),
+  membership) carry a small **Collab / Viewer** pill on the tile's cover (parity with web's `ListCard`),
   so shared lists read differently from your own; owned lists show no badge. A slim toolbar row under the title pairs a **Requests** inbox link (with a
   pending count → the pushed `requests` screen) with the **＋ List** action (→ `lists/new`), divided
-  off from the cards below so it doesn't read as another list card. Cards are
-  **drag-reorderable** (`react-native-reorderable-list`): long-press a card to drag; `onReorder`
-  optimistically reorders then persists `lists.reorder`. Dragging is disabled while searching (the same
-  `ReorderableList` renders the filtered subset with `draggable={false}`, and `onReorder` guards against
-  the filtered indices). It is deliberately the **same** list component whether or not a search is
-  active — swapping component types on the first keystroke would unmount the search `TextInput` (which
-  lives in the list header) and drop keyboard focus. Cards carry the `cardShadow`.
+  off from the tiles below so it doesn't read as another list. Tiles are
+  **drag-reorderable** (`react-native-sortables` `Sortable.Grid`, `columns={2}`, inside an
+  `Animated.ScrollView` passed as `scrollableRef` for edge auto-scroll): long-press a tile to drag;
+  `onDragEnd` optimistically reorders then persists `lists.reorder`. Presses go through
+  `Sortable.Touchable` (a plain Pressable can fire after a drag). VoiceOver gets **Move earlier /
+  Move later** accessibility actions on the same reorder path. Sorting is off while searching
+  (`sortEnabled={!filtering}`, and `onDragEnd` guards too). The header, search and grid share **one**
+  always-mounted scroll view whether or not a search is active, because swapping components on the
+  first keystroke would unmount the search `TextInput` and drop keyboard focus. Tiles carry the
+  `cardShadow`.
 - **List requests** (`requests.tsx`) — all open incoming list-join requests
   (`sharing.incomingRequests`) with approve/reject (`approveRequest`/`rejectRequest`).
 - **List invite** (`invite/[token].tsx`) — the landing screen for an invite **link**. Reached by
