@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import {
   Keyboard,
-  KeyboardAvoidingView,
   Modal,
   Platform,
   Pressable,
@@ -12,7 +11,7 @@ import {
   useWindowDimensions,
   View,
 } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import type { ListOption } from '@/client/shared-lists-cache';
 import { useTheme } from '@/theme/theme-provider';
@@ -178,79 +177,94 @@ export function ListPicker({
         visible={open}
         animationType="slide"
         onRequestClose={() => setOpen(false)}>
-        <View className="flex-1 justify-end" style={{ backgroundColor: 'rgba(0,0,0,0.45)' }}>
+        {/* The top edge is measured natively for wherever the Modal actually sits: full screen
+            under the status bar in the app, but below the system's share sheet chrome in the
+            extension, where the JS safe-area context (the extension's own) doesn't apply. */}
+        <SafeAreaView
+          edges={['top']}
+          className="flex-1 justify-end"
+          style={{ backgroundColor: 'rgba(0,0,0,0.45)' }}>
           <Pressable
             accessibilityRole="button"
             accessibilityLabel="Close the list picker"
-            className="flex-1"
+            // While typing, the sheet takes the full height and this shrinks to a strip.
+            className={keyboardShown ? 'h-3' : 'flex-1'}
             onPress={() => setOpen(false)}
           />
-          {/* Lift the sheet (its scroll region + the bottom new-list input) above the
-              keyboard. A KeyboardAvoidingView rather than the bottom-sheet library's own
-              keyboard handling, since this is a plain RN Modal for share-extension safety. */}
-          <KeyboardAvoidingView
-            behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-            keyboardVerticalOffset={0}>
-            <View
-              className="gap-3 rounded-t-3xl border-skin border-border bg-bg px-4 pt-4"
-              style={{ paddingBottom: 16 + (keyboardShown ? 0 : insets.bottom) }}>
-              <View className="flex-row items-center justify-between">
-                <Text className="font-serif text-xl text-ink">Add to lists</Text>
-                <Pressable
-                  accessibilityRole="button"
-                  accessibilityLabel="Done choosing lists"
-                  hitSlop={8}
-                  onPress={() => setOpen(false)}>
-                  <Text className="font-sans-medium text-primary">Done</Text>
-                </Pressable>
-              </View>
+          {/* No KeyboardAvoidingView: it compares the keyboard's screen position to its own
+              parent-relative frame, which only lines up when the Modal starts at the top of the
+              screen. Inside the share extension the Modal is hosted in the offset share sheet,
+              so the padding came out wrong and pushed the sheet off the top, leaving the dimmed
+              form showing through underneath. Instead, while the keyboard is up the sheet fills
+              the Modal and the ScrollView insets itself by the keyboard natively
+              (automaticallyAdjustKeyboardInsets, in window coordinates), the same fix
+              BookmarkForm uses for the share sheet. */}
+          <View
+            className="gap-3 rounded-t-3xl border-skin border-border bg-bg px-4 pt-4"
+            style={[
+              { paddingBottom: 16 + (keyboardShown ? 0 : insets.bottom) },
+              keyboardShown && { flex: 1 },
+            ]}>
+            <View className="flex-row items-center justify-between">
+              <Text className="font-serif text-xl text-ink">Add to lists</Text>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="Done choosing lists"
+                hitSlop={8}
+                onPress={() => setOpen(false)}>
+                <Text className="font-sans-medium text-primary">Done</Text>
+              </Pressable>
+            </View>
 
-              <TextInput
-                className="rounded-skin border-skin border-border px-4 py-3 text-ink"
-                placeholder="Search your lists"
-                placeholderTextColor={muted}
-                autoCapitalize="none"
-                autoCorrect={false}
-                value={search}
-                onChangeText={setSearch}
-              />
+            <TextInput
+              className="rounded-skin border-skin border-border px-4 py-3 text-ink"
+              placeholder="Search your lists"
+              placeholderTextColor={muted}
+              autoCapitalize="none"
+              autoCorrect={false}
+              value={search}
+              onChangeText={setSearch}
+            />
 
-              <ScrollView
-                keyboardShouldPersistTaps="handled"
-                style={{ maxHeight: windowHeight * 0.45 }}>
-                {filtered.length === 0 ? (
-                  <Text className="px-1 py-3 text-sm text-muted">
-                    {editable.length === 0
-                      ? 'No lists you can add to yet — create one below.'
-                      : 'No lists match your search.'}
-                  </Text>
-                ) : (
-                  <View className="gap-1">
-                    {filtered.map((l) => {
-                      const on = selectedIds.includes(l.id);
-                      return (
-                        <Pressable
-                          key={l.id}
-                          accessibilityRole="button"
-                          accessibilityLabel={l.name}
-                          accessibilityState={{ selected: on }}
-                          onPress={() => onToggle(l.id)}
-                          className={`flex-row items-center gap-2 rounded-skin border-skin px-3 py-3 ${
-                            on ? 'border-primary bg-primary/20' : 'border-border bg-panel'
-                          }`}>
-                          <Text className="text-ink">{l.icon}</Text>
-                          <Text className="flex-1 text-ink" numberOfLines={1}>
-                            {l.name}
-                          </Text>
-                          <Text className={on ? 'text-primary' : 'text-muted'}>
-                            {on ? '✓' : ''}
-                          </Text>
-                        </Pressable>
-                      );
-                    })}
-                  </View>
-                )}
-              </ScrollView>
+            {/* The new-list input lives inside the scroll (last item) rather than pinned under
+                it, so the inset can scroll it above the keyboard when it's focused. */}
+            <ScrollView
+              keyboardShouldPersistTaps="handled"
+              automaticallyAdjustKeyboardInsets
+              contentContainerStyle={{ gap: 12 }}
+              style={keyboardShown ? { flex: 1 } : { maxHeight: windowHeight * 0.45 }}>
+              {filtered.length === 0 ? (
+                <Text className="px-1 py-3 text-sm text-muted">
+                  {editable.length === 0
+                    ? 'No lists you can add to yet — create one below.'
+                    : 'No lists match your search.'}
+                </Text>
+              ) : (
+                <View className="gap-1">
+                  {filtered.map((l) => {
+                    const on = selectedIds.includes(l.id);
+                    return (
+                      <Pressable
+                        key={l.id}
+                        accessibilityRole="button"
+                        accessibilityLabel={l.name}
+                        accessibilityState={{ selected: on }}
+                        onPress={() => onToggle(l.id)}
+                        className={`flex-row items-center gap-2 rounded-skin border-skin px-3 py-3 ${
+                          on ? 'border-primary bg-primary/20' : 'border-border bg-panel'
+                        }`}>
+                        <Text className="text-ink">{l.icon}</Text>
+                        <Text className="flex-1 text-ink" numberOfLines={1}>
+                          {l.name}
+                        </Text>
+                        <Text className={on ? 'text-primary' : 'text-muted'}>
+                          {on ? '✓' : ''}
+                        </Text>
+                      </Pressable>
+                    );
+                  })}
+                </View>
+              )}
 
               <TextInput
                 className="rounded-skin border-skin border-border px-4 py-3 text-ink"
@@ -263,9 +277,9 @@ export function ListPicker({
                 onBlur={commitDraft}
                 returnKeyType="done"
               />
-            </View>
-          </KeyboardAvoidingView>
-        </View>
+            </ScrollView>
+          </View>
+        </SafeAreaView>
       </Modal>
     </View>
   );
