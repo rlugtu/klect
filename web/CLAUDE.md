@@ -82,15 +82,23 @@ Run these from `web/` (the app no longer lives at the repo root).
   (in-memory, per-instance/ephemeral on serverless — dedupes double-taps + fan-out + warm repeats),
   and that coalescing is **why starting both at once is free**: comprehension awaits
   `getLinkExtraction` itself, so it joins the same in-flight promise instead of refetching. Latency is
-  the slower stage, not the sum, and comprehension is capped at `COMPREHENSION_TIMEOUT_MS` (10s) —
+  the slower stage, not the sum, and comprehension is capped at the shared `UNFURL_BUDGET_MS` (8s) deadline —
   past that `fetchLinkMetadata` answers with extraction-only data and leaves comprehension running to
   warm the cache. **Don't go back to awaiting them in sequence**: that's the old design, and it made
   the form fill and then visibly rewrite itself a moment later. `metadata.extract` /
   `metadata.comprehend` are still exposed as the individual stages, but no UI calls them.
   Everything degrades gracefully: no `ANTHROPIC_API_KEY` → JSON-LD/raw metadata only, no
-  `Link Summary:`; no `LINKPREVIEW_API_KEY` → self-fetch/Microlink. Social reel captions are still
-  often truncated/login-walled — reliable reel extraction needs a social-scraper API
-  (`SOCIAL_SCRAPER_TOKEN` / `comprehend.caption` stubbed, not wired).
+  `Link Summary:`; no `LINKPREVIEW_API_KEY` → self-fetch/Microlink. **Instagram** has its own
+  branch (`lib/instagram.ts`, pure, checked by `npx tsx scripts/verify-instagram.ts`): the cached
+  `extract:` entry stays the RAW unfurl (`baseExtraction`, og:title left uncleaned for Instagram
+  only) and `normalizeExtraction` runs on the way out of `getLinkExtraction`. When Microlink's
+  `<likes> likes, <comments> comments - <handle> on <date>: "<caption>".` description (or
+  LinkPreview's bare caption + `A post shared by <name> (@handle)` title) parses, the Description
+  becomes the `#`-stripped caption and the Name its first sentence (og:title is only ever a handle
+  source); comprehension then routes that caption to `comprehendCaption` (`comprehendInstagram`),
+  wrapped through `assembleDescription` so it reads `Link Summary:` like any other link. Anything
+  that doesn't parse (captionless, login-walled, other shapes) keeps the generic path unchanged.
+  TikTok/Facebook captions are still often truncated/login-walled, with no dedicated parser.
 - Location field is a **Mapbox Search Box** autocomplete (`lib/actions/places.ts`, proxied
   server-side, `[places]` log prefix, `proximity=ip` bias). It's two-step: `searchPlaces`
   (/suggest) returns coordinate-less suggestions, `retrievePlace` (/retrieve) resolves the

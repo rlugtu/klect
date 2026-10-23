@@ -1,10 +1,21 @@
 import "server-only";
 import { detectVideo, type DetectedVideo } from "@/lib/video";
-import { comprehendMetadata, assembleDescription } from "@/lib/core/comprehend";
+import {
+  comprehendMetadata,
+  comprehendCaption,
+  assembleDescription,
+} from "@/lib/core/comprehend";
 import { fetchPage, type PageData } from "@/lib/core/page-text";
 import { structuredDataFromJsonLd } from "@/lib/core/structured-data";
 import { cached } from "@/lib/core/cache";
 import { cleanTitle } from "@/lib/title-clean";
+import {
+  isInstagramUrl,
+  parseInstagramMeta,
+  stripHashtags,
+  firstSentence,
+  type InstagramPost,
+} from "@/lib/instagram";
 import { searchPlaces, retrievePlace } from "@/lib/core/places";
 
 /**
@@ -308,7 +319,7 @@ async function fetchLinkPreview(url: string, deadline: Deadline): Promise<Metada
     }
 
     return { ok: true, data: baseData(json.url ?? url, {
-      title: cleanTitle(json.title ?? null),
+      title: unfurlTitle(url, json.title),
       description: json.description ?? null,
       images: json.image ? [json.image] : [],
     }) };
@@ -372,7 +383,7 @@ async function fetchMicrolink(url: string, deadline: Deadline): Promise<Metadata
 
     const d = json.data;
     return { ok: true, data: baseData(d.url ?? url, {
-      title: cleanTitle(d.title ?? null),
+      title: unfurlTitle(url, d.title),
       description: d.description ?? null,
       images: d.image?.url ? [d.image.url] : [],
       author: d.author ?? null,
@@ -386,6 +397,17 @@ async function fetchMicrolink(url: string, deadline: Deadline): Promise<Metadata
       sourceUrl: url,
     };
   }
+}
+
+/**
+ * An unfurler's og:title, cleaned (Stage 3) for every link EXCEPT Instagram. There the
+ * raw title is kept in the base extraction, because it is the only source of the
+ * display name and handle and cleanTitle may split a display name on its own `|`;
+ * {@link normalizeExtraction} cleans it on the way out instead, so a post that doesn't
+ * parse still ends up with exactly today's cleaned title.
+ */
+function unfurlTitle(url: string, raw: string | undefined): string | null {
+  return isInstagramUrl(url) ? (raw ?? null) : cleanTitle(raw ?? null);
 }
 
 /** Build a LinkMetadata with sensible defaults; comprehension fields start empty. */
@@ -417,6 +439,18 @@ function fromPage(page: PageData, url: string): MetadataResult {
   }) };
 }
 
+/**
+ * The raw unfurl, cached + coalesced by URL. The single owner of the `extract:` key,
+ * shared by {@link getLinkExtraction} and comprehension, so running both at once is
+ * still one page fetch and one unfurl. Raw means comprehension can still read an
+ * Instagram unfurl's strings exactly as returned (the description's likes/comments
+ * prefix and quoting, the og:title's handle). Every other link's base is exactly what
+ * extraction returned before this split, Stage 3 title cleaning included.
+ */
+function baseExtraction(url: string, deadline: Deadline): Promise<MetadataResult> {
+  return cached(`extract:${url}`, CACHE_TTL_MS, () => extract(url, deadline));
+}
+
 /** Extraction only: OG/meta via self-fetch or an unfurler. Cached + coalesced by URL. No LLM. */
 export async function getLinkExtraction(
   rawUrl: string,
@@ -425,7 +459,41 @@ export async function getLinkExtraction(
   const url = normalizeUrl(rawUrl);
   if (!isHttpUrl(url)) return { ok: false, error: "Enter a valid http(s) URL.", sourceUrl: rawUrl };
   const d = deadline ?? deadlineIn(UNFURL_BUDGET_MS);
-  return cached(`extract:${url}`, CACHE_TTL_MS, () => extract(url, d));
+  return normalizeExtraction(url, await baseExtraction(url, d));
+}
+
+/** The parsed post behind an Instagram extraction, or null for anything else. */
+function instagramPost(url: string, data: LinkMetadata): InstagramPost | null {
+  if (!isInstagramUrl(url)) return null;
+  return parseInstagramMeta({ title: data.title, description: data.description });
+}
+
+/**
+ * Deterministic cleanup applied on the way OUT of the cache, so the cached base stays
+ * raw. Returns the very same object for every non-Instagram link (a no-op by
+ * construction). For Instagram:
+ *   - a parsed post: Description = the caption with hashtags dropped (no
+ *     likes/comments prefix, no quoting), Name = the caption's first sentence. og:title
+ *     never becomes the Name once a caption parses; it is account attribution only.
+ *   - anything that doesn't parse: today's behavior, i.e. the cleaned og:title and the
+ *     description untouched.
+ * Always a fresh object, never a mutation of the cached one.
+ */
+function normalizeExtraction(url: string, result: MetadataResult): MetadataResult {
+  if (!result.ok || !isInstagramUrl(url)) return result;
+  const data = result.data;
+  const post = instagramPost(url, data);
+  if (!post) return { ok: true, data: { ...data, title: cleanTitle(data.title) } };
+
+  const caption = stripHashtags(post.caption);
+  return {
+    ok: true,
+    data: {
+      ...data,
+      title: caption ? firstSentence(caption) : `Instagram post by @${post.handle}`,
+      description: caption || null,
+    },
+  };
 }
 
 async function extract(url: string, deadline: Deadline): Promise<MetadataResult> {
@@ -536,7 +604,14 @@ export async function getLinkComprehension(
  * the two callers above as a separate step.
  */
 async function comprehendText(url: string, deadline: Deadline): Promise<ComprehensionText> {
-  const extraction = await getLinkExtraction(url, deadline);
+  const base = await baseExtraction(url, deadline);
+  if (!base.ok) return EMPTY_TEXT;
+
+  // Instagram with a caption that parses: the caption model, not the page model.
+  const post = instagramPost(url, base.data);
+  if (post) return comprehendInstagram(post, base.data);
+
+  const extraction = normalizeExtraction(url, base);
   if (!extraction.ok) return EMPTY_TEXT;
   const data = extraction.data;
 
@@ -581,6 +656,36 @@ async function comprehendText(url: string, deadline: Deadline): Promise<Comprehe
   return {
     title: refined.title || null,
     description: refined.description || null,
+    tags: refined.tags.slice(0, 3),
+    location: refined.location || null,
+  };
+}
+
+/**
+ * Instagram's text step: the hashtag-stripped caption goes to {@link comprehendCaption}
+ * (built for exactly this), and its plain description is wrapped through
+ * `assembleDescription(desc, [])` so it reads "Link Summary:" like every other link.
+ * Location flows on to the same geocode tail step as any other comprehension.
+ *
+ * No key, or a caption that is nothing but hashtags, adds nothing here: the
+ * deterministic Name/Description from {@link normalizeExtraction} already stand.
+ */
+async function comprehendInstagram(
+  post: InstagramPost,
+  data: LinkMetadata,
+): Promise<ComprehensionText> {
+  const caption = stripHashtags(post.caption);
+  if (!caption || !process.env.ANTHROPIC_API_KEY) return EMPTY_TEXT;
+
+  const refined = await comprehendCaption(caption, {
+    author: `@${post.handle}`,
+    sourceUrl: data.sourceUrl,
+  });
+  if (!refined) return EMPTY_TEXT;
+
+  return {
+    title: refined.title || null,
+    description: assembleDescription(refined.description, []) || null,
     tags: refined.tags.slice(0, 3),
     location: refined.location || null,
   };

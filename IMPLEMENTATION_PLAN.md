@@ -242,7 +242,7 @@ agent or to me.
 **Depends on**: Stage 2 (so the client cap is honest against the new 8s server budget,
 not the old 10s).
 
-## Stage 5: Instagram-specific comprehension (GATED — do not start)
+## Stage 5: Instagram-specific comprehension (gate lifted 2026-10-22, In Progress)
 
 **Goal**: New pure module `web/src/lib/instagram.ts` (`isInstagramUrl`,
 `parseInstagramMeta`, `firstSentence`, etc.) parsing Instagram's
@@ -256,8 +256,16 @@ the repo) and wraps its output through `assembleDescription(desc, [])` to match 
 other link's "Link Summary:" shape. `og:title` is read only as a handle source, never as
 any part of the Name, once a caption parses.
 
-**Status**: Not Started (still gated) — **Stage 0 (diagnostic data capture) 4/~10 samples
-in.** No permanent code written yet; `instagram.ts` still doesn't exist and `metadata.ts`'s
+**Status**: Built 2026-10-22 (`web/src/lib/instagram.ts`, the `baseExtraction` /
+`normalizeExtraction` split and `comprehendInstagram()` in `metadata.ts`, fixture script
+`web/scripts/verify-instagram.ts`, 49 checks). tsc, lint and both fixture scripts pass, and
+a live run on all 6 samples confirmed the deterministic path (caption-only Description,
+no likes/comments prefix, `#` tags stripped, caption-derived Name). The AI half
+(`comprehendCaption` output) is verified on production after deploy, since the local
+`ANTHROPIC_API_KEY` is rejected. Ryan lifted the gate on 2026-10-22 after supplying a
+carousel and a static photo post (6 samples total), and said to build with what we have. The remaining
+post types are deferred to future improvements (see "Deferred post types" below).
+**Stage 0 history (kept for context):** No permanent code written yet; `instagram.ts` still doesn't exist and `metadata.ts`'s
 Instagram handling is untouched. Ryan is supplying real sample URLs incrementally rather
 than the full spread at once — proceeding per-batch rather than blocking for the complete
 set. All four captures done via disposable, non-committed scripts replicating
@@ -295,11 +303,33 @@ attribution, never post content — confirmed by tracing, not assumed.
    not single-line text; LinkPreview truncates long descriptions at ~400 chars with a
    literal `...`, losing content Microlink's fuller description retains.
 
-**Samples captured**: reels `DeGC80pC82E`, `Des3c52hloB`, `Dcs7vZ8DRpl`, `DezbXYRNIcQ` — all
-four are Reels. **Still not seen**: a static (non-Reel) post, a carousel, a
-location-tagged post, a captionless post, a login-walled/private post. Full raw strings
-for all four recorded in `10 - Klect/Klect Manager.md`'s Decision Log and in this
-conversation's history with `klect-manager`, not duplicated here.
+**Samples captured**: reels `DeGC80pC82E`, `Des3c52hloB`, `Dcs7vZ8DRpl`, `DezbXYRNIcQ`;
+carousel `DeIDWwiAQC1`; static photo post `Dex748mljEc`. Raw strings for the reels are in
+`09 - Managers/Klect Manager.md`'s Decision Log; the two post samples are logged there too.
+
+**Findings from the carousel and photo samples (2026-10-22)**:
+7. The description prefix format holds for `/p/` posts too (carousel and photo alike).
+8. The **opening** quote is not always U+201C: the photo sample opens with U+201D (`”`).
+   The caption itself also contains its own curly-quoted text. So the parser must accept
+   either curly quote (or a straight `"`) as the opener and strip only the outermost quote
+   plus the trailing `.` by position, never by searching for the first closing quote.
+9. Post titles end in `• Instagram photos and videos` (not `• Instagram reel`).
+   `cleanTitle()` already strips that tail; what's left is still account attribution only.
+10. Trailing hashtag runs can lose their `#` partway through (carousel:
+    `#Anime #Otaku AnimeCommunity Manga Weeb drkamui`). Only `#`-prefixed words can be
+    stripped safely; bare trailing words stay in the caption and are left to the model.
+11. LinkPreview has a second, *good* Instagram shape: on the carousel it returned the bare
+    caption (no likes/comments prefix) as `description`, with `title` =
+    `A post shared by <display name> (<@handle>)`. On the photo it returned the
+    "Private media" placeholder, which the 2026-10-22 `isPlaceholderPreview()` fix now
+    rejects (confirmed against this live response).
+12. Microlink hit `EPROXYNEEDED` on the photo's first attempt again (2 of 6 samples now),
+    succeeding on retry. `data.date` and the canonicalized `url` were present on both.
+
+**Deferred post types (future improvements, not in this build)**: a location-tagged post,
+a captionless post, and a login-walled/private post. With none of them sampled, the
+parser treats any description that does not match the known prefix as "not parsed" and
+falls back to today's behavior unchanged.
 
 ---
 

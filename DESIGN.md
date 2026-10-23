@@ -375,7 +375,7 @@ The capabilities the app ships today. Product-level coverage (and web/mobile par
   **Near me**. Both stages are cached + coalesced by URL (`core/cache.ts`, in-memory), which is what
   makes running them at once free: comprehension's own internal extraction call joins the **same
   in-flight promise**, so it's one page fetch and one unfurl, not two. Comprehension is bounded by
-  `COMPREHENSION_TIMEOUT_MS` (10s) — past that the server answers with extraction-only data and lets
+  the shared `UNFURL_BUDGET_MS` (8s) deadline — past that the server answers with extraction-only data and lets
   comprehension finish in the background to warm the cache. The result is perceived speed **without**
   the old visible fill-then-change-again: the form is populated a single time. Every stage degrades
   gracefully when its key is unset. (`metadata.extract` / `metadata.comprehend` remain exposed as the
@@ -645,7 +645,7 @@ all three.
 | `places.reverseGeocode` | query | `{ lat, lon }` | signed-in | `core/places.reverseGeocode` |
 | `metadata.extract` | query | `{ url }` | signed-in | `core/metadata.getLinkExtraction`: self-fetch (`fetchPage`)→OG/meta, falling back to LinkPreview→Microlink; YouTube oEmbed. Fast, no LLM. Returns `LinkMetadata` with empty `tags`/`location`/coords. The cheap half of `fetch`, exposed on its own; the UI doesn't call it |
 | `metadata.comprehend` | query | `{ url }` | signed-in | `core/metadata.getLinkComprehension`: JSON-LD fast path or `comprehendMetadata` (`claude-haiku-5-5`), then geocode. Returns `{ title, description, tags, location, latitude, longitude }` (nulls when unavailable). The slow half of `fetch`, exposed on its own; the UI doesn't call it |
-| `metadata.fetch` | query | `{ url }` | signed-in | **The autofill path both clients use** — `core/metadata.fetchLinkMetadata` runs extraction + comprehension **concurrently** (shared in-flight cache, so one page fetch) and merges them into one `LinkMetadata`; comprehension is capped at `COMPREHENSION_TIMEOUT_MS` (10s), past which it returns extraction-only |
+| `metadata.fetch` | query | `{ url }` | signed-in | **The autofill path both clients use** — `core/metadata.fetchLinkMetadata` runs extraction + comprehension **concurrently** (shared in-flight cache, so one page fetch) and merges them into one `LinkMetadata`; comprehension is capped at the shared `UNFURL_BUDGET_MS` (8s) deadline, past which it returns extraction-only |
 | `comprehend.caption` | query | `{ caption, author?, sourceUrl? }` | signed-in | `core/comprehend.comprehendCaption` |
 
 The external-service lookups (`places` — Mapbox, `metadata` — LinkPreview/Microlink + Anthropic, `comprehend` — Anthropic)
@@ -686,5 +686,7 @@ no-ops cleanly when no devices are registered, so web and CI are unaffected.
 - **Realtime collaboration** (Supabase realtime): comments/edits currently refresh on action.
 - **Pagination** for lists with many bookmarks — add when needed.
 - **Image durability**: photos are hotlinked remote URLs; move to Supabase Storage if links rot.
-- **Reel caption extraction**: Instagram/TikTok reel captions are often truncated/login-walled;
-  reliable extraction needs a social-scraper API (`comprehend.caption` is stubbed for this).
+- **Reel caption extraction**: Instagram posts whose unfurl matches the known caption format are
+  parsed deterministically (`web/src/lib/instagram.ts`) and comprehended with `comprehendCaption`;
+  captionless, login-walled and other unsampled Instagram shapes, and TikTok/Facebook captions, are
+  still often truncated/login-walled, and reliable extraction for those needs a social-scraper API.

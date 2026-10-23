@@ -352,7 +352,7 @@ a **JSON-LD fast path** (`structuredDataFromJsonLd` — recipes/events/products/
 **geocodes** the location to coordinates (so it shows in Near me). Both stages are cached + coalesced
 by URL, so comprehension's internal extraction call joins the same in-flight promise — running them
 together costs one page fetch, not two, and total latency is the slower of the two rather than their
-sum. Comprehension is capped at `COMPREHENSION_TIMEOUT_MS` (10s); past that the response carries
+sum. Comprehension is capped at the shared `UNFURL_BUDGET_MS` (8s) deadline; past that the response carries
 extraction-only data while comprehension finishes in the background and warms the cache for next
 time. Web: one loading overlay for the whole unfurl, then tags/location land via seed+remount.
 Mobile: manual button **and** auto-trigger when opened with a `?url=` param (e.g. from a share).
