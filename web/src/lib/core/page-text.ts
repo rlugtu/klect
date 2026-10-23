@@ -241,11 +241,29 @@ function concatChunks(chunks: Uint8Array[], size: number): Uint8Array {
   return out;
 }
 
-/** SSRF-guarded fetch of a page's HTML, following redirects manually. */
-async function fetchHtml(startUrl: string): Promise<{ finalUrl: string; html: string } | null> {
+/**
+ * SSRF-guarded fetch of a page's HTML, following redirects manually.
+ *
+ * `budgetMs` caps the WHOLE operation, not each hop. The per-hop {@link TIMEOUT_MS}
+ * alone allows (MAX_REDIRECTS + 1) × TIMEOUT_MS plus DNS and body-read time against a
+ * host that stalls every hop, so a caller with its own deadline passes the time it has
+ * left and each hop gets `min(TIMEOUT_MS, remaining)`. Pass `Infinity` (what
+ * {@link fetchPage} does by default) for the original per-hop-only behavior.
+ */
+async function fetchHtml(
+  startUrl: string,
+  budgetMs: number,
+): Promise<{ finalUrl: string; html: string } | null> {
   let current = startUrl;
+  const deadlineAt = Date.now() + budgetMs;
 
   for (let hop = 0; hop <= MAX_REDIRECTS; hop++) {
+    const left = deadlineAt - Date.now();
+    if (left <= 0) {
+      console.warn(`[page-text] budget exhausted after ${hop} hop(s): ${startUrl}`);
+      return null;
+    }
+
     const safe = await isSafePublicUrl(current);
     if (!safe) {
       console.warn(`[page-text] blocked non-public/invalid url: ${current}`);
@@ -253,7 +271,7 @@ async function fetchHtml(startUrl: string): Promise<{ finalUrl: string; html: st
     }
 
     const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
+    const timer = setTimeout(() => controller.abort(), Math.min(TIMEOUT_MS, left));
     let res: Response;
     try {
       res = await fetch(safe.href, {
@@ -303,9 +321,15 @@ async function fetchHtml(startUrl: string): Promise<{ finalUrl: string; html: st
 /**
  * Fetch a page once and derive OG/meta metadata, JSON-LD, and readable text from
  * the single HTML response. Returns `null` on any guard trip or fetch failure.
+ *
+ * `opts.budgetMs` caps the whole fetch (including redirect hops). Omit it and the
+ * behavior is exactly as before: per-hop {@link TIMEOUT_MS} only, no overall cap.
  */
-export async function fetchPage(startUrl: string): Promise<PageData | null> {
-  const fetched = await fetchHtml(startUrl);
+export async function fetchPage(
+  startUrl: string,
+  opts?: { budgetMs?: number },
+): Promise<PageData | null> {
+  const fetched = await fetchHtml(startUrl, opts?.budgetMs ?? Number.POSITIVE_INFINITY);
   if (!fetched) return null;
   const { finalUrl, html } = fetched;
 

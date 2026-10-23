@@ -36,6 +36,7 @@ export type ReverseGeocodeResult =
   | { ok: false; error: string };
 
 const MIN_QUERY_LENGTH = 3;
+const TIMEOUT_MS = 5000;
 const LIMIT = 6;
 const SEARCHBOX_BASE = "https://api.mapbox.com/search/searchbox/v1";
 const GEOCODE_BASE = "https://api.mapbox.com/search/geocode/v6";
@@ -112,9 +113,12 @@ export async function searchPlaces(
     `&session_token=${encodeURIComponent(sessionToken)}` +
     `&limit=${LIMIT}&language=en&proximity=ip&access_token=${key}`;
 
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
   try {
     const res = await fetch(endpoint, {
       headers: { accept: "application/json" },
+      signal: controller.signal,
       cache: "no-store",
     });
 
@@ -135,8 +139,14 @@ export async function searchPlaces(
     console.log(`[places] "${query}" → ${data.length} suggestion(s)`);
     return { ok: true, data };
   } catch (err) {
-    console.warn(`[places] suggest failed for "${query}":`, (err as Error).message);
-    return { ok: false, error: `Location search failed: ${(err as Error).message}` };
+    // An abort surfaces as "The operation was aborted", which is not copy we want in
+    // the live autocomplete — translate it before it reaches the UI.
+    const aborted = controller.signal.aborted;
+    const message = aborted ? "Location search timed out." : (err as Error).message;
+    console.warn(`[places] suggest failed for "${query}":`, message);
+    return { ok: false, error: aborted ? message : `Location search failed: ${message}` };
+  } finally {
+    clearTimeout(timer);
   }
 }
 
@@ -156,9 +166,12 @@ export async function retrievePlace(
     `${SEARCHBOX_BASE}/retrieve/${encodeURIComponent(id)}` +
     `?session_token=${encodeURIComponent(sessionToken)}&access_token=${key}`;
 
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
   try {
     const res = await fetch(endpoint, {
       headers: { accept: "application/json" },
+      signal: controller.signal,
       cache: "no-store",
     });
 
@@ -190,8 +203,12 @@ export async function retrievePlace(
       },
     };
   } catch (err) {
-    console.warn(`[places] retrieve failed for "${id}":`, (err as Error).message);
-    return { ok: false, error: `Location lookup failed: ${(err as Error).message}` };
+    const aborted = controller.signal.aborted;
+    const message = aborted ? "Location search timed out." : (err as Error).message;
+    console.warn(`[places] retrieve failed for "${id}":`, message);
+    return { ok: false, error: aborted ? message : `Location lookup failed: ${message}` };
+  } finally {
+    clearTimeout(timer);
   }
 }
 
@@ -211,9 +228,12 @@ export async function reverseGeocode(
     `${GEOCODE_BASE}/reverse?longitude=${encodeURIComponent(lon)}` +
     `&latitude=${encodeURIComponent(lat)}&limit=1&language=en&access_token=${key}`;
 
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
   try {
     const res = await fetch(endpoint, {
       headers: { accept: "application/json" },
+      signal: controller.signal,
       cache: "no-store",
     });
 
@@ -235,7 +255,11 @@ export async function reverseGeocode(
       data: { label: props.name || props.place_formatted || address, address },
     };
   } catch (err) {
-    console.warn(`[places] reverse failed for ${lat},${lon}:`, (err as Error).message);
-    return { ok: false, error: `Location lookup failed: ${(err as Error).message}` };
+    const aborted = controller.signal.aborted;
+    const message = aborted ? "Location search timed out." : (err as Error).message;
+    console.warn(`[places] reverse failed for ${lat},${lon}:`, message);
+    return { ok: false, error: aborted ? message : `Location lookup failed: ${message}` };
+  } finally {
+    clearTimeout(timer);
   }
 }

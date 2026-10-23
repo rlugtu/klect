@@ -1,3 +1,313 @@
+# Klect Autofill & Comprehension Fixes: Implementation Plan
+
+Three fixes to the share-sheet/link-autofill pipeline (`web/src/lib/core/metadata.ts`
+and friends): a bug where a slow Mapbox geocode call discards an already-successful AI
+comprehension result, missing timeouts across several upstream fetchers that can hang
+indefinitely, inconsistent/raw titles out of the JSON-LD fast path, and Instagram links
+producing boilerplate in the bookmark Name and noisy raw caption text in the Description.
+Full reasoning (why each fix is shaped this way, the two corrections the final planning
+pass made to the draft, and every decision Ryan made) lives in this conversation's
+history with `klect-manager`, summarized in the vault at
+`10 - Klect/Klect Manager.md`'s Decision Log, 2026-10-22 entries. This file tracks the
+5-stage build only.
+
+## Architectural constraints these stages must respect
+
+- **One brain, two transports.** `core()` functions in `web/src/lib/core/*` stay the
+  single source of truth; a `"use server"` action wrapper and/or a tRPC procedure call
+  the same `core()`. All five stages here are read-only query code
+  (`metadata.fetch`/`extract`/`comprehend`, `places.*`) behind `requireUser()` /
+  `protectedProcedure` — no Prisma, no mutations, no `assertRole` surface, no schema
+  changes anywhere in this plan.
+- **No test runner exists in this repo.** Correctness rests on TypeScript, the build and
+  lint gates, and manual verification. Two of these stages (title cleaning, and the
+  deterministic half of Instagram parsing) get a disposable `tsx` fixture script instead,
+  mirroring the existing `web/scripts/verify-move-plan.ts` precedent — which is also why
+  the two new modules (`title-clean.ts`, `instagram.ts`) must NOT `import "server-only"`.
+- **Shared `Deadline`, not independent timeouts.** Stage 1 introduces one `Deadline`
+  object per unfurl, threaded through every fetcher via `slice(deadline, ownTimeout)`.
+  Stage 2's geocode stage must draw from the *same* deadline, not a fresh independent
+  budget — two independent budgets stack latency instead of bounding it.
+
+## Stage 1: Shared deadline + upstream timeouts
+
+**Goal**: Replace the flat `COMPREHENSION_TIMEOUT_MS = 10_000` with
+`UNFURL_BUDGET_MS = 8_000` and a `Deadline` object created once per unfurl in
+`fetchLinkMetadata()`. Add `AbortController`-based timeouts to every upstream fetcher that
+currently has none: `searchPlaces`/`retrievePlace`/`reverseGeocode` in `places.ts` (5s
+each, matching `page-text.ts`'s existing pattern), `fetchYouTube` (4s),
+`fetchLinkPreview`/`fetchMicrolink` (6s each) in `metadata.ts`, and `fetchPage`/`fetchHtml`
+in `page-text.ts` (a whole-operation `budgetMs` cap threaded through its per-hop redirect
+loop — the real worst case is ~27s today, not ~17s, because the existing 5s timeout
+applies per redirect hop, 3 hops max).
+
+**Success Criteria**: A normal URL's happy path is byte-for-byte unchanged (first redirect
+hop still gets a full 5s). A URL on a host that hangs indefinitely now answers by
+~8s instead of hanging ~27s+. The live `LocationInput`/`NearbyFinder` autocomplete (which
+shares `places.ts`) is unaffected on the happy path and now bounded on the unhappy one.
+
+**Tests**: No test runner — `tsc`/lint/`next build` plus manual verification: paste a
+normal article/YouTube/Instagram link and confirm autofill still fills (no new false
+timeouts); point at a deliberately slow endpoint and confirm the budget-exhausted warning
+logs and the answer lands near the new budget instead of the old worst case.
+
+**Status**: Complete — `tsc`/lint clean. Manual slow-endpoint verification still pending
+(code-complete, not yet exercised against a real hanging host).
+
+## Stage 2: Decouple geocoding from comprehension
+
+**Goal**: Split `comprehend()` into a text-only step (`comprehendText`, returns
+title/description/tags/location — no coordinates) and a separately-bounded,
+separately-cached (`geo:${location}`) coordinate-resolution tail step, both drawing from
+the Stage 1 `Deadline`. `comprehensionWithinBudget` races only the text step against the
+remaining budget; geocoding gets `min(3000ms, remaining)` afterward. A slow/hung Mapbox
+call now degrades to "location string, null coordinates" instead of discarding an
+already-successful title/description/tags. The timeout must wrap the *call to*
+`cached(...)`, not live inside it, so the real geocode keeps running and populates the
+cache for the next paste of the same URL.
+
+**Success Criteria**: `getLinkComprehension()`'s public return shape (`LinkComprehension`)
+is unchanged, so `web/src/lib/actions/metadata.ts` and
+`web/src/server/trpc/routers/external.ts`'s `metadataRouter.comprehend` need zero changes,
+and mobile's type-only `AppRouter` import doesn't move. A fast comprehension + slow geocode
+now returns title/description/tags/location-string with `latitude`/`longitude: null`,
+where today it would return `EMPTY_COMPREHENSION` entirely. Pasting the same URL again
+after a degraded answer now returns full coordinates from the warmed cache.
+
+**Tests**: No test runner — manual: a venue URL where comprehension is fast and
+coordinates land normally; force the geocode stage to lose its race and confirm
+Name/Description/Tags/Location still arrive with no map pin, then repaste and confirm the
+pin now appears. Also run `cd mobile && npm run lint` to confirm the type-only `AppRouter`
+import still resolves cleanly (should be a no-op diff).
+
+**Status**: Complete — `tsc`/lint clean; `web/src/lib/actions/metadata.ts` and
+`web/src/server/trpc/routers/external.ts` confirmed unchanged (zero diff); `cd mobile &&
+npm run lint` confirmed clean, `AppRouter` type-only import unaffected. Manual
+degrade/repaste verification still pending.
+
+**Depends on**: Stage 1 (shares the `Deadline` object).
+
+## Stage 3: JSON-LD + og:title cleaning
+
+**Goal**: New pure module `web/src/lib/title-clean.ts` exporting
+`cleanTitle(raw: string | null | undefined): string | null` — deliberately conservative
+(strip at most one trailing brand-shaped tail; never split on a bare unspaced `-`/`:`;
+never strip when the head is short or the tail is longer than the head). Applied at four
+points: once in `structuredDataFromJsonLd` (`structured-data.ts`, between `map(node)` and
+the usefulness check — covers all five mappers with one line), and in `fromPage`,
+`fetchLinkPreview`, and `fetchMicrolink` in `metadata.ts` (NOT `fetchYouTube` — oEmbed
+returns a video title, not an SEO-suffixed page title). Confirmed by Ryan: applies to both
+unfurl fallback paths, not just the JSON-LD path.
+
+**Success Criteria**: A recipe/how-to/event/product/place page's JSON-LD-derived title no
+longer carries a trailing `" | Site Name"`/`" - Home"` suffix. A generic page's title is
+cleaned consistently regardless of which of `fromPage`/`fetchLinkPreview`/`fetchMicrolink`
+happened to answer. `fromPlace`'s/`fromEvent`'s `location` field (built from the raw name)
+is deliberately left uncleaned — geocoding wants the fullest string.
+
+**Tests**: `web/scripts/verify-title-clean.ts` (new, `npx tsx scripts/verify-title-clean.ts`
+from `web/`, mirrors `verify-move-plan.ts`'s shape) — must cover both strip-correctly cases
+and the regression set (`"Tokyo-Drift"`, `"9:16 Aspect Ratio Explained"`, a short-head
+case, a tail-longer-than-head case, a sentence-punctuation-in-tail case, empty/null).
+Live check: a recipe URL and a restaurant URL, confirm the Name loses its site suffix and
+the JSON-LD detail sections still render.
+
+**Status**: Complete, including the second signal — fixture script now passes 52/52
+(46 fixtures, up from 31/24). **Resolved**: a second, non-length signal was added —
+`tail.length > head.length` can now be overridden ONLY when the tail's last word is a
+formal entity noun (association/foundation/institute/institution/society/university/
+museum/council/alliance/coalition/federation/conservancy, singular only) AND the tail
+reads as a proper-noun name (≤4 words, no article/determiner opener, every word
+capitalized or a connector). Measured against a 58-title labeled corpus before shipping:
+the entity-noun signal alone raised strip accuracy from 7/29 to 24/29 but newly destroyed
+13 content titles (e.g. "Our Old Buildings - Cracks in the Foundation"); paired with the
+name-shape check, it reaches the same 24/29 and newly destroys only 1 (a pre-existing
+"brand-in-the-head" ambiguity class, not introduced by this change — documented with a
+control case proving it predates the signal). A broader word list (Network/Trust/Group/
+Press/Media/Magazine/Blog/News/Times/Post/Journal/Inc/LLC/Co, as originally floated) was
+tested and rejected: 13/29 hits at the cost of 8 destroyed titles, net negative. `tsc`/
+lint/build all clean. Live recipe/restaurant-URL check still pending (code-complete, not
+yet run against real pages). Open offer from the implementer, not yet acted on: widening
+the test corpus with real `og:title` values pulled from live URLs rather than
+author-written fixtures, if Ryan wants the signal tuned further.
+
+**Follow-up fix (landed)**: a real bug surfaced during browser verification —
+`MIN_HEAD_LENGTH`'s guard returned the input completely unchanged, without even checking
+the tail, whenever the head was under 15 characters, so `"Ramen - Wikipedia"` (head
+"Ramen", 5 chars) never got cleaned despite "Wikipedia" being an unambiguous platform
+name. Fixed with a third, tightly-scoped signal: a 12-entry allowlist of coined-trademark
+platform names (wikipedia, youtube, reddit, facebook, instagram, pinterest, linkedin,
+tiktok, imdb, spotify, github, etsy) matched by exact equality against the WHOLE tail
+(never a substring — "Cats | Wikipedia Article Review Guidelines" must survive), with one
+optional TLD normalization (`.com`/`.org`/`.net`/`.tv`). Real spec conflict found and
+resolved: the original ask scoped this to override only the short-head guard, but a
+platform tail is *also* almost always longer than its head (true for 42% of the
+short-head range measured), so `"Ramen - Wikipedia"` couldn't fire without also waiving
+the tail-longer-than-head guard — the platform signal now waives both, justified because
+a closed-set exact-name match is stronger evidence than the short-head heuristic it's
+overriding; the three remaining guards (max length, max words, punctuation) still apply
+unchanged. Deliberately rejected from the allowlist, each with a constructed
+real-content-tail counterexample: Medium (a size — "T-Shirt | Medium"), Amazon (a river —
+"Macaws - Amazon"), Apple (a fruit — "Pie - Apple"), Twitter (a sound birds make, and
+X/Twitter titles use an unspaced separator this module never splits on anyway), plus X/
+Discord/Target/Yelp/Steam/Slack/Meta left off as ordinary words. Confirmed the new signal
+composes correctly and asymmetrically with the existing organization-name signal (a short
+head with a genuine org-name tail still does NOT strip — pinned by a dedicated fixture:
+`"Our Mission | Washington Trails Association"`). Measured against a labeled 40-title
+short-head corpus: 0/20 → 13/20 hits, 0 content titles destroyed. Fixture script grew
+from 52/46 to 78/73 checks/fixtures, all original 52 reverified passing, not just visually
+preserved. `tsc`/lint/build all clean; verified directly by reading both files and
+hand-tracing several fixtures against the actual code, not taken on the agent's word
+alone. Open question Ryan hasn't answered yet: whether to add Amazon despite the
+river/rainforest ambiguity, since "| Amazon.com" is a genuinely common real-world title
+format and the implementer flagged it as the one rejection with real missed-suffix cost.
+
+**Resolved**: Ryan's call was "go with what you think is best" — decided to add
+`"amazon.com"` (the literal, dotted domain string) as an exact-match entry, NOT bare
+`"amazon"`, since real product titles read like `"Wireless Mouse - Amazon.com"` and no
+legitimate content title ends in exactly that dotted string, while the bare word keeps
+its river/rainforest/parrot-genus ambiguity. Implementation needed a second mechanism,
+not just adding the string to the existing 12-entry set: the existing `PLATFORM_TAILS`
+set is checked only *after* stripping an optional TLD, so `"amazon.com"` would have been
+normalized to `"amazon"` before the lookup and have required the ambiguous bare word to
+be listed — exactly what this was trying to avoid. Added a second set,
+`EXACT_DOMAIN_TAILS = new Set(["amazon.com"])`, checked first and on the un-stripped
+string, so `"amazon.org"`/`"amazon.net"` can never match it. Verified by reading the
+diff and hand-tracing `"Wireless Mouse - Amazon.com"` (strips) and `"Macaws -
+Amazon.org"` (correctly left alone) directly against the code. Fixture script grew
+78/73 → 83/78, with the bare-`"Amazon"` regression (`"Macaws - Amazon"`) reconfirmed
+passing and two new adversarial TLD cases added. `tsc`/lint/build all clean. This closes
+the only open question from the prior pass — no outstanding decisions on this signal.
+
+**Depends on**: none directly, but sequenced after Stage 2 to avoid concurrent edits to
+`metadata.ts`.
+
+## Stage 4: Client-side timeout backstops (web + Chrome extension)
+
+**Goal**: Web calls `fetchLinkMetadata` as a plain server-action import with no `signal`
+param (unlike mobile's tRPC `.query(input, {signal})`), so this is a client
+**give-up-on-waiting, not a true cancel** — the server keeps running and still populates
+its caches. New `withTimeout<T>(p, ms, fallback)` helper in `web/src/lib/utils.ts`
+(resolves, never rejects, to `fallback`). Wire it into **both** `BookmarkForm.tsx` call
+sites (`autofill()` AND the one inside `handleLocationAutofill()` — easy to miss) and
+`QuickAddDialog.tsx`, at 10s. The raced promise, not the un-raced one, must be what
+`QuickAddDialog`'s `autofill.current` ref stores, or Save can still hang.
+
+For the Chrome extension: a *different*, worse gap — `send()` in
+`extension/src/shared/messages.ts` is a bare `chrome.runtime.sendMessage` with no
+cancellation primitive at all, and MV3 can kill the background service worker mid-flight,
+in which case the response never arrives and the popup's spinner never clears. Add
+`sendWithin<R>(request, ms, timeoutMessage)` next to `send()` (same `Promise.race`
+give-up pattern) and wire it into `App.tsx`'s `enrich()` at 12s (looser than web's 10s
+since the extension's form is non-blocking and nothing is gated on enrichment — confirmed
+by Ryan). If the real response arrives after the cap fires, discard it rather than
+retro-filling fields the user was just told failed.
+
+**Success Criteria**: Throttling the network and pasting a slow link clears the loading
+state at the cap with readable copy ("That's taking longer than expected...") rather than
+hanging indefinitely; the pasted URL/typed name is preserved either way. `QuickAddDialog`'s
+Save completes even when autofill never answers. The extension popup's hint clears at 12s
+and Save still works afterward.
+
+**Tests**: No test runner — manual, per the Success Criteria above, on both web (throttled
+network) and the unpacked extension dev build.
+
+**Status**: Complete (code) — web half: `tsc`/lint/`next build` clean, both
+`BookmarkForm.tsx` call sites confirmed wrapped and verified by direct read. Extension
+half: `tsc`/lint/`vite build` clean; manual browser verification not done (no
+browser-driving tool available to that agent) — the throttled-network/popup check from
+the Success Criteria above is still outstanding on both platforms. One pre-existing,
+distinct gap surfaced and deliberately left untouched (scope discipline, not an oversight):
+`enrich()` in the extension's `App.tsx` has no `try`/`catch` around the call, so a
+genuinely *rejected* `send()`/`sendWithin()` (a crashed worker or a torn-down popup, as
+opposed to one that never responds) is still an unhandled rejection that leaves the
+"Fetching the page's details…" hint stuck. `sendWithin` races but doesn't swallow a
+rejection, so this is no better and no worse than before.
+
+**Follow-up fix (landed)**: the rejection gap above is closed. `enrich()` now wraps its
+body in `try`/`catch`/`finally` — `setEnriching(true)` stays first (outside the try), the
+whole `sendWithin` call through the metadata-apply logic is the `try` body unchanged, a
+genuine rejection is caught and sets `enrichError` to `"something went wrong"` (matching
+the existing render template's tone), and `setEnriching(false)` now lives in `finally`
+exactly once instead of mid-function. Every exit path (success, both `!res.ok` branches,
+the `!res.data.ok` branch, and a rejection) traced and confirmed to reach it. `tsc`/lint/
+build clean. Also fixed in the same pass: a `'FormEvent' is deprecated` TypeScript
+warning (the type doesn't model a real DOM event in `@types/react` 19.3.0) — swapped to
+the non-deprecated `SubmitEvent<HTMLFormElement>` at the import and at `handleSave`'s
+signature; confirmed by grep that no `FormEvent` reference remains in `extension/src/`.
+Manual browser verification (actually killing the service worker mid-flight and watching
+the hint clear) still not done by anyone — no browser-driving tool available to either
+agent or to me.
+
+**Depends on**: Stage 2 (so the client cap is honest against the new 8s server budget,
+not the old 10s).
+
+## Stage 5: Instagram-specific comprehension (GATED — do not start)
+
+**Goal**: New pure module `web/src/lib/instagram.ts` (`isInstagramUrl`,
+`parseInstagramMeta`, `firstSentence`, etc.) parsing Instagram's
+`"[#] likes, [#] comments - [handle] on [date]: [caption]"` `og:description` format. The
+extraction cache splits into a `baseExtraction` (raw unfurl) and `normalizeExtraction`
+(deterministic Instagram cleanup on the way out of `getLinkExtraction`), so
+`comprehendText` can still read the raw string to parse while the deterministic fast path
+is also correct. A new `comprehendInstagram()` branch routes the hashtag-stripped caption
+to the previously-dormant `comprehendCaption()` (confirmed zero live callers anywhere in
+the repo) and wraps its output through `assembleDescription(desc, [])` to match every
+other link's "Link Summary:" shape. `og:title` is read only as a handle source, never as
+any part of the Name, once a caption parses.
+
+**Status**: Not Started (still gated) — **Stage 0 (diagnostic data capture) 4/~10 samples
+in.** No permanent code written yet; `instagram.ts` still doesn't exist and `metadata.ts`'s
+Instagram handling is untouched. Ryan is supplying real sample URLs incrementally rather
+than the full spread at once — proceeding per-batch rather than blocking for the complete
+set. All four captures done via disposable, non-committed scripts replicating
+`fetchMicrolink`'s/`fetchLinkPreview`'s exact requests against the real APIs directly
+(not through our own `server-only`-guarded code, no repo changes left behind).
+
+**Format CONFIRMED** (matches the secondhand description) across all 4 samples — Microlink's
+`description` is always exactly: `<likes> likes, <comments> comments - <handle> on
+<Month D, YYYY>: "<caption>".` (curly quotes U+201C/U+201D, trailing period *after* the
+closing quote, ASCII hyphen separator, counts freely mixing abbreviated (`52K`) and
+comma-grouped (`7,410`) forms). Microlink's `title` is always `<display name> (<@handle>) •
+Instagram reel` — and the display name itself routinely contains its own `|`
+(`"Joseph Munoz Ph.D. | Fitness Coach and Educator"`), which any Instagram-specific parser
+must not confuse with the brand-suffix separator. `cleanTitle()` (Stage 3) already strips
+the `• Instagram reel` tail on every sample, but what's left is still pure account
+attribution, never post content — confirmed by tracing, not assumed.
+
+**New findings, not anticipated in the original plan**:
+1. Microlink is genuinely intermittent on Instagram (`EPROXYNEEDED` antibot block, free
+   tier) — failed on first attempt for 1 of 4 samples, succeeded on retry.
+2. When Microlink fails over to LinkPreview, LinkPreview can return a **false-positive
+   success**: HTTP 200 with `title: "Instagram"` / `description: "Private media"` / a
+   generic favicon — and today's `fetchLinkPreview` success guard doesn't catch this as a
+   failure. A real, separate bug worth a line item of its own, independent of the
+   Instagram-caption parsing work.
+3. `data.date` is returned by Microlink on every sample but currently discarded by
+   `fetchMicrolink` — the same date is being redundantly re-parsed out of the description's
+   noisy prefix when it's already available structured.
+4. `data.video` is `null` on every sample despite `&video=true` in the request.
+5. The stored `sourceUrl` differs from what the user pasted: Microlink canonicalizes the
+   URL (drops tracking params, injects the username into the path) on success; LinkPreview
+   does not.
+6. Long captions (sample 4) contain literal embedded newlines (recipe steps/bullet lists),
+   not single-line text; LinkPreview truncates long descriptions at ~400 chars with a
+   literal `...`, losing content Microlink's fuller description retains.
+
+**Samples captured**: reels `DeGC80pC82E`, `Des3c52hloB`, `Dcs7vZ8DRpl`, `DezbXYRNIcQ` — all
+four are Reels. **Still not seen**: a static (non-Reel) post, a carousel, a
+location-tagged post, a captionless post, a login-walled/private post. Full raw strings
+for all four recorded in `10 - Klect/Klect Manager.md`'s Decision Log and in this
+conversation's history with `klect-manager`, not duplicated here.
+
+---
+
+Delete this section once Stages 1-5 above are all verified complete (leave the
+Monetization plan below alone — its own Stage 8 QA is still open and unrelated to this
+work).
+
+---
+
 # Klect Monetization: Implementation Plan
 
 Freemium build. Free tier is capped at **3 owned lists** and **20 bookmarks** across

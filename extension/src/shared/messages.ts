@@ -62,3 +62,38 @@ export type ResponseFor<R extends Request> = R extends { type: "auth/status" }
 export async function send<R extends Request>(request: R): Promise<ResponseFor<R>> {
   return (await chrome.runtime.sendMessage(request)) as ResponseFor<R>;
 }
+
+/**
+ * Same as `send()`, but gives up waiting after `ms` and resolves to a failure response
+ * instead of hanging.
+ *
+ * This is **not** a true cancel: `chrome.runtime.sendMessage` takes no `AbortSignal` and
+ * the worker's `sendResponse` channel has no withdraw hook, so if the worker is still
+ * alive and working, the real request keeps running after this resolves (any state it was
+ * going to set, like a server-side cache, still gets set). The case this genuinely
+ * protects against is MV3 killing the background worker mid-flight: `sendResponse` then
+ * never fires, `send()` alone hangs forever with no recovery, and the popup's spinner can
+ * never clear. This at least releases the UI.
+ *
+ * A late real response is discarded, not applied. `Promise.race` simply never hands the
+ * loser's value to the caller, which is what we want here: nothing should retro-fill
+ * fields the user was already told had failed to load.
+ */
+export async function sendWithin<R extends Request>(
+  request: R,
+  ms: number,
+  timeoutMessage: string,
+): Promise<ResponseFor<R>> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const timeout = new Promise<ResponseFor<R>>((resolve) => {
+    timer = setTimeout(() => {
+      // `Failure` is an arm of every `ResponseFor<R>` union (`Result<T>` is
+      // `{ ok: true; data: T } | Failure`), but TypeScript cannot prove that while `R` is
+      // still generic and the conditional type is unresolved. The cast is sound given
+      // that invariant; it is written through `Failure` so the literal is still checked.
+      const failure: Failure = { ok: false, error: timeoutMessage };
+      resolve(failure as ResponseFor<R>);
+    }, ms);
+  });
+  return Promise.race([send(request), timeout]).finally(() => clearTimeout(timer));
+}

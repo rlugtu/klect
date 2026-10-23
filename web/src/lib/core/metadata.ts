@@ -4,6 +4,7 @@ import { comprehendMetadata, assembleDescription } from "@/lib/core/comprehend";
 import { fetchPage, type PageData } from "@/lib/core/page-text";
 import { structuredDataFromJsonLd } from "@/lib/core/structured-data";
 import { cached } from "@/lib/core/cache";
+import { cleanTitle } from "@/lib/title-clean";
 import { searchPlaces, retrievePlace } from "@/lib/core/places";
 
 /**
@@ -14,15 +15,22 @@ import { searchPlaces, retrievePlace } from "@/lib/core/places";
  *     when the self-fetch is blocked/empty; YouTube uses its own oEmbed. No LLM. Fast.
  *   - {@link getLinkComprehension}: from the same (cached) fetch, take a JSON-LD fast
  *     path when structured data is present (no LLM), else run Claude on the readable
- *     text (YouTube: the video description). Then geocode the location. Slow.
+ *     text (YouTube: the video description). Slow. Geocoding the location it inferred
+ *     is a SEPARATE, separately-cached, separately-bounded tail step, so a slow Mapbox
+ *     call degrades to "location string, no pin" instead of discarding the whole
+ *     comprehension result.
  *
  * Both are cached + coalesced by URL (see cache.ts), which is what makes running them
  * at once safe: comprehension's own internal extraction call joins the SAME in-flight
  * promise as a parallel extraction call, so it stays one page fetch and one unfurl,
  * not two. {@link fetchLinkMetadata} is the path the clients take — it starts both
- * together and bounds comprehension with {@link COMPREHENSION_TIMEOUT_MS}, so latency
- * is max(extraction, comprehension) and the form fills once instead of filling and
- * then visibly changing again a moment later.
+ * together against ONE {@link Deadline} ({@link UNFURL_BUDGET_MS}), so latency is
+ * max(extraction, comprehension) bounded by that budget, and the form fills once
+ * instead of filling and then visibly changing again a moment later.
+ *
+ * Every upstream fetcher here takes that same `Deadline` and asks it for
+ * `slice(deadline, ownTimeout)`, so adding a hop can never extend the whole operation
+ * past the budget — independent per-call timeouts would stack instead of bound.
  */
 
 export type LinkMetadata = {
@@ -63,12 +71,74 @@ const EMPTY_COMPREHENSION: LinkComprehension = {
   longitude: null,
 };
 
+/**
+ * Comprehension before coordinates: everything the JSON-LD fast path or the LLM can
+ * produce on its own. Split out from {@link LinkComprehension} so the expensive,
+ * flaky geocode is a tail step that can fail without taking the rest down with it.
+ */
+type ComprehensionText = {
+  title: string | null;
+  description: string | null;
+  tags: string[];
+  location: string | null;
+};
+
+const EMPTY_TEXT: ComprehensionText = {
+  title: null,
+  description: null,
+  tags: [],
+  location: null,
+};
+
 const CACHE_TTL_MS = 15 * 60 * 1000; // 15 min
 
-// How long {@link fetchLinkMetadata} waits on comprehension before answering with
-// extraction only. Sized to cover the JSON-LD fast path and a normal Haiku call plus
-// geocode, and to cut off the tail rather than make the user watch it.
-const COMPREHENSION_TIMEOUT_MS = 10_000;
+// One budget for the whole unfurl, created once per call in {@link fetchLinkMetadata}.
+// Sized to cover the JSON-LD fast path and a normal Haiku call plus geocode, and to cut
+// off the tail rather than make the user watch it.
+const UNFURL_BUDGET_MS = 8_000;
+const YOUTUBE_TIMEOUT_MS = 4_000;
+const UNFURL_API_TIMEOUT_MS = 6_000; // LinkPreview / Microlink
+const GEOCODE_TIMEOUT_MS = 3_000;
+// Coordinates for a given location string don't move, so they outlive the page cache.
+const GEOCODE_CACHE_TTL_MS = 60 * 60 * 1000; // 1 hour
+
+/**
+ * A wall-clock instant shared by every fetcher in one unfurl. Each asks for
+ * `slice(deadline, ownTimeout)` and gets whichever is smaller, so the per-call timeouts
+ * bound the operation rather than stacking on the user.
+ */
+type Deadline = { at: number };
+
+function deadlineIn(ms: number): Deadline {
+  return { at: Date.now() + ms };
+}
+
+function msLeft(d: Deadline): number {
+  return Math.max(0, d.at - Date.now());
+}
+
+function slice(d: Deadline, own: number): number {
+  return Math.min(own, msLeft(d));
+}
+
+/**
+ * `fetch` with an AbortController timeout. Throws on abort or network error by design:
+ * every caller here already wraps its fetch in a try/catch that turns a throw into
+ * `{ ok: false, error }`, so no caller needs a new branch for the timeout case.
+ */
+async function timedFetch(
+  endpoint: string,
+  init: RequestInit,
+  timeoutMs: number,
+): Promise<Response> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    return await fetch(endpoint, { ...init, signal: controller.signal });
+  } finally {
+    clearTimeout(timer);
+  }
+}
 
 function normalizeUrl(raw: string): string {
   const trimmed = raw.trim();
@@ -113,16 +183,22 @@ function isSocialVideo(value: string): boolean {
 }
 
 /** Cached single page fetch, shared between extraction and comprehension. */
-function cachedFetchPage(url: string): Promise<PageData | null> {
-  return cached(`page:${url}`, CACHE_TTL_MS, () => fetchPage(url));
+function cachedFetchPage(url: string, deadline: Deadline): Promise<PageData | null> {
+  return cached(`page:${url}`, CACHE_TTL_MS, () =>
+    fetchPage(url, { budgetMs: msLeft(deadline) }),
+  );
 }
 
 /** YouTube's own oEmbed — fast, reliable, and not rate-limited like Microlink. */
-async function fetchYouTube(url: string): Promise<MetadataResult> {
+async function fetchYouTube(url: string, deadline: Deadline): Promise<MetadataResult> {
+  if (msLeft(deadline) <= 0) {
+    return { ok: false, error: "Link preview timed out.", sourceUrl: url };
+  }
   try {
-    const res = await fetch(
+    const res = await timedFetch(
       `https://www.youtube.com/oembed?url=${encodeURIComponent(url)}&format=json`,
       { headers: { accept: "application/json" }, cache: "no-store" },
+      slice(deadline, YOUTUBE_TIMEOUT_MS),
     );
     if (!res.ok) {
       return { ok: false, error: `YouTube oEmbed returned ${res.status}.`, sourceUrl: url };
@@ -153,7 +229,11 @@ async function fetchYouTube(url: string): Promise<MetadataResult> {
  * LINKPREVIEW_API_KEY; when unset the caller falls back to Microlink. LinkPreview
  * fetches the target server-side, avoiding SSRF.
  */
-async function fetchLinkPreview(url: string): Promise<MetadataResult> {
+async function fetchLinkPreview(url: string, deadline: Deadline): Promise<MetadataResult> {
+  if (msLeft(deadline) <= 0) {
+    return { ok: false, error: "Link preview timed out.", sourceUrl: url };
+  }
+
   const key = process.env.LINKPREVIEW_API_KEY;
   if (!key) {
     return {
@@ -164,10 +244,14 @@ async function fetchLinkPreview(url: string): Promise<MetadataResult> {
   }
 
   try {
-    const res = await fetch(`https://api.linkpreview.net/?q=${encodeURIComponent(url)}`, {
-      headers: { accept: "application/json", "X-Linkpreview-Api-Key": key },
-      cache: "no-store",
-    });
+    const res = await timedFetch(
+      `https://api.linkpreview.net/?q=${encodeURIComponent(url)}`,
+      {
+        headers: { accept: "application/json", "X-Linkpreview-Api-Key": key },
+        cache: "no-store",
+      },
+      slice(deadline, UNFURL_API_TIMEOUT_MS),
+    );
 
     if (!res.ok) {
       return {
@@ -202,7 +286,7 @@ async function fetchLinkPreview(url: string): Promise<MetadataResult> {
     }
 
     return { ok: true, data: baseData(json.url ?? url, {
-      title: json.title ?? null,
+      title: cleanTitle(json.title ?? null),
       description: json.description ?? null,
       images: json.image ? [json.image] : [],
     }) };
@@ -216,15 +300,20 @@ async function fetchLinkPreview(url: string): Promise<MetadataResult> {
 }
 
 /** Fallback generic unfurl via Microlink (Microlink fetches the target, avoiding SSRF). */
-async function fetchMicrolink(url: string): Promise<MetadataResult> {
+async function fetchMicrolink(url: string, deadline: Deadline): Promise<MetadataResult> {
+  if (msLeft(deadline) <= 0) {
+    return { ok: false, error: "Link preview timed out.", sourceUrl: url };
+  }
+
   try {
     const endpoint = `https://api.microlink.io/?url=${encodeURIComponent(
       url,
     )}&audio=false&video=true`;
-    const res = await fetch(endpoint, {
-      headers: { accept: "application/json" },
-      cache: "no-store",
-    });
+    const res = await timedFetch(
+      endpoint,
+      { headers: { accept: "application/json" }, cache: "no-store" },
+      slice(deadline, UNFURL_API_TIMEOUT_MS),
+    );
 
     if (!res.ok) {
       return {
@@ -261,7 +350,7 @@ async function fetchMicrolink(url: string): Promise<MetadataResult> {
 
     const d = json.data;
     return { ok: true, data: baseData(d.url ?? url, {
-      title: d.title ?? null,
+      title: cleanTitle(d.title ?? null),
       description: d.description ?? null,
       images: d.image?.url ? [d.image.url] : [],
       author: d.author ?? null,
@@ -298,7 +387,7 @@ function baseData(sourceUrl: string, over: Partial<LinkMetadata>): LinkMetadata 
 /** Extraction from our own single page fetch — the primary path for generic URLs. */
 function fromPage(page: PageData, url: string): MetadataResult {
   return { ok: true, data: baseData(page.finalUrl || url, {
-    title: page.ogTitle,
+    title: cleanTitle(page.ogTitle),
     description: page.ogDescription,
     // K excluded: keep the single-image behavior the UI expects.
     images: page.ogImages.slice(0, 1),
@@ -307,43 +396,69 @@ function fromPage(page: PageData, url: string): MetadataResult {
 }
 
 /** Extraction only: OG/meta via self-fetch or an unfurler. Cached + coalesced by URL. No LLM. */
-export async function getLinkExtraction(rawUrl: string): Promise<MetadataResult> {
+export async function getLinkExtraction(
+  rawUrl: string,
+  deadline?: Deadline,
+): Promise<MetadataResult> {
   const url = normalizeUrl(rawUrl);
   if (!isHttpUrl(url)) return { ok: false, error: "Enter a valid http(s) URL.", sourceUrl: rawUrl };
-  return cached(`extract:${url}`, CACHE_TTL_MS, () => extract(url));
+  const d = deadline ?? deadlineIn(UNFURL_BUDGET_MS);
+  return cached(`extract:${url}`, CACHE_TTL_MS, () => extract(url, d));
 }
 
-async function extract(url: string): Promise<MetadataResult> {
+async function extract(url: string, deadline: Deadline): Promise<MetadataResult> {
   console.log(`[link-metadata] extracting: ${url}`);
 
   if (isYouTube(url)) {
-    const result = await fetchYouTube(url);
+    const result = await fetchYouTube(url, deadline);
     if (result.ok) return result;
     console.warn(`[link-metadata] youtube oembed failed, trying microlink: ${result.error}`);
-    return fetchMicrolink(url);
+    return fetchMicrolink(url, deadline);
   }
 
   if (isSocialVideo(url)) {
     // Social reels: Microlink surfaces the caption better than LinkPreview; skip
     // the self-fetch (login-walled). LinkPreview fallback.
-    const result = await fetchMicrolink(url);
+    const result = await fetchMicrolink(url, deadline);
     if (result.ok) return result;
     console.warn(`[link-metadata] microlink failed, trying linkpreview: ${result.error}`);
-    return fetchLinkPreview(url);
+    return fetchLinkPreview(url, deadline);
   }
 
   // Generic: our own fetch first (also warms the page cache for comprehension).
-  const page = await cachedFetchPage(url);
+  const page = await cachedFetchPage(url, deadline);
   if (page && (page.ogTitle || page.ogDescription || page.ogImages.length)) {
     return fromPage(page, url);
   }
 
   // Self-fetch blocked/empty (JS-only shell, non-HTML, private host) → paid unfurlers.
   console.warn(`[link-metadata] self-fetch thin/blocked, trying linkpreview: ${url}`);
-  const lp = await fetchLinkPreview(url);
+  const lp = await fetchLinkPreview(url, deadline);
   if (lp.ok) return lp;
   console.warn(`[link-metadata] linkpreview failed, trying microlink: ${lp.error}`);
-  return fetchMicrolink(url);
+  return fetchMicrolink(url, deadline);
+}
+
+/**
+ * Bound `p` by `ms` without cancelling it: on timeout this resolves to `fallback` while
+ * the real work keeps running. That is the point, not a leak — the underlying call is
+ * wrapped in `cached()`, so the result it eventually produces still lands in the cache
+ * and the next paste of the same URL gets it for free.
+ *
+ * Callers must therefore pass the ALREADY-STARTED promise (`withBudget(cached(...), …)`),
+ * never a thunk this would invoke, or the work dies with the race and nothing is warmed.
+ */
+function withBudget<T>(p: Promise<T>, ms: number, fallback: T, onTimeout: () => void): Promise<T> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const budget = new Promise<T>((resolve) => {
+    timer = setTimeout(() => {
+      onTimeout();
+      resolve(fallback);
+    }, ms);
+  });
+  return Promise.race([p, budget])
+    .catch(() => fallback)
+    .finally(() => clearTimeout(timer));
 }
 
 /** searchPlaces → retrievePlace to resolve an inferred location string to coords. */
@@ -364,28 +479,54 @@ async function geocodeLocation(
   }
 }
 
-/** Comprehension (JSON-LD fast path or LLM) + geocode. Cached by URL. */
-export async function getLinkComprehension(rawUrl: string): Promise<LinkComprehension> {
-  const url = normalizeUrl(rawUrl);
-  if (!isHttpUrl(url)) return EMPTY_COMPREHENSION;
-  return cached(`comprehend:${url}`, CACHE_TTL_MS, () => comprehend(url));
+/**
+ * Geocoding keyed by the location STRING, not the URL, and on its own longer TTL: two
+ * different links about the same restaurant resolve one Mapbox pair, and a degraded
+ * answer that lost the race still warms this for the retry.
+ */
+function cachedGeocode(location: string): Promise<{ lat: number; lon: number } | null> {
+  return cached(`geo:${location.trim().toLowerCase()}`, GEOCODE_CACHE_TTL_MS, () =>
+    geocodeLocation(location),
+  );
 }
 
-async function comprehend(url: string): Promise<LinkComprehension> {
-  const extraction = await getLinkExtraction(url);
-  if (!extraction.ok) return EMPTY_COMPREHENSION;
+/** The text half of comprehension, cached by URL. The single owner of this cache key. */
+function cachedComprehendText(url: string, deadline: Deadline): Promise<ComprehensionText> {
+  return cached(`comprehend:${url}`, CACHE_TTL_MS, () => comprehendText(url, deadline));
+}
+
+/** Comprehension (JSON-LD fast path or LLM) + geocode. Both halves cached. */
+export async function getLinkComprehension(
+  rawUrl: string,
+  deadline?: Deadline,
+): Promise<LinkComprehension> {
+  const url = normalizeUrl(rawUrl);
+  if (!isHttpUrl(url)) return EMPTY_COMPREHENSION;
+  const d = deadline ?? deadlineIn(UNFURL_BUDGET_MS);
+  const text = await cachedComprehendText(url, d);
+  const coords = text.location ? await cachedGeocode(text.location) : null;
+  return { ...text, latitude: coords?.lat ?? null, longitude: coords?.lon ?? null };
+}
+
+/**
+ * Comprehension's text-only step: title/description/tags and the location STRING, no
+ * coordinates. Resolving that string to a pin is {@link cachedGeocode}'s job, run by
+ * the two callers above as a separate step.
+ */
+async function comprehendText(url: string, deadline: Deadline): Promise<ComprehensionText> {
+  const extraction = await getLinkExtraction(url, deadline);
+  if (!extraction.ok) return EMPTY_TEXT;
   const data = extraction.data;
 
   // Social is Microlink-only (login-walled) — no useful self-fetch. Everything
   // else (incl. YouTube now) fetches the page once (cached, shared with extraction).
-  const page = isSocialVideo(url) ? null : await cachedFetchPage(url);
+  const page = isSocialVideo(url) ? null : await cachedFetchPage(url, deadline);
 
   // F/I — JSON-LD fast path: deterministic, no LLM. Only when it yields real
   // detail sections (else the LLM does a better job on prose pages).
   const structured = page ? structuredDataFromJsonLd(page.jsonLd) : null;
   if (structured && structured.details.length) {
     const description = assembleDescription(structured.description ?? "", structured.details);
-    const coords = await geocodeLocation(structured.location);
     console.log(`[comprehend] json-ld fast path for ${url}:`, {
       name: structured.name,
       location: structured.location,
@@ -396,13 +537,11 @@ async function comprehend(url: string): Promise<LinkComprehension> {
       description: description || null,
       tags: [],
       location: structured.location || null,
-      latitude: coords?.lat ?? null,
-      longitude: coords?.lon ?? null,
     };
   }
 
   // No structured data + no LLM key → nothing to add.
-  if (!process.env.ANTHROPIC_API_KEY) return EMPTY_COMPREHENSION;
+  if (!process.env.ANTHROPIC_API_KEY) return EMPTY_TEXT;
 
   // H — YouTube: feed the video description; generic: the readable text.
   const pageText = isYouTube(url) ? (page?.ogDescription ?? null) : (page?.readableText ?? null);
@@ -415,50 +554,59 @@ async function comprehend(url: string): Promise<LinkComprehension> {
     author: data.author,
     pageText,
   });
-  if (!refined) return EMPTY_COMPREHENSION;
+  if (!refined) return EMPTY_TEXT;
 
-  const location = refined.location || null;
-  const coords = await geocodeLocation(location);
   return {
     title: refined.title || null,
     description: refined.description || null,
     tags: refined.tags.slice(0, 3),
-    location,
-    latitude: coords?.lat ?? null,
-    longitude: coords?.lon ?? null,
+    location: refined.location || null,
   };
 }
 
 /**
- * Comprehension bounded by {@link COMPREHENSION_TIMEOUT_MS}: resolves to
- * EMPTY_COMPREHENSION if the budget runs out, which reads to the caller the same as
- * "comprehension had nothing to add". The underlying call is NOT cancelled — it keeps
- * running and populates the cache, so a retry or the next paste of the same URL gets
- * the full result for free (best-effort: a serverless instance may be frozen first).
+ * Comprehension as TWO separately-bounded steps drawing from the same {@link Deadline}:
+ * the text step gets whatever is left of the unfurl budget, then geocoding gets
+ * `min(GEOCODE_TIMEOUT_MS, what's left)`. Losing either race degrades instead of
+ * failing — a blown text budget reads to the caller as "comprehension had nothing to
+ * add", and a blown geocode budget still returns title/description/tags and the
+ * location string with no pin, where one shared budget would have thrown all of it away.
  *
- * The `.catch()` is belt-and-braces. Comprehension swallows its own errors today, but
- * a reject here must still degrade to extraction-only rather than fail the unfurl.
+ * Neither underlying call is cancelled: both keep running inside `cached()`, so a
+ * retry or the next paste of the same URL gets the full result for free (best-effort —
+ * a serverless instance may be frozen first).
  *
  * The budget is measured from the start of the unfurl, not from when extraction lands.
  * Comprehension awaits extraction internally, so a slow page eats into it on purpose:
- * it keeps the whole operation bounded by max(extraction, COMPREHENSION_TIMEOUT_MS)
- * instead of letting a slow page and a slow LLM stack up on the user.
+ * it keeps the whole operation bounded by {@link UNFURL_BUDGET_MS} instead of letting a
+ * slow page and a slow LLM stack up on the user.
  */
-function comprehensionWithinBudget(rawUrl: string): Promise<LinkComprehension> {
-  let timer: ReturnType<typeof setTimeout> | undefined;
-  const budget = new Promise<LinkComprehension>((resolve) => {
-    timer = setTimeout(() => {
+async function comprehensionWithinBudget(
+  rawUrl: string,
+  deadline: Deadline,
+): Promise<LinkComprehension> {
+  const url = normalizeUrl(rawUrl);
+  const text = await withBudget(
+    cachedComprehendText(url, deadline),
+    msLeft(deadline),
+    EMPTY_TEXT,
+    () =>
       console.warn(
-        `[link-metadata] comprehension exceeded ${COMPREHENSION_TIMEOUT_MS}ms, ` +
+        `[link-metadata] comprehension text step exceeded budget, ` +
           `answering with extraction only: ${rawUrl}`,
-      );
-      resolve(EMPTY_COMPREHENSION);
-    }, COMPREHENSION_TIMEOUT_MS);
-  });
+      ),
+  );
 
-  return Promise.race([getLinkComprehension(rawUrl), budget])
-    .catch(() => EMPTY_COMPREHENSION)
-    .finally(() => clearTimeout(timer));
+  const location = text.location;
+  if (!location) return { ...text, latitude: null, longitude: null };
+
+  const coords = await withBudget(
+    cachedGeocode(location),
+    slice(deadline, GEOCODE_TIMEOUT_MS),
+    null,
+    () => console.warn(`[link-metadata] geocode exceeded budget: ${location}`),
+  );
+  return { ...text, latitude: coords?.lat ?? null, longitude: coords?.lon ?? null };
 }
 
 /**
@@ -474,9 +622,13 @@ function comprehensionWithinBudget(rawUrl: string): Promise<LinkComprehension> {
  * comprehension produces is discarded — a clear error shouldn't wait on a slow LLM.
  */
 export async function fetchLinkMetadata(rawUrl: string): Promise<MetadataResult> {
-  const comprehension = comprehensionWithinBudget(rawUrl);
+  // ONE deadline for both halves. They must share the same object, or `cached()`'s
+  // in-flight coalescing stops collapsing the two extraction calls into one page
+  // fetch and one unfurl.
+  const deadline = deadlineIn(UNFURL_BUDGET_MS);
+  const comprehension = comprehensionWithinBudget(rawUrl, deadline);
 
-  const extraction = await getLinkExtraction(rawUrl);
+  const extraction = await getLinkExtraction(rawUrl, deadline);
   if (!extraction.ok) {
     console.warn(`[link-metadata] result for ${rawUrl}:`, { ok: false, error: extraction.error });
     return extraction;

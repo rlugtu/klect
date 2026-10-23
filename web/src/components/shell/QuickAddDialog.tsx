@@ -22,6 +22,14 @@ import { readPref, writePref } from "@/lib/client-prefs";
 import { listIdFromPath, type PaletteList } from "@/lib/commands";
 import { showFreeLimitToast, upgradeHref } from "@/lib/free-limit";
 import { toast } from "@/lib/toast";
+import { withTimeout } from "@/lib/utils";
+
+/**
+ * Client-side backstop on autofill. Save awaits `autofill.current`, so without a cap a
+ * stalled unfurl would hang Save itself — which is why the RACED promise (not the inner
+ * one) is what gets stored in the ref.
+ */
+const AUTOFILL_CAP_MS = 10_000;
 
 /** Where the last quick add went, per viewer (this browser only). */
 export const quickAddListKey = (userId: string) => `klect:quick-add-list:${userId}`;
@@ -55,7 +63,8 @@ type Props = {
  * `fetchLinkMetadata` call the full form makes, started on open; Save is the
  * same `createBookmark` server action a list's "New bookmark" uses (role,
  * lock and free-cap checks all happen there). Saving before autofill finishes
- * waits for it, so the bookmark gets the details either way.
+ * waits for it, so the bookmark gets the details either way — bounded by
+ * {@link AUTOFILL_CAP_MS}, so a stalled unfurl can't hang Save.
  *
  * The picker offers lists the viewer can add to (collaborator or owner, not
  * locked) and defaults to the current list when on one, else the last list
@@ -128,8 +137,12 @@ function QuickAddBody({ url, userId, pathname, lists: listsPromise, onClose }: P
   // Autofill once, on open. The promise is kept so Save can wait for it.
   useEffect(() => {
     let live = true;
-    const p = fetchLinkMetadata(url).catch(
-      (): MetadataResult => ({ ok: false, error: "Couldn't read that page.", sourceUrl: url }),
+    const p = withTimeout(
+      fetchLinkMetadata(url).catch(
+        (): MetadataResult => ({ ok: false, error: "Couldn't read that page.", sourceUrl: url }),
+      ),
+      AUTOFILL_CAP_MS,
+      { ok: false as const, error: "Couldn't read that page in time.", sourceUrl: url },
     );
     autofill.current = p;
     void p.then((r) => {

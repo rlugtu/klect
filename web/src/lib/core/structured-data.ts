@@ -1,4 +1,5 @@
 import "server-only";
+import { cleanTitle } from "@/lib/title-clean";
 
 /**
  * Map schema.org JSON-LD (parsed from a page's `application/ld+json` blocks) into
@@ -281,6 +282,10 @@ export function structuredDataFromJsonLd(jsonLd: unknown[]): StructuredData | nu
     const node = nodes.find((n) => match(typesOf(n)));
     if (!node) continue;
     const data = map(node);
+    // One line covers all five mappers. `data.location` is deliberately NOT cleaned:
+    // fromPlace/fromEvent build it from the RAW name plus the address, and geocoding
+    // wants the fullest string it can get.
+    data.name = cleanTitle(data.name);
     if (data.name || data.description || data.details.length) return data;
   }
   return null;

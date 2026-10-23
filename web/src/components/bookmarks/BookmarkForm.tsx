@@ -11,8 +11,17 @@ import { VisitedField } from "./VisitedField";
 import { TagInput } from "./TagInput";
 import { LocationInput } from "./LocationInput";
 import { fetchLinkMetadata } from "@/lib/actions/metadata";
+import { withTimeout } from "@/lib/utils";
 import type { RetrievedPlace } from "@/lib/actions/places";
 import { BookmarkThumb } from "./BookmarkThumb";
+
+/**
+ * Client-side backstop on autofill. Looser than the server's own 8s unfurl budget so a
+ * normal slow-but-working unfurl is never cut off here; this only exists so a stalled
+ * request can't leave the form spinning forever. See `withTimeout` — the server keeps
+ * going, so a retry usually lands instantly off the warm cache.
+ */
+const AUTOFILL_CAP_MS = 10_000;
 
 export type BookmarkDefaults = {
   name: string;
@@ -97,7 +106,11 @@ export function BookmarkForm({
     setLoading(true);
     setError(null);
 
-    const result = await fetchLinkMetadata(target);
+    const result = await withTimeout(fetchLinkMetadata(target), AUTOFILL_CAP_MS, {
+      ok: false as const,
+      error: "That's taking longer than expected.",
+      sourceUrl: target,
+    });
     setLoading(false);
     console.log("[autofill] link:", target, "→", result);
 
@@ -150,7 +163,11 @@ export function BookmarkForm({
     if (!place.website) return;
 
     setLoading(true);
-    const result = await fetchLinkMetadata(place.website);
+    const result = await withTimeout(fetchLinkMetadata(place.website), AUTOFILL_CAP_MS, {
+      ok: false as const,
+      error: "That's taking longer than expected.",
+      sourceUrl: place.website,
+    });
     setLoading(false);
     if (!result.ok) return; // keep the basics set above
 

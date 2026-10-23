@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
+import { useCallback, useEffect, useRef, useState, type SubmitEvent } from "react";
 
 import {
   EMPTY_BOOKMARK,
@@ -7,7 +7,7 @@ import {
 } from "@/shared/api-types";
 import { API_LABEL, SIGN_IN_URL, isSaveableUrl } from "@/shared/env";
 import { capHitMessage, type FreeLimit } from "@/shared/free-limit";
-import { send } from "@/shared/messages";
+import { send, sendWithin } from "@/shared/messages";
 import { ListPicker } from "./ListPicker";
 import { RatingInput } from "./RatingInput";
 import { TagInput } from "./TagInput";
@@ -51,6 +51,15 @@ const NO_ENRICHMENT: Enrichment = {
   latitude: null,
   longitude: null,
 };
+
+/**
+ * How long the popup waits on `metadata/fetch` before it stops waiting and clears the
+ * hint. Looser than web's 10s cap on purpose: this form is usable the moment it paints and
+ * nothing is gated on enrichment finishing, so there is no blocking overlay to rescue,
+ * only a hint to retire. The server's own unfurl budget is the real bound; this exists for
+ * the case where MV3 kills the worker mid-flight and no response is ever coming.
+ */
+const ENRICH_CAP_MS = 12_000;
 
 /**
  * The save-the-current-page popup.
@@ -108,34 +117,53 @@ export function App() {
 
   const enrich = useCallback(async (url: string) => {
     setEnriching(true);
-    const res = await send({ type: "metadata/fetch", url });
-    setEnriching(false);
-    if (!res.ok) {
-      if (res.signedOut) setBoot({ kind: "signedOut" });
-      else setEnrichError(res.error);
-      return;
+    try {
+      // Capped rather than awaited outright: a killed MV3 worker never answers, and an
+      // uncapped await would leave the hint spinning for the life of the popup. A response
+      // that arrives after the cap is dropped, never applied (see `sendWithin`).
+      const res = await sendWithin(
+        { type: "metadata/fetch", url },
+        ENRICH_CAP_MS,
+        "it took too long",
+      );
+      if (!res.ok) {
+        if (res.signedOut) setBoot({ kind: "signedOut" });
+        else setEnrichError(res.error);
+        return;
+      }
+      // `metadata.fetch` answers with its own ok/error envelope — an unfurl that failed is a
+      // normal outcome (a login wall, a dead link), not a transport failure.
+      if (!res.data.ok) {
+        setEnrichError(res.data.error);
+        return;
+      }
+      const meta = res.data.data;
+      // Fill only what the user hasn't touched — this lands after the form is live.
+      if (meta.title && !nameDirty.current) setName(meta.title);
+      if (meta.description && !descDirty.current) setDescription(meta.description);
+      // Suggested tags fill the chip list only while it's still untouched. Mobile's rule for
+      // the same field: "Tags fill only when still empty, never overwrite what's there".
+      if (meta.tags.length > 0 && !tagsDirty.current) setTags(meta.tags);
+      setEnrichment({
+        images: meta.images,
+        videoUrl: meta.video?.url ?? "",
+        videoType: meta.video?.type ?? "",
+        location: meta.location ?? "",
+        latitude: meta.latitude,
+        longitude: meta.longitude,
+      });
+    } catch {
+      // `sendWithin` itself never rejects, but the `send()` it races does: a crashed worker
+      // or a popup torn down mid-flight surfaces as a rejection, not a `Failure` object.
+      // Without this the caller's `void enrich(...)` would swallow it as an unhandled
+      // rejection and the hint would never clear. No `signedOut` signal exists on a
+      // transport failure, so this stays a plain enrich error and the form remains usable.
+      setEnrichError("something went wrong");
+    } finally {
+      // The single place `enriching` is cleared, so every exit path above — filled, either
+      // `!ok` branch, an early return, or a rejection — retires the hint exactly once.
+      setEnriching(false);
     }
-    // `metadata.fetch` answers with its own ok/error envelope — an unfurl that failed is a
-    // normal outcome (a login wall, a dead link), not a transport failure.
-    if (!res.data.ok) {
-      setEnrichError(res.data.error);
-      return;
-    }
-    const meta = res.data.data;
-    // Fill only what the user hasn't touched — this lands after the form is live.
-    if (meta.title && !nameDirty.current) setName(meta.title);
-    if (meta.description && !descDirty.current) setDescription(meta.description);
-    // Suggested tags fill the chip list only while it's still untouched. Mobile's rule for
-    // the same field: "Tags fill only when still empty, never overwrite what's there".
-    if (meta.tags.length > 0 && !tagsDirty.current) setTags(meta.tags);
-    setEnrichment({
-      images: meta.images,
-      videoUrl: meta.video?.url ?? "",
-      videoType: meta.video?.type ?? "",
-      location: meta.location ?? "",
-      latitude: meta.latitude,
-      longitude: meta.longitude,
-    });
   }, []);
 
   // Guarded against React StrictMode's double effect invocation: a second
@@ -191,7 +219,7 @@ export function App() {
       : ownedExisting + newListNames.length;
   }
 
-  async function handleSave(event: FormEvent) {
+  async function handleSave(event: SubmitEvent<HTMLFormElement>) {
     event.preventDefault();
     if (boot.kind !== "ready" || saving) return;
     if (targetCount === 0) {
