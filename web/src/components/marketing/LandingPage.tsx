@@ -24,10 +24,34 @@ function Logo({ size = 30 }: { size?: number }) {
   );
 }
 
-function Eyebrow({ children }: { children: React.ReactNode }) {
+/** The hero's pill badge, reused wherever a section needs a status flag. */
+function Badge({
+  children,
+  className = "",
+}: {
+  children: React.ReactNode;
+  className?: string;
+}) {
   return (
-    <div className="mb-3.5 text-[13px] font-bold text-[#6657E0]">
+    <span
+      className={`inline-block rounded-full bg-[#EDEBFB] px-3.5 py-[7px] text-[13px] font-bold text-[#6657E0] ${className}`}
+    >
       {children}
+    </span>
+  );
+}
+
+function Eyebrow({
+  children,
+  badge,
+}: {
+  children: React.ReactNode;
+  badge?: string;
+}) {
+  return (
+    <div className="mb-3.5 flex flex-wrap items-center gap-3 text-[13px] font-bold text-[#6657E0]">
+      <span>{children}</span>
+      {badge ? <Badge>{badge}</Badge> : null}
     </div>
   );
 }
@@ -46,7 +70,25 @@ function Bullet({ children }: { children: React.ReactNode }) {
 const HERO_GRADIENT =
   "linear-gradient(150deg,#F7A8D4 0%,#A78BFA 48%,#56A8FF 100%)";
 
-type Feature = {
+/** Copy and layout every feature section shares, whatever its artwork is. */
+type FeatureCopy = {
+  /** Stable React key for the section. */
+  id: string;
+  eyebrow: string;
+  /** Optional pill next to the eyebrow, e.g. a "Coming soon" flag. */
+  badge?: string;
+  title: React.ReactNode;
+  /** Artwork sits on the left (reversed) or right of the copy. */
+  reverse: boolean;
+  body?: React.ReactNode;
+  bullets?: React.ReactNode[];
+  /** Extra bottom padding on the final section, per the source design. */
+  last?: boolean;
+};
+
+/** A section illustrated by a real product screenshot. */
+type ShotFeature = FeatureCopy & {
+  kind: "shot";
   /** Maps to `public/marketing/<image>.png` — a bare (transparent) phone
    *  screenshot that floats on the section's `gradient`. */
   image: string;
@@ -56,10 +98,6 @@ type Feature = {
   h: number;
   /** CSS gradient rendered behind the phone, per the source design. */
   gradient: string;
-  eyebrow: string;
-  title: React.ReactNode;
-  /** Image sits on the left (reversed) or right of the copy. */
-  reverse: boolean;
   /** Max width of the gradient card, in px. Defaults to 360. */
   maxW?: number;
   /** Padding around the image inside the gradient card. Defaults to
@@ -69,14 +107,94 @@ type Feature = {
    *  gradient; the card's `overflow-hidden` clips the overflow. Anchored to
    *  the bottom center so the phone still rises from the bottom edge. */
   imageScale?: number;
-  body?: React.ReactNode;
-  bullets?: React.ReactNode[];
-  /** Extra bottom padding on the final section, per the source design. */
-  last?: boolean;
 };
+
+/** A section illustrated by drawn artwork, for things we have no shipped
+ *  screenshot of. Keeps us from mocking up a product that isn't live. */
+type ArtFeature = FeatureCopy & {
+  kind: "art";
+  art: React.ReactNode;
+};
+
+type Feature = ShotFeature | ArtFeature;
+
+/** Gradient behind the extension section's drawn artwork. */
+const EXTENSION_GRADIENT =
+  "linear-gradient(150deg,#FFC2E0 0%,#C9A7FF 50%,#8FD3FF 100%)";
+
+/** Deliberately abstract artwork for the browser-extension section: a line
+ *  drawing of generic browser chrome with Klect's mark in the toolbar slot.
+ *  The extension isn't live, so we draw a diagram rather than fake a product
+ *  screenshot that nobody can actually go and use yet. */
+function ExtensionArt() {
+  // The notched square from `Logo`, as a path so it can live inside the SVG.
+  const mark = (x: number, y: number, s: number, fill: string) => (
+    <path
+      d={`M${x} ${y}h${s}v${s}l${-s / 2} ${-s * 0.24}L${x} ${y + s}Z`}
+      fill={fill}
+    />
+  );
+
+  return (
+    <div
+      className="w-full overflow-hidden rounded-[32px] px-10 py-14 shadow-[0_36px_72px_-28px_rgba(21,20,26,0.32)]"
+      style={{ maxWidth: 360, backgroundImage: EXTENSION_GRADIENT }}
+    >
+      <svg
+        viewBox="0 0 280 180"
+        role="img"
+        aria-label="Illustration of a browser toolbar with Klect's mark in it, saving the current page"
+        className="h-auto w-full drop-shadow-[0_18px_32px_rgba(21,20,26,0.28)]"
+      >
+        <rect x="8" y="12" width="264" height="156" rx="16" fill="#FFFEFB" />
+        {/* Tab strip. */}
+        <rect x="24" y="24" width="84" height="20" rx="7" fill="#EDEBFB" />
+        <rect x="114" y="28" width="60" height="16" rx="6" fill="#F4F2F9" />
+        <rect x="8" y="52" width="264" height="1.5" fill="#EFEBE3" />
+        {/* Address bar. */}
+        <rect
+          x="24"
+          y="62"
+          width="196"
+          height="24"
+          rx="12"
+          fill="none"
+          stroke="#E4E0F2"
+          strokeWidth="2"
+        />
+        {/* The toolbar slot an extension would sit in. */}
+        <rect x="232" y="62" width="24" height="24" rx="8" fill="#EDEBFB" />
+        {mark(237, 67, 14, "#6657E0")}
+        {/* Dotted path from the toolbar down into a page saved to a list. */}
+        <path
+          d="M244 94C244 120 226 132 192 132"
+          fill="none"
+          stroke="#C9C4E8"
+          strokeWidth="2"
+          strokeDasharray="4 7"
+          strokeLinecap="round"
+        />
+        <rect
+          x="76"
+          y="110"
+          width="112"
+          height="44"
+          rx="12"
+          fill="none"
+          stroke="#C9C4E8"
+          strokeWidth="2"
+          strokeDasharray="7 8"
+        />
+        {mark(126, 126, 12, "#C9C4E8")}
+      </svg>
+    </div>
+  );
+}
 
 const FEATURES: Feature[] = [
   {
+    kind: "shot",
+    id: "rich",
     image: "rich",
     alt: "Rich bookmark detail screen",
     w: 1350,
@@ -98,6 +216,8 @@ const FEATURES: Feature[] = [
     ],
   },
   {
+    kind: "shot",
+    id: "smart",
     image: "smart",
     alt: "Share sheet autofill screen",
     w: 1350,
@@ -121,6 +241,8 @@ const FEATURES: Feature[] = [
     ),
   },
   {
+    kind: "shot",
+    id: "nearby",
     image: "nearby",
     alt: "Near me map screen",
     w: 1350,
@@ -144,6 +266,8 @@ const FEATURES: Feature[] = [
     ),
   },
   {
+    kind: "shot",
+    id: "collab",
     image: "collab",
     alt: "List poll and voting screen",
     w: 1350,
@@ -166,14 +290,15 @@ const FEATURES: Feature[] = [
     ],
   },
   {
+    kind: "shot",
+    id: "devices",
     image: "devices",
-    alt: "Klect on phone and tablet",
+    alt: "Klect on phone and desktop",
     w: 1080,
     h: 1350,
     gradient: "linear-gradient(150deg,#FBB472 0%,#A78BFA 50%,#56A8FF 100%)",
     eyebrow: "Everywhere you are",
     reverse: true,
-    last: true,
     imageScale: 1.8,
     title: (
       <>
@@ -188,6 +313,35 @@ const FEATURES: Feature[] = [
         your lists stay perfectly in sync, and you can share into Klect from
         anywhere else on your phone.
       </p>
+    ),
+  },
+  {
+    kind: "art",
+    id: "extension",
+    art: <ExtensionArt />,
+    eyebrow: "Right from your browser",
+    badge: "Coming soon",
+    reverse: false,
+    last: true,
+    title: (
+      <>
+        Save it without
+        <br />
+        leaving the page.
+      </>
+    ),
+    body: (
+      <>
+        <p className="mb-5 max-w-[440px] text-[16.5px] leading-relaxed text-[#33313C]">
+          We&apos;re building a Klect extension for Chrome. Click the Klect icon
+          in your toolbar and the page you&apos;re on gets saved straight to a
+          list. No copying links, no switching apps.
+        </p>
+        <p className="max-w-[440px] text-[16.5px] leading-relaxed text-[#33313C]">
+          It isn&apos;t available yet. We&apos;ll tell the beta list the day it
+          is.
+        </p>
+      </>
     ),
   },
 ];
@@ -250,7 +404,7 @@ function FeatureSection({ feature }: { feature: Feature }) {
         feature.reverse ? "md:order-2" : ""
       }`}
     >
-      <Eyebrow>{feature.eyebrow}</Eyebrow>
+      <Eyebrow badge={feature.badge}>{feature.eyebrow}</Eyebrow>
       <h2 className="mb-5 text-4xl font-extrabold leading-[1.1] tracking-[-0.02em]">
         {feature.title}
       </h2>
@@ -272,16 +426,20 @@ function FeatureSection({ feature }: { feature: Feature }) {
         feature.reverse ? "md:order-1" : ""
       }`}
     >
-      <GradientFrame
-        image={feature.image}
-        alt={feature.alt}
-        w={feature.w}
-        h={feature.h}
-        gradient={feature.gradient}
-        maxW={feature.maxW ?? 360}
-        pad={feature.pad}
-        imageScale={feature.imageScale}
-      />
+      {feature.kind === "shot" ? (
+        <GradientFrame
+          image={feature.image}
+          alt={feature.alt}
+          w={feature.w}
+          h={feature.h}
+          gradient={feature.gradient}
+          maxW={feature.maxW ?? 360}
+          pad={feature.pad}
+          imageScale={feature.imageScale}
+        />
+      ) : (
+        feature.art
+      )}
     </div>
   );
 
@@ -313,9 +471,7 @@ export function LandingPage() {
       {/* HERO */}
       <div className="mx-auto flex max-w-[1180px] flex-wrap items-center gap-14 px-6 pb-16 pt-20 sm:px-10 sm:pt-[88px]">
         <div className="min-w-[320px] flex-[1_1_440px]">
-          <div className="mb-[22px] inline-block rounded-full bg-[#EDEBFB] px-3.5 py-[7px] text-[13px] font-bold text-[#6657E0]">
-            Now in beta
-          </div>
+          <Badge className="mb-[22px]">Now in beta</Badge>
           <h1 className="mb-[22px] text-[clamp(40px,7vw,56px)] font-extrabold leading-[1.05] tracking-[-0.02em]">
             Your bookmarks, worth sharing.
           </h1>
@@ -347,7 +503,7 @@ export function LandingPage() {
 
       {/* FEATURES */}
       {FEATURES.map((f) => (
-        <FeatureSection key={f.image} feature={f} />
+        <FeatureSection key={f.id} feature={f} />
       ))}
 
       {/* BETA CTA */}
