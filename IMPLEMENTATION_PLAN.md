@@ -282,7 +282,8 @@ attribution, never post content — confirmed by tracing, not assumed.
    success**: HTTP 200 with `title: "Instagram"` / `description: "Private media"` / a
    generic favicon — and today's `fetchLinkPreview` success guard doesn't catch this as a
    failure. A real, separate bug worth a line item of its own, independent of the
-   Instagram-caption parsing work.
+   Instagram-caption parsing work. **Fixed 2026-10-22**: `isPlaceholderPreview()` in
+   `metadata.ts` now rejects that stand-in as a failure.
 3. `data.date` is returned by Microlink on every sample but currently discarded by
    `fetchMicrolink` — the same date is being redundantly re-parsed out of the description's
    noisy prefix when it's already available structured.

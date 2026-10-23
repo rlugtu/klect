@@ -224,6 +224,20 @@ async function fetchYouTube(url: string, deadline: Deadline): Promise<MetadataRe
   }
 }
 
+const BARE_PLATFORM_TITLES = new Set(["instagram", "facebook", "tiktok"]);
+
+/**
+ * LinkPreview answers some login-walled social posts with HTTP 200 and a generic
+ * stand-in (`title: "Instagram"`, `description: "Private media"`, a favicon) instead
+ * of an error. Kept narrow so a real page titled "Instagram" with real content passes.
+ */
+function isPlaceholderPreview(title?: string, description?: string): boolean {
+  const t = title?.trim().toLowerCase() ?? "";
+  const d = description?.trim().toLowerCase() ?? "";
+  if (d === "private media") return true;
+  return BARE_PLATFORM_TITLES.has(t) && !d;
+}
+
 /**
  * Primary generic unfurl via the LinkPreview API (linkpreview.net). Needs
  * LINKPREVIEW_API_KEY; when unset the caller falls back to Microlink. LinkPreview
@@ -281,6 +295,14 @@ async function fetchLinkPreview(url: string, deadline: Deadline): Promise<Metada
           typeof json.description === "string" && json.error !== undefined
             ? json.description
             : "No preview found for that link.",
+        sourceUrl: url,
+      };
+    }
+
+    if (isPlaceholderPreview(json.title, json.description)) {
+      return {
+        ok: false,
+        error: "LinkPreview returned a login-walled placeholder.",
         sourceUrl: url,
       };
     }
