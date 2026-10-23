@@ -12,7 +12,7 @@
  */
 
 export type ManifestEnv = {
-  /** API origin, e.g. `https://klect.vercel.app`. */
+  /** API origin, e.g. `https://klect.app`. */
   apiUrl: string;
   /** Extension version — taken from package.json so there is one number to bump. */
   version: string;
@@ -30,7 +30,7 @@ export function buildManifest({ apiUrl, version, dev }: ManifestEnv) {
     description: "Save the page you're on into your Klect lists.",
 
     // The `cookies` + host pair is what makes the whole transport work: the service
-    // worker reads the user's own better-auth session cookie for klect.vercel.app and
+    // worker reads the user's own better-auth session cookie for klect.app and
     // sends it as a Bearer token (docs/ARCHITECTURE.md §5). `storage` is here for the
     // list cache Stage 3 adds. `activeTab` — not the much broader `tabs` — is sufficient
     // because the popup only ever opens on a user gesture, and reading the active tab's

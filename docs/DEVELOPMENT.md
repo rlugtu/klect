@@ -59,7 +59,7 @@ LAN IP, and `BETTER_AUTH_URL` + the Google redirect URI must match that host).
 ### Extension (`cd extension`) — loaded unpacked in Chrome
 ```
 npm run build:dev    # dev build → dist-dev/ (API + host permission = http://localhost:3000)
-npm run build        # production build → dist/ (API + host permission = klect.vercel.app)
+npm run build        # production build → dist/ (API + host permission = klect.app)
 npm run dev          # same as build:dev, in --watch mode
 npm run typecheck    # tsc --noEmit (includes the cross-folder AppRouter type)
 npm run lint
@@ -76,7 +76,7 @@ The gotchas to respect:
   real attack surface.
 - **The extension authenticates off the browser's own session**, so to use it against dev you must
   be signed in to `http://localhost:3000` in that same Chrome profile (and against prod, signed in
-  to klect.vercel.app). There is no sign-in UI inside the extension.
+  to klect.app). There is no sign-in UI inside the extension.
 - **Every API call must originate in the background service worker.** See §6's row and
   `CLAUDE.md`; a call from a popup or (worse) a content script fails as an opaque CORS error.
 
@@ -211,12 +211,12 @@ is a standalone decision, not something to slip into a feature slice.)
 
 ## 8. Release & deployment
 
-- **Web** deploys from `main` (Supabase Postgres backend) to `https://klect.vercel.app`. Ensure the
+- **Web** deploys from `main` (Supabase Postgres backend) to `https://klect.app`. Ensure the
   deploy host has all `web/.env` secrets set (notably `MAPBOX_TOKEN`, `ANTHROPIC_API_KEY`,
   `LINKPREVIEW_API_KEY`, `BETTER_AUTH_URL`, Google creds), and register the prod Google redirect URI
   `https://<host>/api/auth/callback/google`.
 - **Mobile** ships via EAS Build → TestFlight/App Store. Bundle id is `com.klect.app`; the
-  `production` EAS profile points `EXPO_PUBLIC_API_URL` at `https://klect.vercel.app`. The
+  `production` EAS profile points `EXPO_PUBLIC_API_URL` at `https://klect.app`. The
   step-by-step checklist (identifiers, App Store Connect, share-extension provisioning) lives in
   `mobile/docs/RELEASE.md`.
 

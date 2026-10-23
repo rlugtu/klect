@@ -9,9 +9,9 @@ Source of truth for what goes into App Store Connect for version 1.0. Edit here 
 **Category:** Primary Productivity, secondary Lifestyle
 **Promotional text (170 max):** Paste a link and Klect fills in the details. Save to shared lists, plan with friends, and find your saves near you.
 **Keywords (100 max):** bookmarks,lists,save links,organize,share,collaborate,tags,places,recipes,collections,read later
-**Support URL:** https://klect.vercel.app/support (needs a support page with the contact email; fallback https://klect.vercel.app/privacy)
-**Marketing URL:** https://klect.vercel.app
-**Privacy policy URL:** https://klect.vercel.app/privacy
+**Support URL:** https://klect.app/support (needs a support page with the contact email; fallback https://klect.app/privacy)
+**Marketing URL:** https://klect.app
+**Privacy policy URL:** https://klect.app/privacy
 **Copyright:** 2026 Ryan Lugtu
 **Version:** 1.0
 **Release:** Manually release this version (US only for now)
@@ -39,8 +39,8 @@ Klect Pro subscription
 - Klect Pro Annual: $19.99 per year
 Payment is charged to your Apple Account at confirmation of purchase. Subscriptions renew automatically unless canceled at least 24 hours before the end of the current period. You can manage or cancel your subscription in your Apple Account settings.
 
-Terms of Use: https://klect.vercel.app/terms
-Privacy Policy: https://klect.vercel.app/privacy
+Terms of Use: https://klect.app/terms
+Privacy Policy: https://klect.app/privacy
 
 ## App Review information
 

@@ -136,7 +136,7 @@ Run these from `web/` (the app no longer lives at the repo root).
   unaffected. Device registration + per-category prefs live behind the `notifications.*` tRPC router.
   Mobile-only (web has no device push).
 - **Deep-link association files** (`app/.well-known/apple-app-site-association/route.ts`,
-  `app/.well-known/assetlinks.json/route.ts`): what makes a `klect.vercel.app/invite/<token>` link
+  `app/.well-known/assetlinks.json/route.ts`): what makes a `klect.app/invite/<token>` link
   open the **native app** instead of the browser. Route Handlers (`force-static`), **not** files in
   `public/` — Apple fetches the extensionless path and demands `Content-Type: application/json`,
   which a static extensionless file doesn't get. Both claim only `/invite/*`, the one path mobile

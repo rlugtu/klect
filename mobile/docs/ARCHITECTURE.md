@@ -115,8 +115,8 @@ Everything else hot-reloads normally against the dev client.
     tap-blocker.
   - **Google OAuth deep-link gotcha.** The social flow only returns to the app if the whole OAuth
     round-trip stays on the origin the app calls. The deployed web app's **`BETTER_AUTH_URL` must
-    equal `EXPO_PUBLIC_API_URL`** (`https://klect.vercel.app`), and Google Cloud Console must list
-    `https://klect.vercel.app/api/auth/callback/google` as an authorized redirect URI. If
+    equal `EXPO_PUBLIC_API_URL`** (`https://klect.app`), and Google Cloud Console must list
+    `https://klect.app/api/auth/callback/google` as an authorized redirect URI. If
     `BETTER_AUTH_URL` points at a different domain (e.g. the old `saive-three.vercel.app`), Google
     signs in but redirects to *that* web app instead of firing the `klect://` deep link that closes
     the in-app browser — so the user lands on the web app rather than back in the native app.
@@ -127,7 +127,7 @@ Everything else hot-reloads normally against the dev client.
     backend (`extension/IMPLEMENTATION_PLAN.md`, Stage 1). Unlike mobile (no first-party cookie
     survives an iOS release build, hence the Bearer-token workaround above), a Chrome extension
     with the `cookies` permission can read better-auth's `httpOnly` session cookie straight from
-    the browser via `chrome.cookies.getAll({ domain: "klect.vercel.app" })` — this API is exempt
+    the browser via `chrome.cookies.getAll({ domain: "klect.app" })` — this API is exempt
     from the `httpOnly`/`document.cookie` restriction a normal webpage faces. The cookie **name
     is environment-dependent**, so match by suffix (`endsWith("session_token")`), never a hardcoded
     name: `__Secure-better-auth.session_token` in production (confirmed), `better-auth.session_token`
@@ -263,7 +263,7 @@ modal with `router.back()` (or `router.dismissAll()` after leaving a list).
 - **List requests** (`requests.tsx`) — all open incoming list-join requests
   (`sharing.incomingRequests`) with approve/reject (`approveRequest`/`rejectRequest`).
 - **List invite** (`invite/[token].tsx`) — the landing screen for an invite **link**. Reached by
-  tapping `https://klect.vercel.app/invite/<token>` on a device with the app installed: iOS treats
+  tapping `https://klect.app/invite/<token>` on a device with the app installed: iOS treats
   it as a **universal link** (`ios.associatedDomains` in `app.json` + web's
   `/.well-known/apple-app-site-association`) and Android as an **app link**
   (`android.intentFilters` with `autoVerify` + web's `/.well-known/assetlinks.json`), and

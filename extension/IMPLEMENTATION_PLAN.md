@@ -20,7 +20,7 @@ merge, cross-reference for status, or delete that file from this build.
 **In:** save the active tab into existing lists (or new lists created inline), with
 server-side metadata autofill and the save form's own notes / rating / tags fields;
 read-only browsing of your lists and their bookmarks; free-tier cap awareness; sign-in by
-inheriting the browser's existing klect.vercel.app session.
+inheriting the browser's existing klect.app session.
 
 **Out:** any content script; editing or deleting bookmarks; comments, polls, friends,
 DMs, list chat, Near me, visited toggles, rating or re-tagging a bookmark you *already*
@@ -48,7 +48,7 @@ Safari ports.
   content scripts are not, and `/api/trpc` has no CORS configuration at all today
   (`web/next.config.ts` sets no headers). So the service worker owns the tRPC client and
   resolves the auth token; the UI talks to it over `chrome.runtime.sendMessage` or a port
-  and never calls `fetch` against klect.vercel.app itself. Breaking this rule does not
+  and never calls `fetch` against klect.app itself. Breaking this rule does not
   fail loudly in dev — it fails as an opaque CORS error that tempts someone into adding
   CORS headers to the server, which this build must not do.
 - **Never match on error message text.** A free-tier refusal arrives as
@@ -102,12 +102,12 @@ all; revisit the side panel as a follow-up once the extension is live and review
 **Goal**: Prove, in a real loaded extension against the real deployed backend, that (a)
 `chrome.cookies` can read better-auth's `httpOnly` session cookie, (b) its value
 authenticates a tRPC call as a Bearer token, and (c) a `fetch` from an MV3 service worker
-to `https://klect.vercel.app/api/trpc` is not blocked by CORS. These are the two
+to `https://klect.app/api/trpc` is not blocked by CORS. These are the two
 unvalidated assumptions the entire rest of the build rests on, so they get validated
 first, in throwaway code that is deleted before Stage 2 writes anything real.
 
 The approach under test, stated precisely so a failure is diagnosable:
-`chrome.cookies.getAll({ domain: "klect.vercel.app" })`, pick the cookie whose name
+`chrome.cookies.getAll({ domain: "klect.app" })`, pick the cookie whose name
 **ends with** `session_token`, and send its value verbatim as
 `Authorization: Bearer <value>`. The name must be matched by suffix, not hardcoded:
 `web/src/lib/auth.ts` overrides neither `advanced.cookiePrefix` nor `useSecureCookies`, so
@@ -123,12 +123,12 @@ Google-OAuth fallback (which sends the same signed cookie value) already proves 
 server half works.
 
 **Success Criteria**: A minimal unpacked extension with `host_permissions` for
-`https://klect.vercel.app/*` and the `cookies` permission, holding nothing but a service
+`https://klect.app/*` and the `cookies` permission, holding nothing but a service
 worker, demonstrates all of the following from the worker's console:
 
-1. The session cookie is readable while signed into klect.vercel.app in that browser
+1. The session cookie is readable while signed into klect.app in that browser
    profile, and the resolved name is recorded in the stage notes for both dev and prod.
-2. A `fetch` to `https://klect.vercel.app/api/trpc/lists.mine?input=%7B%7D` with the
+2. A `fetch` to `https://klect.app/api/trpc/lists.mine?input=%7B%7D` with the
    Bearer header returns **200** and the caller's real list data — not a CORS failure, not
    a 401. The response having the user's actual lists is the proof; a 200 with an empty
    array could also mean a brand-new account, so test on an account with lists.
@@ -138,7 +138,7 @@ worker, demonstrates all of the following from the worker's console:
 4. A **POST** (a real mutation, not just a GET query) also succeeds, because the CORS
    exemption and the preflight behavior are the thing in doubt and a GET is the easy case.
    Create a throwaway bookmark in a throwaway list and delete it afterward.
-5. Signing out on klect.vercel.app makes the cookie disappear and the call start returning
+5. Signing out on klect.app makes the cookie disappear and the call start returning
    401, confirming the extension's auth state is genuinely derived from the browser
    session rather than a snapshot.
 6. The same flow is confirmed against **dev** (`http://localhost:3000`) too, since every
@@ -254,13 +254,13 @@ full object, not a partial — all twelve fields are required by the zod schema 
 extension needs an `EMPTY_BOOKMARK` equivalent to spread over.
 
 **Success Criteria**: `extension/` loads unpacked in Chrome with no manifest or worker
-errors. With a signed-in klect.vercel.app session, opening the extension on an arbitrary
+errors. With a signed-in klect.app session, opening the extension on an arbitrary
 web page shows the user's unlocked lists (locked ones filtered out), prefilled with the
 page's URL and title and then enriched by `metadata.fetch`. Saving creates the bookmark in
 every selected list, and it is visible in web and mobile afterward with the same fields
 either of those clients would have produced from the same URL — proving the server did the
 metadata work, not the extension. Creating a new list inline works. Signed out, the UI says
-so and links to klect.vercel.app rather than failing opaquely. `npx tsc --noEmit` clean in
+so and links to klect.app rather than failing opaquely. `npx tsc --noEmit` clean in
 `extension/`, and the production build produces a loadable unpacked directory. No
 `fetch` call to the API exists anywhere outside the service worker — grep for it as part
 of verifying the stage, since this is the constraint most likely to be violated by
@@ -287,7 +287,7 @@ every automated gate passes:
   Prisma's `Role` enum) — so the `AppRouter` import genuinely resolves and has not silently
   collapsed to `any`.
 - **Manifest generated per environment** from `manifest.config.ts` + a small Vite plugin.
-  Prod: `host_permissions: ["https://klect.vercel.app/*"]`. Dev (`npm run build:dev` →
+  Prod: `host_permissions: ["https://klect.app/*"]`. Dev (`npm run build:dev` →
   `dist-dev/`): `["http://localhost:3000/*"]`, name "Klect (dev)". Both carry
   `permissions: ["cookies", "storage", "activeTab"]`, a module service worker, an
   `action.default_popup`, and **no** `content_scripts` and no `side_panel` key.
@@ -406,7 +406,7 @@ happy path.
 **Cap handling** follows the share extension's precedent, for the same structural reason: a
 lightweight surface cannot host a paywall. On a `FREE_LIMIT` refusal the extension states
 the limit plainly using the ported `capHitMessage` logic and opens
-`https://klect.vercel.app/upgrade` in a tab — a route the monetization build's Stage 7
+`https://klect.app/upgrade` in a tab — a route the monetization build's Stage 7
 already shipped. Unlike iOS, there is no store-payment rule forcing anything here; the web
 checkout is simply the right destination, and the Chrome Web Store has no payments API to
 consider. `entitlements.status` is available for showing remaining capacity proactively,
@@ -418,7 +418,7 @@ bearer token and self-heals on 401 because a keychain read is its only token sou
 extension's token source is a live local cookie read, so it should **not cache the token
 at all** beyond the life of a single request: re-read on every call, which makes a
 server-side rotation a non-event. Add a `chrome.cookies.onChanged` listener so a sign-out
-on klect.vercel.app flips the extension to its signed-out state immediately instead of on
+on klect.app flips the extension to its signed-out state immediately instead of on
 the next failed request, and keep a 401 → re-read → retry-once path as the backstop,
 mirroring the intent of mobile's `clearBearerOnUnauthorized` link.
 
@@ -460,9 +460,9 @@ extension does (the Web Store's single-purpose policy is enforced, and "saves pa
 your Klect lists" satisfies it cleanly); a **permission justification per permission**,
 with `cookies` and the host permission being the two that draw actual reviewer scrutiny —
 the honest justification is "reads the user's own existing Klect session cookie on
-klect.vercel.app so the extension can call the Klect API as that user, and nothing else";
+klect.app so the extension can call the Klect API as that user, and nothing else";
 icons at every required size; screenshots; and a privacy-practices disclosure pointing at
-the existing `klect.vercel.app/privacy`.
+the existing `klect.app/privacy`.
 
 **Output document**: `extension/docs/RELEASE.md`, in the shape of `mobile/docs/RELEASE.md`
 — a checklist of config that must be right before a build, with the gotchas recorded
@@ -525,6 +525,14 @@ whatever doesn't require his direct hands.
 3. **No custom domain planned.** `klect.vercel.app` is the pinned domain in both
    `host_permissions` and the cookie lookup, with no migration on the horizon. Revisit
    this file if that changes before Stage 5.
+   **Superseded 2026-10-21:** Ryan bought `klect.app`, so the pinned domain is now
+   `klect.app` in both places. It is set once in `vite.config.ts` (`PROD_API_URL`),
+   which feeds the manifest's `host_permissions` and the client's base URL. The text
+   above is kept as the record of why the Vercel default domain was pinned in the
+   first place; `klect.vercel.app` is still live and working, it is just no longer the
+   origin this extension targets. Stage 5's warning about a domain migration being a
+   breaking extension update still stands for any future move, and is exactly why this
+   one was made now: nothing is published yet, so there is no installed build to break.
 4. **Chrome Web Store account — Ryan's own action, not auto-started.** Creating an
    account and paying the $5 fee requires Ryan directly (account creation is outside what
    gets done on his behalf). Blocks only Stage 5; tracked as an open task, not a blocker

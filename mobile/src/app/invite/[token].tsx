@@ -20,7 +20,7 @@ const roleLabel = (role: NonNullable<Invite>['role']) =>
   role === 'COLLABORATOR' ? 'Collaborator' : 'Viewer';
 
 /**
- * The target of an invite link (`klect.vercel.app/invite/<token>`), which iOS/Android hand to
+ * The target of an invite link (`klect.app/invite/<token>`), which iOS/Android hand to
  * the app as a universal link / app link (see `app.json`'s `associatedDomains` + `intentFilters`
  * and web's `/.well-known/*` routes). Mirrors web's `/invite/[token]` page: not-found, already a
  * member, or accept — then straight into the list.

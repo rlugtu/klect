@@ -1,6 +1,6 @@
 /**
  * Apple App Site Association — the iOS **Universal Links** manifest. Without it, every
- * klect.vercel.app link (notably an `/invite/<token>` share) opens Safari even on a phone
+ * klect.app link (notably an `/invite/<token>` share) opens Safari even on a phone
  * with the app installed.
  *
  * A Route Handler rather than a file in `public/`: Apple fetches this at the exact

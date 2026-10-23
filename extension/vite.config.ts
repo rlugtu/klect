@@ -12,7 +12,7 @@ const pkg = JSON.parse(
   readFileSync(resolve(root, "package.json"), "utf8"),
 ) as { version: string };
 
-const PROD_API_URL = "https://klect.vercel.app";
+const PROD_API_URL = "https://klect.app";
 const DEV_API_URL = "http://localhost:3000";
 
 /** Emits `dist/manifest.json` from the single manifest source, per environment. */

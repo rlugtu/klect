@@ -10,7 +10,7 @@ export const API_HOSTNAME = new URL(API_URL).hostname;
 /** Where a signed-out user goes to get a session this extension can read. */
 export const SIGN_IN_URL = `${new URL(API_URL).origin}/login`;
 
-/** Human-readable origin, for the signed-out copy ("sign in at klect.vercel.app"). */
+/** Human-readable origin, for the signed-out copy ("sign in at klect.app"). */
 export const API_LABEL = API_HOSTNAME;
 
 /**

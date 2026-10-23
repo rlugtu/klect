@@ -1,7 +1,7 @@
 /**
  * Parks an invite-link token that arrived while the app was still behind the session gate.
  *
- * A universal link (`https://klect.vercel.app/invite/<token>`) can land on a cold start, or on
+ * A universal link (`https://klect.app/invite/<token>`) can land on a cold start, or on
  * an app sitting on the login / onboarding screen. In those states `_layout.tsx` renders
  * `<LoginScreen />` / `<OnboardingScreen />` instead of the navigator, so expo-router has no
  * mounted stack to route the link into and the invite is silently dropped. The root layout

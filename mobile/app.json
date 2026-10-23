@@ -9,7 +9,7 @@
     "userInterfaceStyle": "automatic",
     "ios": {
       "bundleIdentifier": "com.klect.app",
-      "associatedDomains": ["applinks:klect.vercel.app"],
+      "associatedDomains": ["applinks:klect.app"],
       "usesAppleSignIn": true,
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false
@@ -93,7 +93,7 @@
           "data": [
             {
               "scheme": "https",
-              "host": "klect.vercel.app",
+              "host": "klect.app",
               "pathPrefix": "/invite"
             }
           ],

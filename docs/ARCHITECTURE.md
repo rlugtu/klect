@@ -179,7 +179,7 @@ needed for any of them.
 - **Mobile** uses `@better-auth/expo` (`mobile/src/client/auth.ts`) against the same server,
   storing tokens in `expo-secure-store`.
 - **The Chrome extension** has no auth client at all. Its service worker reads the browser's
-  existing session cookie with `chrome.cookies.getAll({ domain: "klect.vercel.app" })` —
+  existing session cookie with `chrome.cookies.getAll({ domain: "klect.app" })` —
   matching the cookie **by name suffix** (`endsWith("session_token")`), because the name is
   `__Secure-better-auth.session_token` in prod and `better-auth.session_token` on localhost
   dev — and sends the value through **whole** as `Authorization: Bearer`, which the same
@@ -214,7 +214,7 @@ needed for any of them.
   the server runs Google with its existing web client, then deep-links back to the app's
   `klect://` scheme. This needs the `expo()` **server** plugin and
   `trustedOrigins: ["klect://"]` in web's auth config — no separate native Google client id.
-  Web and mobile share the redirect URI `https://klect.vercel.app/api/auth/callback/google`, so a
+  Web and mobile share the redirect URI `https://klect.app/api/auth/callback/google`, so a
   *mobile-only* Google failure is **not** a Google Cloud Console problem (prod web Google working
   proves the OAuth client is fine).
 

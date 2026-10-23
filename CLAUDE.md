@@ -53,7 +53,7 @@ workspaces, no Turborepo) and **no shared code packages**.
 - **`extension/`** — Chrome (Manifest V3) extension; a **third transport**, deliberately not at
   parity with the other two. Its whole scope is **lists**: save the current page into one or more
   lists, and browse the lists you have. Vite + React + Tailwind, popup only (no side panel, no
-  content script). Authenticates by reading the browser's own klect.vercel.app session cookie
+  content script). Authenticates by reading the browser's own klect.app session cookie
   via `chrome.cookies` and sending it as `Authorization: Bearer`. See
   `extension/IMPLEMENTATION_PLAN.md` while the build is in progress.
 
