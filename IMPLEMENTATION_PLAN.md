@@ -256,13 +256,19 @@ the repo) and wraps its output through `assembleDescription(desc, [])` to match 
 other link's "Link Summary:" shape. `og:title` is read only as a handle source, never as
 any part of the Name, once a caption parses.
 
-**Status**: Built 2026-10-22 (`web/src/lib/instagram.ts`, the `baseExtraction` /
+**Status**: Complete. Built 2026-10-22 (`web/src/lib/instagram.ts`, the `baseExtraction` /
 `normalizeExtraction` split and `comprehendInstagram()` in `metadata.ts`, fixture script
-`web/scripts/verify-instagram.ts`, 49 checks). tsc, lint and both fixture scripts pass, and
-a live run on all 6 samples confirmed the deterministic path (caption-only Description,
-no likes/comments prefix, `#` tags stripped, caption-derived Name). The AI half
-(`comprehendCaption` output) is verified on production after deploy, since the local
-`ANTHROPIC_API_KEY` is rejected. Ryan lifted the gate on 2026-10-22 after supplying a
+`web/scripts/verify-instagram.ts`, 49 checks), shipped as `d63cfef`. A live run on all 6
+samples confirmed the deterministic path (caption-only Description, no likes/comments
+prefix, `#` tags stripped, caption-derived Name); production logs confirmed the AI half
+and Ryan confirmed it in the app on 2026-10-23.
+**First-paste follow-up (2026-10-23)**: production showed every Instagram paste missing the
+AI summary, because uncached Microlink takes ~6.5-7.5s on Instagram, was aborted at its 6s
+slice, and the LinkPreview fallback only started after that, using the 8s budget up.
+`extractInstagram()` now starts both together: a complete LinkPreview caption wins
+outright, otherwise Microlink gets the whole remaining budget. Live: 9 of 11 Instagram links
+extracted in under 2s. Placeholder and truncated-caption posts still wait for Microlink.
+The caption prompt also now forbids @handles and account names in the title. Ryan lifted the gate on 2026-10-22 after supplying a
 carousel and a static photo post (6 samples total), and said to build with what we have. The remaining
 post types are deferred to future improvements (see "Deferred post types" below).
 **Stage 0 history (kept for context):** No permanent code written yet; `instagram.ts` still doesn't exist and `metadata.ts`'s

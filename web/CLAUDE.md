@@ -66,8 +66,11 @@ Run these from `web/` (the app no longer lives at the repo root).
   `fetchPage`, `[page-text]` log) and read OG/meta → title/description/image + `detectVideo`; this
   **warms a shared page cache** (`core/cache.ts`). Falls back to **LinkPreview**
   (`LINKPREVIEW_API_KEY`) → **Microlink** (free tier, IP-rate-limited) only when the self-fetch is
-  blocked/empty; YouTube still uses oEmbed; social reels (Instagram/Facebook/TikTok, `isSocialVideo`)
-  still prefer Microlink first (better caption coverage). No LLM — fast.
+  blocked/empty; YouTube still uses oEmbed; Facebook/TikTok reels (`isSocialVideo`) still prefer
+  Microlink first (better caption coverage). **Instagram** (`extractInstagram`) starts Microlink and
+  LinkPreview together: uncached Microlink takes ~6.5-7.5s there, so a complete LinkPreview caption
+  (~0.2s) wins outright and leaves the budget for comprehension; a placeholder or truncated one waits
+  for Microlink, which gets the whole remaining budget. No LLM, fast.
   **Comprehension** (`getLinkComprehension`): from the same cached fetch it first tries a **JSON-LD
   fast path** (`core/structured-data.ts`, `structuredDataFromJsonLd`) — schema.org
   Recipe/HowTo/Event/Product/LocalBusiness parsed straight into `{heading, items}` detail sections,

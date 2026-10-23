@@ -332,8 +332,16 @@ async function fetchLinkPreview(url: string, deadline: Deadline): Promise<Metada
   }
 }
 
-/** Fallback generic unfurl via Microlink (Microlink fetches the target, avoiding SSRF). */
-async function fetchMicrolink(url: string, deadline: Deadline): Promise<MetadataResult> {
+/**
+ * Fallback generic unfurl via Microlink (Microlink fetches the target, avoiding SSRF).
+ * `timeoutMs` is its own cap within the deadline; Instagram raises it (see
+ * {@link extractInstagram}).
+ */
+async function fetchMicrolink(
+  url: string,
+  deadline: Deadline,
+  timeoutMs: number = UNFURL_API_TIMEOUT_MS,
+): Promise<MetadataResult> {
   if (msLeft(deadline) <= 0) {
     return { ok: false, error: "Link preview timed out.", sourceUrl: url };
   }
@@ -345,7 +353,7 @@ async function fetchMicrolink(url: string, deadline: Deadline): Promise<Metadata
     const res = await timedFetch(
       endpoint,
       { headers: { accept: "application/json" }, cache: "no-store" },
-      slice(deadline, UNFURL_API_TIMEOUT_MS),
+      slice(deadline, timeoutMs),
     );
 
     if (!res.ok) {
@@ -496,6 +504,36 @@ function normalizeExtraction(url: string, result: MetadataResult): MetadataResul
   };
 }
 
+/**
+ * Instagram: Microlink and LinkPreview start together instead of one after the other.
+ * Uncached Microlink takes ~6.5-7.5s on Instagram, which used to eat the whole budget
+ * before comprehension could start, while LinkPreview answers in ~0.2s.
+ *   - A LinkPreview caption that parses and isn't cut off wins outright, leaving most of
+ *     the budget for comprehension. Microlink keeps running unobserved (it never
+ *     rejects), so nothing leaks.
+ *   - Otherwise (the "Private media" placeholder, a truncated caption, an unparsed or
+ *     failed response) we wait for Microlink's fuller caption. It gets the whole
+ *     remaining budget here rather than its usual slice, since a fallback is already in
+ *     hand, so a 7s answer is used instead of aborted at 6s.
+ *   - Microlink still failing → LinkPreview's result if it had one, else the failure.
+ */
+async function extractInstagram(url: string, deadline: Deadline): Promise<MetadataResult> {
+  const microlink = fetchMicrolink(url, deadline, msLeft(deadline));
+  const lp = await fetchLinkPreview(url, deadline);
+  if (lp.ok && hasCompleteCaption(url, lp.data)) return lp;
+
+  const ml = await microlink;
+  if (ml.ok) return ml;
+  console.warn(`[link-metadata] microlink failed on instagram: ${ml.error}`);
+  return lp.ok ? lp : ml;
+}
+
+/** A parsed Instagram caption that LinkPreview didn't cut off with a trailing ellipsis. */
+function hasCompleteCaption(url: string, data: LinkMetadata): boolean {
+  const post = instagramPost(url, data);
+  return !!post && !/(\.\.\.|…)$/.test(post.caption.trim());
+}
+
 async function extract(url: string, deadline: Deadline): Promise<MetadataResult> {
   console.log(`[link-metadata] extracting: ${url}`);
 
@@ -505,6 +543,8 @@ async function extract(url: string, deadline: Deadline): Promise<MetadataResult>
     console.warn(`[link-metadata] youtube oembed failed, trying microlink: ${result.error}`);
     return fetchMicrolink(url, deadline);
   }
+
+  if (isInstagramUrl(url)) return extractInstagram(url, deadline);
 
   if (isSocialVideo(url)) {
     // Social reels: Microlink surfaces the caption better than LinkPreview; skip
