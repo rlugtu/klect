@@ -165,6 +165,30 @@ function ManageBillingRow({ store }: { store: string | null }) {
   );
 }
 
+/**
+ * Membership card for "pro on this device, not yet on the server".
+ *
+ * Only reachable when the device's StoreKit entitlement is the thing granting pro, which on
+ * iOS means the purchase was made through the App Store, so the Apple management row is the
+ * right one, and it is shown rather than withheld: the sync can lag, and a subscriber must
+ * always be able to reach their own subscription. No plan name and no renewal date, because
+ * both of those live on the server row this state is defined by not having yet.
+ */
+function ProSyncingCard() {
+  return (
+    <>
+      <View className="rounded-skin border-skin border-border bg-panel p-3">
+        <Text className="text-base text-ink">Klect Pro · finishing up</Text>
+        <Text className="text-sm text-muted">
+          Apple has your purchase. Our records are still catching up, so a couple of details
+          here will fill in shortly. Nothing is lost and you have full access.
+        </Text>
+      </View>
+      <ManageBillingRow store="app_store" />
+    </>
+  );
+}
+
 /** Pushed stack route, reached via the gear icon on the Profile screen. */
 export default function SettingsScreen() {
   const { theme, setTheme } = useTheme();
@@ -173,11 +197,15 @@ export default function SettingsScreen() {
   const router = useRouter();
   const t = THEME_TOKENS[theme];
   // The same shared status the paywall and the downgrade gate read, so Settings can never
-  // disagree with them about this account's plan.
+  // disagree with them about this account's plan. `isPro` is the combined answer (server OR
+  // this device's StoreKit entitlement); `entitlement.isPro` is the server's alone. Both are
+  // needed here, because the gap between them is a real, nameable state: paid on Apple's side,
+  // not yet recorded on ours. See `client/entitlements.tsx`.
   const {
     status: entitlement,
     loading: entitlementLoading,
     error: entitlementError,
+    isPro,
   } = useEntitlements();
 
   const [prefs, setPrefs] = useState<NotifPrefs | null>(null);
@@ -272,12 +300,19 @@ export default function SettingsScreen() {
               <Text className="text-base text-muted">Checking your plan…</Text>
             </View>
           ) : !entitlement ? (
-            <View className="rounded-skin border-skin border-border bg-panel p-3">
-              <Text className="text-base text-ink">Plan unavailable</Text>
-              <Text className="text-sm text-muted">
-                {entitlementError ?? 'Could not check your plan.'}
-              </Text>
-            </View>
+            // The status fetch failed. If this device's own StoreKit records say pro, say that
+            // instead of "unavailable": it is both truer and more reassuring to a subscriber
+            // whose only problem is a dropped request.
+            isPro ? (
+              <ProSyncingCard />
+            ) : (
+              <View className="rounded-skin border-skin border-border bg-panel p-3">
+                <Text className="text-base text-ink">Plan unavailable</Text>
+                <Text className="text-sm text-muted">
+                  {entitlementError ?? 'Could not check your plan.'}
+                </Text>
+              </View>
+            )
           ) : entitlement.isPro ? (
             <>
               <View className="rounded-skin border-skin border-border bg-panel p-3">
@@ -304,6 +339,13 @@ export default function SettingsScreen() {
               </View>
               <ManageBillingRow store={entitlement.store} />
             </>
+          ) : isPro ? (
+            // Server says not pro, this device says pro: a purchase Apple has taken and our
+            // webhook hasn't recorded yet. Deliberately *after* the two server branches above,
+            // so a landed subscription keeps its real plan name and a grace-period account
+            // keeps its "payment failed" wording. It only ever replaces the upsell below,
+            // which is the one thing that would be plainly wrong to show someone who just paid.
+            <ProSyncingCard />
           ) : (
             <>
               <View className="rounded-skin border-skin border-border bg-panel p-3">

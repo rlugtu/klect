@@ -220,22 +220,33 @@ function SessionLoadingScreen() {
  * account with reclaimable rows is already coherent, so blocking it would hold the app hostage
  * over something the user does not owe. That path is the dismissible `ReclaimBanner` on the home
  * screen, which pushes the `/downgrade` route instead (see app/downgrade.tsx).
+ *
+ * `isPro` is checked alongside it, and it is the *combined* answer (server OR this device's
+ * StoreKit entitlement, see `client/entitlements.tsx`). A user who has just paid is pro on
+ * Apple's side before our webhook writes the `Entitlement` row, and holding them behind a
+ * "choose what to keep" gate in that window is the one failure this gate must not have. It
+ * only ever opens the gate: the caps themselves are still enforced server-side in `core()` on
+ * every mutation, so letting a device-confirmed subscriber through costs nothing if the device
+ * is somehow wrong: they simply hit the normal cap error instead of an unanswerable screen.
  */
 function EntitlementGate() {
-  const { status, loading } = useEntitlements();
+  const { status, loading, isPro } = useEntitlements();
   const linkingUrl = useLinkingURL();
+  // A server "pro" already clears `needsSelection`, so in practice this is "the server says
+  // choose, and the device hasn't told us the purchase already happened".
+  const mustSelect = Boolean(status?.needsSelection) && !isPro;
   // True whenever this gate renders something other than <AppStack />, i.e. while there is no
   // navigator for expo-router to route a link into. Same contract as RootLayout's `gated`
   // below, which can't see this state because it lives outside the entitlements provider —
   // without this, an invite link arriving during the selection flow would be silently dropped.
-  const blocking = (loading && !status) || Boolean(status?.needsSelection);
+  const blocking = (loading && !status) || mustSelect;
 
   useEffect(() => {
     if (blocking) rememberPendingInvite(linkingUrl);
   }, [blocking, linkingUrl]);
 
   if (loading && !status) return <SessionLoadingScreen />;
-  if (status?.needsSelection) return <DowngradeScreen />;
+  if (mustSelect) return <DowngradeScreen />;
   return <AppStack />;
 }
 

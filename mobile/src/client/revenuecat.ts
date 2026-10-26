@@ -151,6 +151,45 @@ export function hasProEntitlement(info: CustomerInfo): boolean {
   return info.entitlements.active[KLECT_PRO_ENTITLEMENT] !== undefined;
 }
 
+/**
+ * Whether *this device's* StoreKit records say `klect_pro` is active right now.
+ *
+ * The read-only half of the entitlement story, and the fallback for the one failure mode the
+ * server-side `Entitlement` row cannot cover on its own: that row is written only by the
+ * RevenueCat webhook (`web/src/app/api/webhooks/revenuecat/route.ts`), so between a successful
+ * purchase and the webhook landing, Apple considers the user a subscriber and Klect does not.
+ * `client/entitlements.tsx` ORs this on top of the server's answer so that window stops reading
+ * as "free account" (see the "server first" note there: the server stays primary, this can only
+ * ever *add* pro, never take it away).
+ *
+ * Three properties it is built around, all of them load-bearing:
+ *
+ * 1. **It never throws.** Every failure (offline, native module missing, StoreKit unavailable)
+ *    resolves to `false`, i.e. fails safe toward "show the paywall". A fallback that can throw
+ *    would turn a slow webhook into a crash, which is strictly worse than the bug it fixes.
+ * 2. **No network call off the happy path.** `ensureConfigured()` is false on Android, in any
+ *    build with a blank `EXPO_PUBLIC_REVENUECAT_IOS_API_KEY`, and after a failed `configure`,
+ *    so this returns immediately without touching the SDK in all three cases.
+ * 3. **Read-only.** No purchase, no restore, no identity change. `getCustomerInfo` answers from
+ *    the SDK's own cache when it can, which is also why it stays usable offline right after a
+ *    purchase the server has not seen yet.
+ *
+ * Deliberately *not* used for caps, lock state, or plan/expiry display: those stay entirely
+ * server-derived, because this device can only answer "is `klect_pro` active for the Apple
+ * account on this phone", not "what does Klect owe this user".
+ */
+export async function deviceHasProEntitlement(): Promise<boolean> {
+  if (!ensureConfigured()) return false;
+  try {
+    return hasProEntitlement(await Purchases.getCustomerInfo());
+  } catch (e) {
+    // Offline with an empty cache, or a native-side failure. Neither is actionable, and
+    // neither may be allowed to look like a downgrade, so: no entitlement, no throw, no toast.
+    if (__DEV__) console.warn('[revenuecat] getCustomerInfo failed, treating as not pro', e);
+    return false;
+  }
+}
+
 /** Outcome of a purchase attempt, with cancellation separated from failure. */
 export type PurchaseOutcome =
   | { status: 'entitled' }

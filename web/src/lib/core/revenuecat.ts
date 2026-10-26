@@ -183,6 +183,19 @@ function mapStore(store: string | null | undefined): string | null {
 }
 
 /**
+ * The `Entitlement.store` value that marks a hand-granted comp row rather than a real
+ * purchase, written by `scripts/seed-comp-access.ts`.
+ *
+ * Deliberately outside the {@link EntitlementStore} union, which enumerates only the stores
+ * RevenueCat can send; the column is a plain String precisely so a non-store value like this
+ * is representable. {@link isSuperseded} is the only logic that reads it; no access decision
+ * does. The literal is repeated in the seed script because that script runs under `tsx` with
+ * no path aliases and must not pull this server-only module (and `@/lib/db` with it) into a
+ * one-off CLI process. Changing the string means changing it in both places.
+ */
+export const COMP_STORE = "comp";
+
+/**
  * How far along the lapse path a status sits. Used only by {@link isSuperseded} to
  * refuse backwards moves inside a single billing period; it is not an access check.
  */
@@ -223,14 +236,35 @@ function statusRank(status: string): number {
  * annual subscription, both of which always carry an `expiration_at_ms`. Introducing
  * a lifetime product means revisiting this branch, not working around it.
  *
+ * ## The comp exception
+ *
+ * A stored row with `store: {@link COMP_STORE}` is never treated as newer than an
+ * incoming event, whatever its expiry says. The "expiry is a version number" premise
+ * this whole function rests on holds only for rows that came from a real subscription
+ * lifecycle, where each renewal pushes the period end forward. A comp row's expiry is
+ * not a period end at all: it is a hand-picked far-future date, so under the ordinary
+ * rule *every* real event (purchase, renewal, cancellation, all with nearer, finite
+ * expiries) compares as older and is dropped, and the webhook still answers 200. That
+ * is the exact failure mode the comp accounts exist to rule out: a QA or owner account
+ * on which the subscription pipeline silently does nothing.
+ *
+ * Kept as narrow as the TRANSFER exception below it, and in the same shape: it keys on
+ * one explicit marker, it only ever lets a real event *through*, and it never blocks
+ * anything. It cannot revoke the comp grant on its own, either: the grant ends only
+ * if a real event actually arrives for that user, and re-running the seed script puts
+ * it back.
+ *
  * Pure and exported so the rule can be reasoned about, and exercised directly, if a
  * test runner is ever adopted.
  */
 export function isSuperseded(
-  stored: { status: string; expiresAt: Date | null } | null,
+  stored: { status: string; expiresAt: Date | null; store?: string | null } | null,
   incoming: { status: EntitlementStatus; expiresAt: Date | null },
 ): boolean {
   if (!stored) return false;
+  // See "The comp exception" above: a comp row's expiry is not a period end, so it must
+  // not be compared as one.
+  if (stored.store === COMP_STORE) return false;
 
   const storedEnd = stored.expiresAt?.getTime() ?? Number.POSITIVE_INFINITY;
   const incomingEnd = incoming.expiresAt?.getTime() ?? Number.POSITIVE_INFINITY;

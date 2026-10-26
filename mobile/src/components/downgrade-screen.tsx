@@ -10,7 +10,11 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { trpc } from '@/client/api';
-import { useEntitlements, type EntitlementStatus } from '@/client/entitlements';
+import {
+  useEntitlements,
+  type EntitlementStatus,
+  type PurchaseSyncOutcome,
+} from '@/client/entitlements';
 import { freeLimitFrom } from '@/client/free-limit';
 import LockedBadge from '@/components/locked-badge';
 import PaywallView from '@/components/paywall-view';
@@ -48,9 +52,16 @@ import { THEME_TOKENS } from '@/theme/tokens';
  *
  * Every commit is re-validated server-side against the real caps and real ownership, so this
  * screen is a convenience, not the enforcement.
+ *
+ * Both steps can be escaped by subscribing, which swaps in `PaywallView` inline, and that
+ * path has a third outcome besides "bought" and "dismissed": bought, but our own records
+ * haven't caught up. `Entitlement` is written by the RevenueCat webhook, so StoreKit can say
+ * "paid" while the server still says "free". That used to end here silently, which under the
+ * gate meant a paying user staring at the paywall with no way out. It now has its own
+ * {@link StalledScreen} stage; see {@link PurchaseSyncOutcome}.
  */
 
-type Stage = 'lists' | 'bookmarks' | 'paywall';
+type Stage = 'lists' | 'bookmarks' | 'paywall' | 'stalled';
 
 /**
  * Which of the two states the core status distinguishes this render is for: the same
@@ -257,6 +268,91 @@ function StepFooter({
   );
 }
 
+/**
+ * Shown when a purchase succeeded on Apple's side but our own `Entitlement` row still hasn't
+ * appeared after the post-purchase retries ran out (`PurchaseSyncOutcome` = `timed-out`).
+ *
+ * It exists because the alternative is worse in a specific way: the gate renders this screen
+ * *instead of* the app and has no dismiss, so a purchase that doesn't land server-side used to
+ * leave a paying user on the paywall with nothing to tap. Nothing is actually broken in that
+ * state (RevenueCat holds the purchase, the webhook arrives late or a restore recovers it,
+ * and the next foreground refresh picks it up), so the copy says that instead of implying
+ * money went missing.
+ *
+ * Two ways forward, never zero:
+ *
+ *  - **Check again** re-runs the same ~9s server poll, which is the whole fix most of the time
+ *    (a webhook a few seconds behind).
+ *  - **The exit** depends on how this screen was reached, which is what `exitLabel` carries.
+ *    Pushed as a route (the reclaim banner) there is a navigator to pop, so the honest option
+ *    is to close and let it sync. Under the gate there is nothing to pop, so the only exit is
+ *    back to the selection, explicitly as a temporary measure, since locks are reversed the
+ *    moment the subscription registers.
+ */
+function StalledScreen({
+  checking,
+  stillWaiting,
+  onCheckAgain,
+  exitLabel,
+  exitHint,
+  onExit,
+}: {
+  /** A re-check is in flight. Keeps the screen mounted rather than flashing a spinner page. */
+  checking: boolean;
+  /** A re-check has already come back still-unconfirmed, so say so instead of repeating. */
+  stillWaiting: boolean;
+  onCheckAgain: () => void;
+  exitLabel: string;
+  exitHint: string;
+  onExit: () => void;
+}) {
+  const { theme } = useTheme();
+  const t = THEME_TOKENS[theme];
+  return (
+    <Frame>
+      <ScrollView contentContainerStyle={{ padding: 20, gap: 16 }}>
+        <View className="gap-2">
+          <Text className="font-serif text-3xl text-ink">Your purchase went through</Text>
+          <Text className="text-base text-muted">
+            Apple has your Klect Pro purchase, nothing is lost, our records just haven&apos;t
+            caught up yet. This usually sorts itself out in a moment.
+          </Text>
+          {stillWaiting ? (
+            <Text className="text-base text-muted">
+              Still not showing up here. You can keep waiting (it lands on its own, even if
+              you close the app), or carry on below.
+            </Text>
+          ) : null}
+        </View>
+      </ScrollView>
+      <View className="gap-3 border-t border-border bg-bg px-5 pb-2 pt-4">
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Check again"
+          disabled={checking}
+          onPress={onCheckAgain}
+          style={{ backgroundColor: t.primary, opacity: checking ? 0.5 : 1 }}
+          className="flex-row items-center justify-center gap-2 rounded-skin p-4">
+          {checking ? <ActivityIndicator color={t.primaryInk} size="small" /> : null}
+          <Text style={{ color: t.primaryInk }} className="font-sans-semibold text-base">
+            {checking ? 'Checking…' : 'Check again'}
+          </Text>
+        </Pressable>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={exitLabel}
+          disabled={checking}
+          onPress={onExit}
+          style={{ opacity: checking ? 0.5 : 1 }}
+          className="items-center p-2">
+          <Text className="font-sans-medium text-base text-primary">{exitLabel}</Text>
+        </Pressable>
+        <Text className="pb-2 text-center text-sm text-muted">{exitHint}</Text>
+      </View>
+    </Frame>
+  );
+}
+
 export default function DowngradeScreen({
   onDone,
 }: {
@@ -305,7 +401,11 @@ function Selection({
   mode: Mode;
   status: EntitlementStatus;
   refresh: () => Promise<EntitlementStatus | null>;
-  onPurchased: () => Promise<void>;
+  /**
+   * Poll the server until it agrees the purchase landed. Its outcome is branched on rather
+   * than awaited-and-ignored: `timed-out` is the dead end this screen used to have.
+   */
+  onPurchased: () => Promise<PurchaseSyncOutcome>;
   onDone?: () => void;
 }) {
   const reclaiming = mode === 'reclaim';
@@ -331,9 +431,13 @@ function Selection({
       ? 'lists'
       : 'bookmarks',
   );
-  /** Stage to return to when the inline paywall is dismissed. */
+  /** Stage to return to when the inline paywall (or the stalled screen) is dismissed. */
   const [stageBeforePaywall, setStageBeforePaywall] = useState<Stage>('lists');
   const [unlocking, setUnlocking] = useState(false);
+  /** A re-check from the stalled screen is in flight. */
+  const [rechecking, setRechecking] = useState(false);
+  /** A re-check has already come back still-unconfirmed. */
+  const [stillWaiting, setStillWaiting] = useState(false);
 
   // Reclaim mode starts with a valid answer already filled in (the active rows, then as
   // many locked ones as there is room for), so bringing something back is one tap rather
@@ -453,11 +557,65 @@ function Selection({
   }
 
   function openPaywall() {
-    setStageBeforePaywall(stage === 'paywall' ? stageBeforePaywall : stage);
+    const leaving = stage === 'paywall' || stage === 'stalled';
+    setStageBeforePaywall(leaving ? stageBeforePaywall : stage);
     setStage('paywall');
   }
 
+  /**
+   * Route a finished purchase by what the *server* ended up saying. `confirmed` is the
+   * ordinary path and unchanged (pro clears every lock server-side, so there is nothing left
+   * to select). `abandoned` means this tree is being torn down, so it renders nothing.
+   * `timed-out` is the one that used to fall through to "nothing happened".
+   */
+  function routePurchase(outcome: PurchaseSyncOutcome) {
+    if (outcome === 'abandoned') return;
+    if (outcome === 'confirmed') {
+      onDone?.(); // No-op under the gate, which unmounts this screen itself.
+      return;
+    }
+    setStage('stalled');
+  }
+
+  async function recheckPurchase() {
+    setRechecking(true);
+    const outcome = await onPurchased();
+    setRechecking(false);
+    if (outcome === 'timed-out') {
+      setStillWaiting(true);
+      return;
+    }
+    routePurchase(outcome);
+  }
+
   if (unlocking) return <Centered label="Unlocking Klect Pro…" />;
+
+  if (stage === 'stalled') {
+    return (
+      <StalledScreen
+        checking={rechecking}
+        stillWaiting={stillWaiting}
+        onCheckAgain={recheckPurchase}
+        // `onDone` is the tell for how this screen was reached: supplied means it was pushed
+        // as a route (app/downgrade.tsx, from the reclaim banner) and can simply be popped;
+        // omitted means the gate is rendering it instead of the navigator, where the only
+        // place to go is back to the selection.
+        exitLabel={onDone ? 'Done' : 'Choose what to keep for now'}
+        exitHint={
+          onDone
+            ? 'Your purchase syncs on its own. Nothing to do.'
+            : 'Just for now. Everything you leave out comes back by itself the moment your purchase registers.'
+        }
+        onExit={() => {
+          if (onDone) {
+            onDone();
+            return;
+          }
+          setStage(stageBeforePaywall);
+        }}
+      />
+    );
+  }
 
   if (stage === 'paywall') {
     return (
@@ -470,10 +628,12 @@ function Selection({
             setUnlocking(true);
             // The webhook clears every lock server-side on re-subscribe; once our own status
             // says pro, `needsSelection` is false and the gate drops this screen entirely.
-            await onPurchased();
+            const outcome = await onPurchased();
             setUnlocking(false);
-            // Pro clears every lock server-side, so there is nothing left to select.
-            onDone?.();
+            setStillWaiting(false);
+            // Success is unchanged (pro clears every lock server-side, so there is nothing
+            // left to select); a webhook that never landed gets the stalled screen.
+            routePurchase(outcome);
           }}
         />
       </Frame>

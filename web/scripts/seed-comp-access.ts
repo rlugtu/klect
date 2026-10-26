@@ -17,16 +17,23 @@
  * "comp" is deliberately outside the `EntitlementStore` union in entitlements.ts, which
  * enumerates only the stores RevenueCat can send. No purchase, no store, no receipt.
  *
- * ## Why the expiry is a far-future date and not null
+ * ## What keeps a comp row from blocking the webhook (and what does not)
  *
- * A null `expiresAt` would also read as permanently active ("no known expiry", the
- * lifetime/promotional case), and that is exactly the problem. `isSuperseded` in
- * core/revenuecat.ts sorts a null `expiresAt` as infinitely far in the future, so a
- * comp row with a null expiry permanently supersedes every real webhook event for
- * that user: every INITIAL_PURCHASE, RENEWAL and EXPIRATION carries a finite
- * `expiration_at_ms`, compares as older, and is dropped. On a comped QA account that
- * silently breaks the one thing the account exists to test, because the webhook
- * answers 200 and writes nothing. See {@link COMP_EXPIRES_AT}.
+ * `isSuperseded` in core/revenuecat.ts drops any incoming event whose period end is
+ * earlier than the stored row's, because within a real subscription the period end only
+ * moves forward and therefore doubles as a version number. A comp row breaks that
+ * premise: its expiry is a hand-picked far-future date, not a period end. So *whatever*
+ * date is used here (a null expiry read as +Infinity, 2099, or the 2036 below), every
+ * real event for that user (INITIAL_PURCHASE, RENEWAL, CANCELLATION, EXPIRATION, all
+ * carrying a nearer finite `expiration_at_ms`) would compare as older and be dropped,
+ * while the webhook still answered 200 and wrote nothing. On a comped QA or owner
+ * account that silently breaks the one thing the account exists to exercise.
+ *
+ * Picking a finite date does *not* solve that, and an earlier version of this comment
+ * claimed it did. What actually solves it is the explicit `store === "comp"` exception
+ * in `isSuperseded` ("The comp exception" in its doc comment): a comp row is never
+ * treated as newer than a real event, so real events always apply. The expiry's only
+ * job is the access check and the UI. See {@link COMP_EXPIRES_AT}.
  *
  * Idempotent: it upserts on `Entitlement.userId` (already `@unique`), so re-running is
  * always safe and never creates a duplicate. Two caveats, in both directions:
@@ -35,9 +42,9 @@
  *    webhook-written row with the comp values. Remove the email from the list below
  *    first in that case.
  *  - In the other direction, the comp row is deliberately *not* immune to the webhook.
- *    A genuine subscription event for the same user supersedes it (finite expiry beats
- *    the sentinel), which is what keeps webhook QA honest. Re-run the script to put
- *    the comp grant back afterwards.
+ *    A genuine subscription event for the same user takes the row over (by the comp
+ *    exception above, not by any expiry comparison), which is what keeps webhook QA
+ *    honest. Re-run the script to put the comp grant back afterwards.
  *
  * Run from web/:
  *
@@ -66,7 +73,14 @@ const COMP_ACCESS_EMAILS: readonly string[] = [
   "ryanlugtu@gmail.com", // Ryan Lugtu, owner
 ];
 
-/** Marks the row as a comp grant rather than a real App Store / Stripe purchase. */
+/**
+ * Marks the row as a comp grant rather than a real App Store / Stripe purchase.
+ *
+ * Must stay identical to `COMP_STORE` in src/lib/core/revenuecat.ts, which is the exception
+ * that keeps these rows from swallowing real webhook events. It is re-declared rather than
+ * imported on purpose: that module is `server-only` and pulls in `@/lib/db`, and this script
+ * runs under `tsx` with relative imports and no path aliases (see the header's run note).
+ */
 const COMP_STORE = "comp";
 
 /** Stands in for a product identifier (e.g. "klect_pro_annual"). No product was bought. */
@@ -76,16 +90,22 @@ const COMP_PLAN = "klect_pro_comp";
 const ACTIVE_STATUS = "active";
 
 /**
- * Far-future sentinel expiry, standing in for "permanent" without being null.
+ * Far-future expiry, standing in for "permanent" without being null.
  *
- * Practically permanent (nobody is QA-ing Klect in 2099) while still being a finite
- * date, which is the whole point: `isSuperseded` in core/revenuecat.ts treats a null
- * `expiresAt` as +Infinity and would let a comp row block every real RevenueCat event
- * for that user forever, so a comped account could never be used to test the webhook.
- * A real subscription event always carries a nearer, finite expiry, so it compares as
- * newer and takes over the row the way it should.
+ * Only two things read it, and both are satisfied by any sufficiently distant date:
+ * `isEntitlementActive` (status "active" plus an expiry in the future) and the Membership
+ * section's "Renews <date>" line, which a real date renders honestly where a null would
+ * fall back to a bare "Active". The webhook-ordering problem is *not* among them. See the
+ * header: that is handled by the `store === "comp"` exception in `isSuperseded`, not by the
+ * choice of date.
+ *
+ * 2036 rather than 2099: it is equally permanent in practice (a decade out, and the grant is
+ * re-run from version control whenever it needs refreshing) while sitting clear of the 2038
+ * 32-bit `time_t` boundary. That is precautionary only (no overflow was found anywhere in
+ * this stack, which is all 64-bit), but a sentinel that is deliberately plausible costs
+ * nothing and reads better in the UI than a date in the next century.
  */
-const COMP_EXPIRES_AT = new Date("2099-01-01T00:00:00Z");
+const COMP_EXPIRES_AT = new Date("2036-01-01T00:00:00Z");
 
 const prisma = new PrismaClient({
   adapter: new PrismaPg({ connectionString: process.env.DATABASE_URL }),
@@ -116,7 +136,7 @@ async function main(): Promise<number> {
         store: COMP_STORE,
         plan: COMP_PLAN,
         status: ACTIVE_STATUS,
-        expiresAt: COMP_EXPIRES_AT, // far-future sentinel, not null (see the header)
+        expiresAt: COMP_EXPIRES_AT, // far-future, not null (see COMP_EXPIRES_AT)
       },
       update: {
         store: COMP_STORE,

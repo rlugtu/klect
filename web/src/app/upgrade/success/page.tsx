@@ -6,6 +6,7 @@ import { getSelectionStatus } from "@/lib/actions/entitlements";
 import { getRemoteProStatus } from "@/lib/revenuecat-remote";
 import { PixelButton } from "@/components/ui/PixelButton";
 import { PixelCard } from "@/components/ui/PixelCard";
+import { RefreshButton } from "@/components/entitlements/RefreshButton";
 
 export const metadata: Metadata = {
   title: "Welcome to Klect Pro",
@@ -84,9 +85,7 @@ function Syncing() {
         account now. This usually takes a few seconds. Refresh this page and
         everything will be unlocked.
       </p>
-      <Link href="/upgrade/success">
-        <PixelButton size="sm">Refresh</PixelButton>
-      </Link>
+      <RefreshButton />
     </Shell>
   );
 }
@@ -100,9 +99,7 @@ function Pending() {
         nothing was charged.
       </p>
       <div className="flex flex-wrap items-center justify-center gap-2">
-        <Link href="/upgrade/success">
-          <PixelButton size="sm">Refresh</PixelButton>
-        </Link>
+        <RefreshButton />
         <Link href="/upgrade">
           <PixelButton variant="secondary" size="sm">
             Back to plans
