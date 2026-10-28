@@ -196,6 +196,36 @@ export function getVisibleBookmarks(
   });
 }
 
+/**
+ * A keyset-paginated page of the user's cross-list bookmarks, newest first: the
+ * infinite-scroll counterpart to getVisibleBookmarks's limit-based "Show more", for mobile's
+ * Home strip + Recent bookmarks page. Cursor pagination mirrors getMessages in lib/dms.ts:
+ * cursor is the last row's id, tie-broken on id so pages stay stable when createdAt collides.
+ */
+export async function getRecentBookmarksPage(
+  userId: string,
+  cursor?: string,
+  limit: number = 20,
+) {
+  const rows = await prisma.bookmark.findMany({
+    where: visibleBookmarksWhere(userId, {}),
+    orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+    take: limit + 1,
+    ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
+    include: {
+      list: { select: { id: true, name: true, icon: true, lockedAt: true } },
+      tags: { include: { tag: { select: { id: true, name: true, color: true } } } },
+      _count: { select: { comments: true } },
+    },
+  });
+  let nextCursor: string | null = null;
+  if (rows.length > limit) {
+    nextCursor = rows[limit - 1].id;
+    rows.length = limit;
+  }
+  return { items: rows, nextCursor };
+}
+
 /** How many bookmarks match the same filters, for "showing N of M". */
 export function countVisibleBookmarks(
   userId: string,

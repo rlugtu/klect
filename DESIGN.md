@@ -567,6 +567,7 @@ all three.
 | `bookmarks.forList` | query | `{ listId }` | `assertCanView` (member **or** public list) | `getBookmarksForList` |
 | `bookmarks.get` | query | `{ bookmarkId }` | member or public list (or null) | `getBookmarkForUser` |
 | `bookmarks.byTags` | query | `{ tagNames }` | user-scoped | `getBookmarksByTags` |
+| `bookmarks.recent` | query | `{ cursor?, limit? }` (1 to 50, default 20) | user-scoped (membership, in data access) | `getRecentBookmarksPage` — cross-list bookmarks newest first, keyset page on `(createdAt, id)` + `nextCursor`; powers mobile's Home "Recently saved" strip and its Recent bookmarks infinite scroll |
 | `bookmarks.create` | mutation | `{ listId, data: BookmarkInput }` | COLLABORATOR (in core) | `core.createBookmark` |
 | `bookmarks.createInLists` | mutation | `{ existingListIds, newListNames, data, newListsPublic? }` | COLLABORATOR per existing list (in core) | `core.createBookmarkInLists` — `newListsPublic` sets the visibility of any lists created inline (default private) |
 | `bookmarks.update` | mutation | `{ bookmarkId, data: BookmarkInput }` | COLLABORATOR (in core) | `core.updateBookmark` |

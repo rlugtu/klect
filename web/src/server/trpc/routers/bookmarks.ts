@@ -6,6 +6,7 @@ import {
   getBookmarksForList,
   getBookmarksByTags,
   getBookmarkForUser,
+  getRecentBookmarksPage,
 } from "@/lib/bookmarks";
 import * as core from "@/lib/core/bookmarks";
 import { BULK_BOOKMARK_MAX } from "@/lib/move-plan";
@@ -28,6 +29,18 @@ export const bookmarksRouter = router({
   byTags: protectedProcedure
     .input(z.object({ tagNames: z.array(z.string()) }))
     .query(({ ctx, input }) => getBookmarksByTags(ctx.user.id, input.tagNames)),
+
+  /** Cross-list bookmarks, newest first, cursor-paginated. Powers mobile's Home "Recently
+   * saved" strip and its Recent bookmarks page's infinite scroll. */
+  recent: protectedProcedure
+    .input(
+      z
+        .object({ cursor: z.string().optional(), limit: z.number().min(1).max(50).optional() })
+        .optional(),
+    )
+    .query(({ ctx, input }) =>
+      getRecentBookmarksPage(ctx.user.id, input?.cursor, input?.limit),
+    ),
 
   create: protectedProcedure
     .input(z.object({ listId: z.string(), data: bookmarkInput }))
