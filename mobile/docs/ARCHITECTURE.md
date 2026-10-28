@@ -242,17 +242,27 @@ modal with `router.back()` (or `router.dismissAll()` after leaving a list).
 
 ## Screens & features
 
-- **Home / Lists** (`(tabs)/index.tsx`): the user's lists (`lists.mine`) as a 3-column grid of
-  `ListTile`s (`components/list-tile.tsx`: 4:3 cover showing a mosaic of up to 3 of the list's newest
-  photos from `previews`, or the emoji when there are none, name, `_count`
-  bookmark count plus member count when shared in a pill on the cover); client-side name search (input carries a leading search
-  icon + panel fill). Lists the user only **collaborates on or views** (non-`OWNER` `role` on the
-  membership) carry a small **Collab / Viewer** pill on the tile's cover (parity with web's `ListCard`),
-  so shared lists read differently from your own; owned lists show no badge. A slim toolbar row under the title pairs a **Requests** inbox link (with a
-  pending count → the pushed `requests` screen) with the **＋ List** action (→ `lists/new`), divided
-  off from the tiles below so it doesn't read as another list. Tiles are
-  **drag-reorderable** (`react-native-sortables` `Sortable.Grid`, `columns` from the toggle; the library re-measures on a change, so no remount, inside an
-  `Animated.ScrollView` passed as `scrollableRef` for edge auto-scroll): long-press a tile to drag;
+- **Home / Lists** (`(tabs)/index.tsx`): the user's lists (`lists.mine`) as either a 3-column grid
+  of `ListTile`s or a single-column list of `ListRow`s (`components/list-tile.tsx` /
+  `components/list-row.tsx`), per an icon-button toggle beside the search box, persisted to
+  secure-store (`klect.home-view-mode`) and defaulting to tiles. `ListTile` is a 4:3 cover showing a
+  mosaic of up to 3 of the list's newest photos from `previews` (or the emoji when there are none),
+  the serif name below (no reserved second line; most names render on one), and `_count` bookmark
+  count plus member count when shared in a pill on the cover. `ListRow` is a compact full-width
+  equivalent: a small square thumbnail, the name, and a `bookmarks · members` meta line. Both carry
+  a small **Collab / Viewer** pill for a non-owner's own role, and now also a plain **Shared** pill
+  (same people glyph as Collab) for an *owner* whose list has other members, so a shared list reads
+  as shared no matter who's looking at it (an owned, unshared list shows no badge). Above both, a
+  compact **"Recently saved"** horizontal strip (`components/recent-bookmarks-strip.tsx`) shows the
+  newest bookmarks across every list the user can see (`bookmarks.recent`, 8 at a time), with a
+  "View all" link to the full `bookmarks/recent` infinite-scroll screen; the strip renders nothing
+  at all when there's nothing saved yet, so it never costs vertical space on an empty account. A
+  slim toolbar row under the title pairs a **Requests** inbox link (with a pending count → the
+  pushed `requests` screen) with the **＋ List** action (→ `lists/new`), divided off from the list
+  below so it doesn't read as another list. Tiles/rows are
+  **drag-reorderable** (`react-native-sortables` `Sortable.Grid`, `columns` set by the view toggle,
+  3 for tiles and 1 for rows; the library re-measures on a change, so no remount, inside an
+  `Animated.ScrollView` passed as `scrollableRef` for edge auto-scroll): long-press to drag;
   `onDragEnd` optimistically reorders then persists `lists.reorder`. Presses go through
   `Sortable.Touchable` (a plain Pressable can fire after a drag). VoiceOver gets **Move earlier /
   Move later** accessibility actions on the same reorder path. Sorting is off while searching
@@ -260,6 +270,12 @@ modal with `router.back()` (or `router.dismissAll()` after leaving a list).
   always-mounted scroll view whether or not a search is active, because swapping components on the
   first keystroke would unmount the search `TextInput` and drop keyboard focus. Tiles carry the
   `cardShadow`.
+- **Recent bookmarks** (`bookmarks/recent.tsx`): the full cross-list "Recently saved" feed behind
+  Home's strip, newest first, keyset-paginated (`bookmarks.recent`, cursor = last row's id).
+  `PhotoCard` rows (same as the in-list feed) plus a chip naming the owning list; `onEndReached`
+  loads the next page, guarded by a ref flag against double-fires; stops once the server returns a
+  null `nextCursor`. Same locked-dimming rule as the in-list feed: read-only when the bookmark or
+  its list is locked.
 - **List requests** (`requests.tsx`) — all open incoming list-join requests
   (`sharing.incomingRequests`) with approve/reject (`approveRequest`/`rejectRequest`).
 - **List invite** (`invite/[token].tsx`) — the landing screen for an invite **link**. Reached by

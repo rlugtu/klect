@@ -68,18 +68,34 @@ below describes the **Journal**/Pixel families:
 - **Photo-forward bookmark card** (`PhotoCard`): in-list bookmark feed. A landscape
   photo (first extracted image, or a warm tinted placeholder) with a slight white
   "print border," title in Newsreader below, tag pills + rating underneath.
-- **Home list tile** (`components/list-tile.tsx`): Home shows lists as a 3-column grid
-  of fixed-width compact tiles. 8px column gap, 12px row gap; an odd last tile stays
-  one column wide. Each tile is a 4:3 cover inset by a 4px print border: a photo
-  mosaic of the list's newest bookmark photos (`previews` on `lists.mine`, up to 3,
-  newest first). Three photos = the newest fills the left half and the other two stack
-  on the right; two = side-by-side halves; one = the full cover; none = the list emoji
-  on `bg`. Each cell walks that bookmark's other photos if one fails to load, and a
-  cell with no loadable photo drops out so the mosaic re-lays itself. Icon-only
-  Collab/Viewer and Locked pills (people / eye / lock) sit top-left and a count pill
-  (bookmark glyph + count) bottom-right, then the serif name at `text-xs`, up to 2
-  lines, always reserving that height so a row lines up. Locked tiles dim cover and
-  name, never the pills; a locked bookmark inside an unlocked list dims its own cell.
+- **Home list tile** (`components/list-tile.tsx`): Home's default view, a 3-column grid
+  of fixed-width compact tiles (an icon toggle beside the search box swaps to the
+  single-column **list row** below; the choice is remembered per device). 8px column
+  gap, 12px row gap; an odd last tile stays one column wide. Each tile is a 4:3 cover
+  inset by a 4px print border: a photo mosaic of the list's newest bookmark photos
+  (`previews` on `lists.mine`, up to 3, newest first). Three photos = the newest fills
+  the left half and the other two stack on the right; two = side-by-side halves; one =
+  the full cover; none = the list emoji on `bg`. Each cell walks that bookmark's other
+  photos if one fails to load, and a cell with no loadable photo drops out so the
+  mosaic re-lays itself. Icon-only pills sit top-left: **Collab / Viewer** for a
+  non-owner's own role, or a plain **Shared** pill (same people glyph) for an owner
+  whose list has other members, plus **Locked**; a count pill (bookmark glyph + count)
+  sits bottom-right. The serif name sits below at `text-xs`, up to 2 lines, with no
+  reserved height (a one-line name doesn't carry a blank second line). Locked tiles dim
+  cover and name, never the pills; a locked bookmark inside an unlocked list dims its
+  own cell.
+- **Home list row** (`components/list-row.tsx`): the compact single-column alternative
+  to the tile above. A 44px square thumbnail (same photo/emoji fallback as the tile's
+  cover, one cell instead of a mosaic), the serif name on one line, a muted meta line
+  (bookmark count, plus member count when shared), and the tile's own Collab/Viewer/
+  Shared and Locked pills at the row's trailing edge. Same drag-to-reorder and
+  VoiceOver actions as the tile.
+- **Recent bookmark card** (`components/recent-bookmarks-strip.tsx`): Home's compact
+  "Recently saved" strip, a horizontal row of 84×84 square cards above the search box:
+  the bookmark's first photo (or the owning list's emoji), a small chip naming that
+  list inset on the photo's bottom edge, and the bookmark's name on one truncated line
+  below. The same card pattern, at full width with a `PhotoCard` body, powers the
+  pushed **Recent bookmarks** page's infinite-scroll feed.
 - **Compact row** — Nearby & search results: small square thumbnail, name + list
   icon/name, distance or muted meta on the right. On Nearby the distance is emphasized
   (larger, bold) and up to 3 tag pills sit under the list label. No large photo,

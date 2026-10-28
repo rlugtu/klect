@@ -181,7 +181,9 @@ never trapped on the wrong screen.
 | Onboarding (profile setup) | ✅ | ✅ | **@handle** (required), first/last name, emoji avatar, theme. No birthday input on either platform |
 | Lists — CRUD | ✅ | ✅ | |
 | Lists — public/private visibility | ✅ | ✅ | Owner-only toggle; **private by default**; public = read-only for anyone (`lists.setVisibility`) |
-| Lists — drag-reorder | ✅ | ✅ | Per-user order (`lists.reorder`); web: Framer Motion · mobile: long-press drag in a 3-column grid (`react-native-sortables`) |
+| Lists — drag-reorder | ✅ | ✅ | Per-user order (`lists.reorder`); web: Framer Motion · mobile: long-press drag, in a 3-column tile grid or a single-column list (`react-native-sortables`, per-device view toggle) |
+| Lists — tile/list view toggle | — | ✅ | Mobile-only: icon button beside Home's search box swaps the 3-column photo-tile grid for compact full-width rows; per-device, remembered across launches (`expo-secure-store`) |
+| Recently saved / Recent bookmarks | ✅ | ✅ | Cross-list, newest-first feed (`bookmarks.recent`, keyset-paginated). Web: a "Recently saved" grid row on desktop Home linking to the `/bookmarks` All bookmarks page (limit-based "Show more") · Mobile: a compact horizontal strip above Home's search box linking to a dedicated Recent bookmarks page with infinite scroll |
 | Lists — actions (duplicate / clear) | ✅ | ✅ | Duplicate = new owner copy, bookmarks+tags only, any member (`lists.duplicate`) · Clear = delete all bookmarks, owner only (`lists.clearBookmarks`) |
 | Home search | ⚠️ | ⚠️ | Web: unified list + cross-list tag filter · Mobile: local name search |
 | Bookmarks — CRUD & fields | ✅ | ✅ | URLs, images, notes, rating, visited, location, tags |
@@ -281,10 +283,11 @@ mutations stay gated by `assertRole`. Toggling is separate from list edit — `l
 **Description.** Reorder your lists on the home screen; the order is saved per-user.
 **Web.** Framer-Motion `Reorder` in `HomeLists`, debounced `reorderLists` → `lists.reorder`
 (persists `ListMembership.position`).
-**Mobile.** `react-native-sortables` (`Sortable.Grid`, 3 columns) on the home screen
-(`(tabs)/index.tsx`): long-press a list tile to drag; `onDragEnd` optimistically updates then
-persists `lists.reorder`. VoiceOver users get Move earlier / Move later actions on the same path.
-Dragging is disabled while a search query is active (reordering a filtered subset is ambiguous).
+**Mobile.** `react-native-sortables` (`Sortable.Grid`, 3 columns in tile view or 1 in list view)
+on the home screen (`(tabs)/index.tsx`): long-press a list tile/row to drag; `onDragEnd`
+optimistically updates then persists `lists.reorder`. VoiceOver users get Move earlier / Move
+later actions on the same path. Dragging is disabled while a search query is active (reordering a
+filtered subset is ambiguous).
 **Differences.** Same procedure + persistence; different drag implementation per platform.
 
 ### Lists — actions (duplicate / clear)

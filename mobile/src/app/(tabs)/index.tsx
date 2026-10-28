@@ -1,16 +1,18 @@
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Pressable, Text, TextInput, View } from 'react-native';
 import Animated, { useAnimatedRef } from 'react-native-reanimated';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import Sortable from 'react-native-sortables';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect, useRouter } from 'expo-router';
+import * as SecureStore from 'expo-secure-store';
 
 import { trpc } from '@/client/api';
 import { useEntitlements } from '@/client/entitlements';
 import { writeSharedLists } from '@/client/shared-lists-cache';
 import { toast, errorMessage } from '@/client/toast';
 import FloatingStatusBar from '@/components/floating-status-bar';
+import ListRow, { ROW_HEIGHT } from '@/components/list-row';
 import ListTile, {
   TILE_COLUMNS,
   TILE_COLUMN_GAP,
@@ -20,6 +22,7 @@ import ListTile, {
   useTileWidth,
 } from '@/components/list-tile';
 import { ReclaimBanner } from '@/components/locked-badge';
+import RecentBookmarksStrip from '@/components/recent-bookmarks-strip';
 import Skeleton from '@/components/skeleton';
 import { useTheme } from '@/theme/theme-provider';
 import { THEME_TOKENS } from '@/theme/tokens';
@@ -28,6 +31,18 @@ import { useTabBarScrollHandler } from '@/theme/tab-bar-scroll';
 // Inferred straight from web's tRPC procedure — no hand-written DTOs.
 type Memberships = Awaited<ReturnType<typeof trpc.lists.mine.query>>;
 type Membership = Memberships[number];
+type RecentBookmarks = Awaited<ReturnType<typeof trpc.bookmarks.recent.query>>['items'];
+
+/** How many cards the Home strip asks for. Enough to scroll, few enough to stay cheap. */
+const RECENT_LIMIT = 8;
+
+/**
+ * How "Your lists" is laid out: a grid of photo tiles, or compact full-width rows. Per device and
+ * remembered across launches. Secure-store because it is the app's one local key-value store (the
+ * theme lives there too); nothing secret about it.
+ */
+type ViewMode = 'tiles' | 'list';
+const VIEW_MODE_KEY = 'klect.home-view-mode';
 
 export default function HomeScreen() {
   const router = useRouter();
@@ -44,6 +59,7 @@ export default function HomeScreen() {
   const { status } = useEntitlements();
 
   const [lists, setLists] = useState<Memberships>([]);
+  const [recentBookmarks, setRecentBookmarks] = useState<RecentBookmarks>([]);
   const [requestCount, setRequestCount] = useState(0);
   const [query, setQuery] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -52,6 +68,9 @@ export default function HomeScreen() {
   // the user can act on in one tap, and it stops being offered the moment they do (or the
   // moment the room disappears), so there is nothing here worth remembering across launches.
   const [reclaimDismissed, setReclaimDismissed] = useState(false);
+  // Tiles until the stored preference says otherwise, so the first frame is never the wrong one
+  // for a new install.
+  const [viewMode, setViewMode] = useState<ViewMode>('tiles');
 
   const load = useCallback(() => {
     trpc.lists.mine
@@ -68,9 +87,29 @@ export default function HomeScreen() {
       .query()
       .then((r) => setRequestCount(r.length))
       .catch(() => {});
+    // On the same refetch-on-focus lifecycle as the lists above, deliberately: a bookmark saved
+    // on another screen (or by the share extension) has to be in the strip when Home comes back.
+    trpc.bookmarks.recent
+      .query({ limit: RECENT_LIMIT })
+      .then((page) => setRecentBookmarks(page.items))
+      .catch(() => {});
   }, []);
 
   useFocusEffect(useCallback(() => load(), [load]));
+
+  useEffect(() => {
+    SecureStore.getItemAsync(VIEW_MODE_KEY)
+      .then((v) => {
+        if (v === 'list') setViewMode('list');
+      })
+      .catch(() => {});
+  }, []);
+
+  function toggleViewMode() {
+    const next: ViewMode = viewMode === 'tiles' ? 'list' : 'tiles';
+    setViewMode(next);
+    SecureStore.setItemAsync(VIEW_MODE_KEY, next).catch(() => {});
+  }
 
   const filtering = query.trim() !== '';
   const shown = useMemo(() => {
@@ -150,31 +189,57 @@ export default function HomeScreen() {
         />
       )}
 
-      <View className="flex-row items-center gap-2 rounded-skin border-skin border-border bg-panel px-3">
-        <Ionicons name="search" size={18} color={muted} />
-        <TextInput
-          className="flex-1 py-3 font-sans text-base text-ink"
-          placeholder="Search lists"
-          placeholderTextColor={muted}
-          autoCapitalize="none"
-          value={query}
-          onChangeText={setQuery}
-        />
+      <RecentBookmarksStrip items={recentBookmarks} loading={loading} />
+
+      <View className="flex-row items-stretch gap-2">
+        <View className="flex-1 flex-row items-center gap-2 rounded-skin border-skin border-border bg-panel px-3">
+          <Ionicons name="search" size={18} color={muted} />
+          <TextInput
+            className="flex-1 py-3 font-sans text-base text-ink"
+            placeholder="Search lists"
+            placeholderTextColor={muted}
+            autoCapitalize="none"
+            value={query}
+            onChangeText={setQuery}
+          />
+        </View>
+        {/* Layout mode. A sibling of the search box, never a parent, so toggling it can't
+            remount the TextInput and drop keyboard focus. The icon previews the layout a tap
+            switches to. */}
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={viewMode === 'tiles' ? 'Show lists as rows' : 'Show lists as tiles'}
+          onPress={toggleViewMode}
+          hitSlop={4}
+          className="aspect-square items-center justify-center rounded-skin border-skin border-border bg-panel">
+          <Ionicons
+            name={viewMode === 'tiles' ? 'list-outline' : 'grid-outline'}
+            size={18}
+            color={muted}
+          />
+        </Pressable>
       </View>
 
-      {loading && (
-        // Tile-shaped placeholders: two rows in the grid's own geometry, same idiom as the poll
-        // screens.
-        <View
-          className="flex-row flex-wrap"
-          style={{ columnGap: TILE_COLUMN_GAP, rowGap: TILE_ROW_GAP }}>
-          {Array.from({ length: TILE_COLUMNS * 2 }, (_, i) => (
-            <View key={i} style={{ width: tileWidth }}>
-              <Skeleton height={tileHeight(tileWidth)} />
-            </View>
-          ))}
-        </View>
-      )}
+      {loading &&
+        // Placeholders in whichever geometry the grid is about to use, same idiom as the poll
+        // screens: two rows of tiles, or six compact rows.
+        (viewMode === 'tiles' ? (
+          <View
+            className="flex-row flex-wrap"
+            style={{ columnGap: TILE_COLUMN_GAP, rowGap: TILE_ROW_GAP }}>
+            {Array.from({ length: TILE_COLUMNS * 2 }, (_, i) => (
+              <View key={i} style={{ width: tileWidth }}>
+                <Skeleton height={tileHeight(tileWidth)} />
+              </View>
+            ))}
+          </View>
+        ) : (
+          <View style={{ rowGap: TILE_ROW_GAP }}>
+            {Array.from({ length: 6 }, (_, i) => (
+              <Skeleton key={i} height={ROW_HEIGHT} />
+            ))}
+          </View>
+        ))}
       {error && <Text className="font-sans text-danger">{error}</Text>}
       {!loading && !error && shown.length === 0 && (
         <Text className="font-serif-italic text-muted">
@@ -205,7 +270,8 @@ export default function HomeScreen() {
         contentContainerStyle={contentContainerStyle}>
         {header}
         <Sortable.Grid
-          columns={TILE_COLUMNS}
+          // The library re-measures on a column-count change, so no remount (or key) needed.
+          columns={viewMode === 'tiles' ? TILE_COLUMNS : 1}
           columnGap={TILE_COLUMN_GAP}
           rowGap={TILE_ROW_GAP}
           data={shown}
@@ -218,18 +284,23 @@ export default function HomeScreen() {
             setLists(data);
             persistOrder(data);
           }}
-          renderItem={({ item, index }) => (
-            <ListTile
-              item={item}
-              onOpen={() => openList(item)}
-              onMoveEarlier={!filtering && index > 0 ? () => moveBy(item.list.id, -1) : undefined}
-              onMoveLater={
-                !filtering && index < shown.length - 1
-                  ? () => moveBy(item.list.id, 1)
-                  : undefined
-              }
-            />
-          )}
+          renderItem={({ item, index }) => {
+            const Item = viewMode === 'tiles' ? ListTile : ListRow;
+            return (
+              <Item
+                item={item}
+                onOpen={() => openList(item)}
+                onMoveEarlier={
+                  !filtering && index > 0 ? () => moveBy(item.list.id, -1) : undefined
+                }
+                onMoveLater={
+                  !filtering && index < shown.length - 1
+                    ? () => moveBy(item.list.id, 1)
+                    : undefined
+                }
+              />
+            );
+          }}
         />
       </Animated.ScrollView>
       <FloatingStatusBar />

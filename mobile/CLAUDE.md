@@ -83,8 +83,9 @@ bottom-positioned **swipeable** `@react-navigation/material-top-tabs` pager on
 react-native-reanimated 4 + gesture-handler, **`expo-haptics`** (tab-press feedback), `expo-image`,
 **NativeWind**, `@trpc/client`,
 `@better-auth/expo`, **`@gorhom/bottom-sheet`** (tag filter + Near me results drawer),
-**`react-native-sortables`** (`Sortable.Grid`: the drag-to-reorder 3-column list grid on home;
-JS-only, builds on reanimated + gesture-handler), **expo-font + `@expo-google-fonts/*`**
+**`react-native-sortables`** (`Sortable.Grid`: the drag-to-reorder list grid on home, 3-column
+tiles or a single-column list depending on the view toggle; JS-only, builds on reanimated +
+gesture-handler), **expo-font + `@expo-google-fonts/*`**
 (Newsreader, Work Sans), `@expo/vector-icons` (tab icons — outline/filled pairs crossfaded by swipe
 position in the custom tab bar, plus a red attention badge on the Friends tab from
 `client/notifications.tsx`), **`expo-blur`** (frosted glass behind
