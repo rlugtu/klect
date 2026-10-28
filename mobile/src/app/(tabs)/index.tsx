@@ -60,6 +60,10 @@ export default function HomeScreen() {
 
   const [lists, setLists] = useState<Memberships>([]);
   const [recentBookmarks, setRecentBookmarks] = useState<RecentBookmarks>([]);
+  // Separate from `loading` (which only tracks lists.mine): the two requests are independent and
+  // unawaited, so lists can finish first and flip `loading` false while this one is still in
+  // flight. The strip needs its own flag or it hides itself before its own fetch ever lands.
+  const [recentLoading, setRecentLoading] = useState(true);
   const [requestCount, setRequestCount] = useState(0);
   const [query, setQuery] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -92,7 +96,8 @@ export default function HomeScreen() {
     trpc.bookmarks.recent
       .query({ limit: RECENT_LIMIT })
       .then((page) => setRecentBookmarks(page.items))
-      .catch(() => {});
+      .catch(() => {})
+      .finally(() => setRecentLoading(false));
   }, []);
 
   useFocusEffect(useCallback(() => load(), [load]));
@@ -189,7 +194,7 @@ export default function HomeScreen() {
         />
       )}
 
-      <RecentBookmarksStrip items={recentBookmarks} loading={loading} />
+      <RecentBookmarksStrip items={recentBookmarks} loading={recentLoading} />
 
       <View className="flex-row items-stretch gap-2">
         <View className="flex-1 flex-row items-center gap-2 rounded-skin border-skin border-border bg-panel px-3">
