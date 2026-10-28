@@ -24,7 +24,8 @@ export const TILE_COLUMNS = 3;
 
 // Cover is 4:3 landscape so more rows fit above the fold.
 const COVER_ASPECT = 4 / 3;
-// The name reserves two lines on every tile so a row lines up whatever the names.
+// The name wraps to at most two lines and clips past that. It reserves no height: almost every
+// real list name fits on one line, and reserving the second left visible dead space on every tile.
 const NAME = { lineHeight: 15, lines: 2 } as const;
 // Seam between mosaic cells. The cover's panel fill shows through it, like a print border.
 const MOSAIC_GAP = 1.5;
@@ -46,24 +47,42 @@ export function useTileWidth() {
  */
 export function tileHeight(width: number) {
   const cover = (width - 2 * 4) / COVER_ASPECT + 2 * 4; // p-1 inset on every side
-  return cover + NAME.lineHeight * NAME.lines + 8; // pt-0.5 + pb-1.5 around the name
+  // One line of name, not two: the name no longer reserves a second line, and nearly every list
+  // name renders on one, so a two-line estimate would leave the skeleton taller than the tiles.
+  return cover + NAME.lineHeight + 8; // pt-0.5 + pb-1.5 around the name
 }
 
+type Badge = { label: string; spoken: string; icon: keyof typeof Ionicons.glyphMap };
+
 // Non-owner lists get a small icon badge so shared lists read differently from your own (parity
-// with web's ListCard). Owned lists show nothing.
-const ROLE: Record<
-  Membership['role'],
-  { label: string; spoken: string; icon: keyof typeof Ionicons.glyphMap } | null
-> = {
+// with web's ListCard). Owned lists carry no role badge of their own.
+const ROLE: Record<Membership['role'], Badge | null> = {
   OWNER: null,
   COLLABORATOR: { label: 'Collab', spoken: 'collaborator', icon: 'people' },
   VIEWER: { label: 'Viewer', spoken: 'viewer', icon: 'eye' },
 };
 
-/** An icon-only "Collab" / "Viewer" pill; renders nothing for owned lists. */
-export function RoleBadge({ role }: { role: Membership['role'] }) {
+/**
+ * What an owner sees on a list that has other members on it. Same people glyph a collaborator
+ * gets: the fact worth showing on the tile is that the list is shared, not which side of it you
+ * are on. An owner's own private list still shows nothing.
+ */
+const OWNER_SHARED: Badge = { label: 'Shared', spoken: 'shared', icon: 'people' };
+
+/**
+ * An icon-only "Collab" / "Viewer" / "Shared" pill. Renders nothing for a list you own alone.
+ * `shared` = the list has more than one member, which is the only thing that distinguishes an
+ * owner's shared list from their private one.
+ */
+export function RoleBadge({
+  role,
+  shared,
+}: {
+  role: Membership['role'];
+  shared: boolean;
+}) {
   const t = THEME_TOKENS[useTheme().theme];
-  const r = ROLE[role];
+  const r = role === 'OWNER' ? (shared ? OWNER_SHARED : null) : ROLE[role];
   if (!r) return null;
   return (
     <View
@@ -74,8 +93,8 @@ export function RoleBadge({ role }: { role: Membership['role'] }) {
   );
 }
 
-/** Icon-only Locked pill; same warning tint as `LockedBadge`. */
-function LockedPill() {
+/** Icon-only Locked pill; same warning tint as `LockedBadge`. Shared with `ListRow`. */
+export function LockedPill() {
   const t = THEME_TOKENS[useTheme().theme];
   return (
     <View
@@ -266,10 +285,10 @@ export default function ListTile({
           </View>
           {/* Pills stay at full strength over the dimmed cover: role is a fact about the
               list, Locked must stay legible, and the count is the tile's only meta. (RoleBadge
-              renders nothing for OWNER, so it must not be wrapped: a wrapper View would leave
-              a stray gap.) */}
+              renders nothing for an unshared owned list, so it must not be wrapped: a wrapper
+              View would leave a stray gap.) */}
           <View className="absolute left-2 right-2 top-2 flex-row flex-wrap gap-1">
-            <RoleBadge role={item.role} />
+            <RoleBadge role={item.role} shared={members > 1} />
             {locked && <LockedPill />}
           </View>
           <View className="absolute bottom-2 right-2">
@@ -280,10 +299,7 @@ export default function ListTile({
           <Text
             className="font-serif text-xs text-ink"
             numberOfLines={NAME.lines}
-            style={{
-              lineHeight: NAME.lineHeight,
-              minHeight: NAME.lines * NAME.lineHeight,
-            }}>
+            style={{ lineHeight: NAME.lineHeight }}>
             {item.list.name}
           </Text>
         </View>
